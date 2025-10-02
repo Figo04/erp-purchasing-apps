@@ -55,10 +55,7 @@ class DashboardScreen extends ConsumerWidget {
             ListTile(
               leading: const Icon(Icons.request_page),
               title: const Text('Purchase Requisition'),
-              onTap: () {
-                Navigator.pop(context);
-                // TODO: Navigate to PR
-              },
+              onTap: () => context.go('/pr'),
             ),
             ListTile(
               leading: const Icon(Icons.shopping_cart),
@@ -137,7 +134,7 @@ class DashboardScreen extends ConsumerWidget {
                     title: 'PR',
                     count: '0',
                     color: Colors.blue,
-                    onTap: () {},
+                    onTap: () => context.go('/pr'),
                   ),
                   _buildDashboardCard(
                     context,

@@ -1,3 +1,4 @@
+import 'package:erp_purchasing_apps/presentation/screens/purchase%20requisition/pr_list_screen,.dart';
 import 'package:erp_purchasing_apps/presentation/screens/supplier/supplier_list_screen.dart';
 import 'package:erp_purchasing_apps/presentation/screens/user/user_list_screen.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -55,6 +56,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/users',
         builder: (context, state) => const UserListScreen(),
+      ),
+      GoRoute(
+        path: '/pr',
+        builder: (context, state) => const PRListScreen(),
       ),
     ],
   );
