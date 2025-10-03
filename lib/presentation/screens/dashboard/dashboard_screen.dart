@@ -1,3 +1,4 @@
+import 'package:erp_purchasing_apps/data/providers/pr_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:erp_purchasing_apps/data/providers/auth_providers.dart';
@@ -9,6 +10,7 @@ class DashboardScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final currentUser = ref.watch(currentUserProvider);
+    final pendingCount = ref.watch(pendingPRCountProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -53,9 +55,41 @@ class DashboardScreen extends ConsumerWidget {
               onTap: () => context.go('/users'),
             ),
             ListTile(
-              leading: const Icon(Icons.request_page),
+              leading: Stack(
+                children: [
+                  const Icon(Icons.request_page),
+                  if (pendingCount > 0)
+                    Positioned(
+                      right: 0,
+                      top: 0,
+                      child: Container(
+                        padding: const EdgeInsets.all(2),
+                        decoration: BoxDecoration(
+                          color: Colors.red,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        constraints: const BoxConstraints(
+                          minWidth: 16,
+                          minHeight: 16,
+                        ),
+                        child: Text(
+                          pendingCount.toString(),
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
               title: const Text('Purchase Requisition'),
-              onTap: () => context.go('/pr'),
+              onTap: () {
+                Navigator.pop(context);
+                context.go('/pr');
+              },
             ),
             ListTile(
               leading: const Icon(Icons.shopping_cart),
@@ -64,6 +98,11 @@ class DashboardScreen extends ConsumerWidget {
                 Navigator.pop(context);
                 // TODO: Navigate to PO
               },
+            ),
+            ListTile(
+              leading: const Icon(Icons.history),
+              title: const Text('PR Approval History'),
+              onTap: () => context.go('/pr-history'),
             ),
             ListTile(
               leading: const Icon(Icons.inventory),
@@ -94,6 +133,13 @@ class DashboardScreen extends ConsumerWidget {
               title: const Text('Suppliers'),
               onTap: () => context.go('/suppliers'),
             ),
+            if (currentUser?.role == 'admin' ||
+                currentUser?.role == 'purchasing')
+              ListTile(
+                leading: const Icon(Icons.approval),
+                title: const Text('PR Approval'),
+                onTap: () => context.go('/pr-approval'),
+              ),
             const Divider(),
             ListTile(
               leading: const Icon(Icons.logout),

@@ -1,3 +1,5 @@
+import 'package:erp_purchasing_apps/presentation/screens/purchase%20requisition/pr_approval_history_screen.dart';
+import 'package:erp_purchasing_apps/presentation/screens/purchase%20requisition/pr_approval_screen.dart';
 import 'package:erp_purchasing_apps/presentation/screens/purchase%20requisition/pr_list_screen,.dart';
 import 'package:erp_purchasing_apps/presentation/screens/supplier/supplier_list_screen.dart';
 import 'package:erp_purchasing_apps/presentation/screens/user/user_list_screen.dart';
@@ -60,6 +62,14 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/pr',
         builder: (context, state) => const PRListScreen(),
+      ),
+      GoRoute(
+        path: '/pr-approval',
+        builder: (context, state) => const PRApprovalScreen(),
+      ),
+      GoRoute(
+        path: '/pr-history',
+        builder: (context, state) => const PRApprovalHistoryScreen(),
       ),
     ],
   );
