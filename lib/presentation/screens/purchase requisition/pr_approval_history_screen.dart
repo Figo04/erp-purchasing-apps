@@ -1,13 +1,9 @@
-// ===================================
-// FILE: lib/presentation/screens/pr/pr_approval_history_screen.dart
-// ===================================
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../../../data/providers/pr_provider.dart';
-import '../../../data/providers/user_provider.dart';
-import '../../../data/models/purchase_requisition_model.dart';
+import 'package:erp_purchasing_apps/data/providers/pr_provider.dart';
+import 'package:erp_purchasing_apps/data/providers/user_provider.dart';
+import 'package:erp_purchasing_apps/data/models/purchase_requisition_model.dart';
 import 'package:intl/intl.dart';
 
 class PRApprovalHistoryScreen extends ConsumerStatefulWidget {

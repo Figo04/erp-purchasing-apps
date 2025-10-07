@@ -1,3 +1,4 @@
+import 'package:erp_purchasing_apps/presentation/screens/purchase order/po_form_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -269,12 +270,41 @@ class _PrApprovalScreenState extends ConsumerState<PRApprovalScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
-                    TextButton(
-                      onPressed: () => Navigator.pop(context),
-                      child: const Text('Close'),
-                    )
+                    OutlinedButton.icon(
+                      onPressed: () => _showRejectDialog(pr),
+                      icon: const Icon(Icons.close, size: 16),
+                      label: const Text('Reject'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.red,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    ElevatedButton.icon(
+                      onPressed: () => _confirmApprove(pr),
+                      icon: const Icon(Icons.check, size: 16),
+                      label: const Text('Approve'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.green,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    ElevatedButton.icon(
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => POFormScreen(prId: pr.id),
+                          ),
+                        ).then((_) => ref.invalidate(prListProvider));
+                      },
+                      icon: const Icon(Icons.shopping_cart, size: 16),
+                      label: const Text('Create PO'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.blue,
+                      ),
+                    ),
                   ],
-                )
+                ),
               ],
             ),
           ),

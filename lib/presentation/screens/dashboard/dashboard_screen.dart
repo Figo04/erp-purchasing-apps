@@ -96,13 +96,8 @@ class DashboardScreen extends ConsumerWidget {
               title: const Text('Purchase Order'),
               onTap: () {
                 Navigator.pop(context);
-                // TODO: Navigate to PO
+                context.go('/po');
               },
-            ),
-            ListTile(
-              leading: const Icon(Icons.history),
-              title: const Text('PR Approval History'),
-              onTap: () => context.go('/pr-history'),
             ),
             ListTile(
               leading: const Icon(Icons.inventory),
@@ -140,7 +135,12 @@ class DashboardScreen extends ConsumerWidget {
                 title: const Text('PR Approval'),
                 onTap: () => context.go('/pr-approval'),
               ),
-            const Divider(),
+            ListTile(
+              leading: const Icon(Icons.approval),
+              title: const Text('PO Approval'),
+              onTap: () => context.go('/po-approval'),
+            ),
+            const Divider(), 
             ListTile(
               leading: const Icon(Icons.logout),
               title: const Text('Logout'),

@@ -39,29 +39,29 @@ class _PRListScreenState extends ConsumerState<PRListScreen> {
         builder: (context) => PRFormScreen(prId: prId),
       ),
     ).then((_) {
-      ref.invalidate(prListProvider);
+      ref.invalidate(prStreamProvider);
+      setState(() {});
     });
   }
 
   @override
   Widget build(BuildContext context) {
-    final prList = ref.watch(prListProvider);
-    final prStream = ref.watch(prStreamProvider);
+    final prAsyncValue = ref.watch(prStreamProvider);
     final currentUser = ref.watch(currentUserProvider);
+    final isAdmin = currentUser?.role == 'admin';
 
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(
-          icon: Icon(Icons.arrow_back),
+          icon: const Icon(Icons.arrow_back),
           onPressed: () => context.go('/dashboard'),
         ),
         title: const Text('Purchase Requisitions'),
         actions: [
-          // Real-time indicator
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 8),
             child: Center(
-              child: prStream.when(
+              child: prAsyncValue.when(
                 data: (_) => const Icon(Icons.cloud_done, color: Colors.green),
                 loading: () => const SizedBox(
                   width: 20,
@@ -74,22 +74,22 @@ class _PRListScreenState extends ConsumerState<PRListScreen> {
             ),
           ),
           IconButton(
-            icon: Icon(Icons.refresh),
+            icon: const Icon(Icons.refresh),
             onPressed: () {
-              ref.invalidate(prStreamProvider);
+              ref.read(refreshTriggerProvider.notifier).state++;
+              setState(() {});
             },
           )
         ],
       ),
       body: Column(
         children: [
-          //  Filter Tabs
           // Filter Tabs with Count Badges
           Container(
             padding: const EdgeInsets.all(8),
             child: SingleChildScrollView(
               scrollDirection: Axis.horizontal,
-              child: prStream.when(
+              child: prAsyncValue.when(
                 data: (prs) {
                   final draftCount =
                       prs.where((pr) => pr.status == 'draft').length;
@@ -132,9 +132,9 @@ class _PRListScreenState extends ConsumerState<PRListScreen> {
             ),
           ),
 
-          // PR List
+          // PR List 
           Expanded(
-            child: prList.when(
+            child: prAsyncValue.when(
               data: (prs) {
                 // Filter By Status
                 final filteredPRs = _filterStatus == 'all'
@@ -145,7 +145,7 @@ class _PRListScreenState extends ConsumerState<PRListScreen> {
                   return Center(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
+                      children: const [
                         Icon(Icons.request_page, size: 64, color: Colors.grey),
                         SizedBox(height: 16),
                         Text(
@@ -158,6 +158,7 @@ class _PRListScreenState extends ConsumerState<PRListScreen> {
                 }
 
                 return ListView.builder(
+                  key: ValueKey('pr-list-${prs.length}'), // Key untuk tracking
                   itemCount: filteredPRs.length,
                   padding: const EdgeInsets.all(16),
                   itemBuilder: (context, index) {
@@ -165,16 +166,18 @@ class _PRListScreenState extends ConsumerState<PRListScreen> {
                     final itemCount = pr.items?.length ?? 0;
                     final canEdit = pr.status == 'draft' &&
                         pr.requesterId == currentUser?.id;
-                    final canDelete = pr.status == 'draft' &&
-                        pr.requesterId == currentUser?.id;
+                    final canDelete = isAdmin ||
+                        (pr.status == 'draft' &&
+                            pr.requesterId == currentUser?.id);
 
                     return Card(
+                      key: ValueKey(pr.id), // Key unik per item
                       margin: const EdgeInsets.only(bottom: 8),
                       child: ListTile(
                         leading: CircleAvatar(
                           backgroundColor: _getStatusColor(pr.status),
                           child: Text(
-                            pr.prNumber.split('_').last.substring(0, 2),
+                            pr.prNumber.split('-').last.substring(0, 2),
                             style: const TextStyle(
                               color: Colors.white,
                               fontSize: 12,
@@ -213,6 +216,7 @@ class _PRListScreenState extends ConsumerState<PRListScreen> {
                                     const Icon(Icons.delete, color: Colors.red),
                                 onPressed: () =>
                                     _confirmDelete(pr.id, pr.prNumber),
+                                tooltip: isAdmin ? 'Delete (Admin)' : 'Delete',
                               ),
                             ],
                           ],
@@ -241,6 +245,7 @@ class _PRListScreenState extends ConsumerState<PRListScreen> {
                     ElevatedButton(
                       onPressed: () {
                         ref.invalidate(prStreamProvider);
+                        setState(() {});
                       },
                       child: const Text('Retry'),
                     ),
@@ -258,7 +263,6 @@ class _PRListScreenState extends ConsumerState<PRListScreen> {
     );
   }
 
-  // Update _buildFilterChip to include count badge
   Widget _buildFilterChip(String value, String label, int count) {
     final isSelected = _filterStatus == value;
     return FilterChip(
@@ -298,7 +302,7 @@ class _PRListScreenState extends ConsumerState<PRListScreen> {
   void _showPRDetail(PurchaseRequisitionModel pr) {
     showDialog(
       context: context,
-      builder: (context) => Dialog(
+      builder: (dialogContext) => Dialog(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 600),
           child: Padding(
@@ -309,7 +313,7 @@ class _PRListScreenState extends ConsumerState<PRListScreen> {
               children: [
                 Text(
                   'PR Detail: ${pr.prNumber}',
-                  style: Theme.of(context).textTheme.titleLarge,
+                  style: Theme.of(dialogContext).textTheme.titleLarge,
                 ),
                 const SizedBox(height: 15),
                 Text('Status: ${pr.status.toUpperCase()}'),
@@ -326,18 +330,29 @@ class _PRListScreenState extends ConsumerState<PRListScreen> {
                     (item) => Padding(
                       padding: const EdgeInsets.only(bottom: 4),
                       child: Text(
-                          '. ${item.itemName} (${item.quantity} ${item.unit})'),
+                          '• ${item.itemName} (${item.quantity} ${item.unit})'),
                     ),
                   ),
                 ],
                 const SizedBox(height: 16),
-                Align(
-                  alignment: AlignmentGeometry.centerRight,
-                  child: TextButton(
-                    onPressed: () => Navigator.pop(context),
-                    child: const Text('Close'),
-                  ),
-                )
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    TextButton(
+                      onPressed: () {
+                        Navigator.pop(dialogContext);
+                        _confirmDelete(pr.id, pr.prNumber);
+                      },
+                      style: TextButton.styleFrom(foregroundColor: Colors.red),
+                      child: const Text('Delete'),
+                    ),
+                    const SizedBox(width: 8),
+                    TextButton(
+                      onPressed: () => Navigator.pop(dialogContext),
+                      child: const Text('Close'),
+                    ),
+                  ],
+                ),
               ],
             ),
           ),
@@ -349,56 +364,93 @@ class _PRListScreenState extends ConsumerState<PRListScreen> {
   void _confirmDelete(String prId, String prNumber) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
+      barrierDismissible: false,
+      builder: (dialogContext) => AlertDialog(
         title: const Text('Confirm Delete'),
         content: Text('Are you sure you want to delete PR $prNumber?'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop(dialogContext),
             child: const Text('Cancel'),
           ),
           TextButton(
             onPressed: () async {
-              Navigator.pop(context); // Tutup dialog
+              Navigator.pop(dialogContext);
 
-              // Tampilkan loading
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Deleting...'),
-                  duration: Duration(seconds: 1),
+              final navigator = Navigator.of(context);
+              final scaffoldMessenger = ScaffoldMessenger.of(context);
+              final repository = ref.read(prRepositoryProvider);
+
+              showDialog(
+                context: context,
+                barrierDismissible: false,
+                builder: (loadingContext) => WillPopScope(
+                  onWillPop: () async => false,
+                  child: const Center(
+                    child: Card(
+                      child: Padding(
+                        padding: EdgeInsets.all(20),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            CircularProgressIndicator(),
+                            SizedBox(height: 16),
+                            Text('Deleting...'),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
                 ),
               );
 
               try {
-                // Panggil repository untuk delete
-                final repo = ref.read(prRepositoryProvider);
-                await repo.deletePR(prId);
+                await repository.deletePR(prId);
 
-                // Refresh list - stream akan otomatis update
-                ref.invalidate(prListProvider);
+                navigator.pop(); // Tutup loading
+
+                // FORCE REFRESH dengan setState
+                ref.read(refreshTriggerProvider.notifier).state++;
+
                 ref.invalidate(prStreamProvider);
 
-                // Tampilkan success message
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('PR $prNumber deleted successfully'),
-                      backgroundColor: Colors.green,
-                      duration: const Duration(seconds: 2),
+                await Future.delayed(const Duration(milliseconds: 300));
+
+                scaffoldMessenger.showSnackBar(
+                  SnackBar(
+                    content: Row(
+                      children: [
+                        const Icon(Icons.check_circle, color: Colors.white),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: Text('PR $prNumber deleted successfully'),
+                        ),
+                      ],
                     ),
-                  );
-                }
+                    backgroundColor: Colors.green,
+                    duration: const Duration(seconds: 2),
+                  ),
+                );
               } catch (e) {
-                // Tampilkan error message
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('Failed to delete PR: ${e.toString()}'),
-                      backgroundColor: Colors.red,
-                      duration: const Duration(seconds: 3),
-                    ),
-                  );
+                if (navigator.canPop()) {
+                  navigator.pop();
                 }
+
+                scaffoldMessenger.showSnackBar(
+                  SnackBar(
+                    content: Row(
+                      children: [
+                        const Icon(Icons.error, color: Colors.white),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: Text('Failed: ${e.toString()}'),
+                        ),
+                      ],
+                    ),
+                    backgroundColor: Colors.red,
+                    duration: const Duration(seconds: 3),
+                  ),
+                );
               }
             },
             style: TextButton.styleFrom(foregroundColor: Colors.red),

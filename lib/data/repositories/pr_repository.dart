@@ -200,12 +200,53 @@ class PRRepository {
     }
   }
 
-  // Delete PR (only draft)
+// Delete PR
   Future<void> deletePR(String id) async {
-    try {
-      await _supabase.from('purchase_requisition').delete().eq('id', id);
-    } catch (e) {
-      throw Exception('Failed to delete PR: $e');
+  try {
+    print('Starting delete for PR id: $id');
+    
+    // Verifikasi PR ada
+    final prCheck = await _supabase
+        .from('purchase_requisition')
+        .select('id, pr_number, status')
+        .eq('id', id)
+        .maybeSingle();
+    
+    if (prCheck == null) {
+      throw Exception('PR not found');
     }
+    
+    print('Deleting PR: ${prCheck['pr_number']} (${prCheck['status']})');
+    
+    // Delete items first
+    await _supabase
+        .from('purchase_requisition_item')
+        .delete()
+        .eq('pr_id', id);
+    
+    print('✅ Items deleted');
+    
+    // Delete PR
+    await _supabase
+        .from('purchase_requisition')
+        .delete()
+        .eq('id', id);
+    
+    print('✅ PR deleted successfully');
+    
+  } on PostgrestException catch (e) {
+    print('Postgrest Error: ${e.message}');
+    print('   Code: ${e.code}');
+    
+    // Jika permission denied, beri pesan yang jelas
+    if (e.code == '42501' || e.message.contains('permission')) {
+      throw Exception('Permission denied: Only admins can delete approved/rejected PRs');
+    }
+    
+    throw Exception('Database error: ${e.message}');
+  } catch (e) {
+    print('Error: $e');
+    rethrow;
   }
+}
 }

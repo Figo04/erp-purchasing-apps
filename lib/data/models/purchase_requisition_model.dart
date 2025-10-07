@@ -64,6 +64,7 @@ class PurchaseRequisitionModel extends Equatable {
     };
   }
 
+  // untuk menghitung total biaya dari semua item
   double get totalEstimated {
     if (items == null || items!.isEmpty) return 0;
     return items!.fold(0, (sum, item) {
