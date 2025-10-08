@@ -1,4 +1,5 @@
 import 'package:erp_purchasing_apps/data/models/purchase_requisition_model.dart';
+import 'package:erp_purchasing_apps/presentation/screens/purchase%20order/po_form_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -132,7 +133,7 @@ class _PRListScreenState extends ConsumerState<PRListScreen> {
             ),
           ),
 
-          // PR List 
+          // PR List
           Expanded(
             child: prAsyncValue.when(
               data: (prs) {
@@ -177,7 +178,7 @@ class _PRListScreenState extends ConsumerState<PRListScreen> {
                         leading: CircleAvatar(
                           backgroundColor: _getStatusColor(pr.status),
                           child: Text(
-                            pr.prNumber.split('-').last.substring(0, 2),
+                            pr.prNumber.split('_').last.substring(0, 2),
                             style: const TextStyle(
                               color: Colors.white,
                               fontSize: 12,
@@ -338,15 +339,35 @@ class _PRListScreenState extends ConsumerState<PRListScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
-                    TextButton(
-                      onPressed: () {
-                        Navigator.pop(dialogContext);
-                        _confirmDelete(pr.id, pr.prNumber);
-                      },
-                      style: TextButton.styleFrom(foregroundColor: Colors.red),
-                      child: const Text('Delete'),
-                    ),
-                    const SizedBox(width: 8),
+                    if (pr.status == 'approved') ...[
+                      ElevatedButton.icon(
+                        icon:
+                            const Icon(Icons.shopping_cart_checkout, size: 16),
+                        label: const Text('Create PO'),
+                        onPressed: () {
+                          Navigator.pop(dialogContext);
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => POFormScreen(prId: pr.id),
+                            ),
+                          );
+                        },
+                      ),
+                      const SizedBox(width: 8),
+                    ],
+                    if (pr.status == 'draft' || pr.status == 'pending') ...[
+                      TextButton(
+                        onPressed: () {
+                          Navigator.pop(dialogContext);
+                          _confirmDelete(pr.id, pr.prNumber);
+                        },
+                        style:
+                            TextButton.styleFrom(foregroundColor: Colors.red),
+                        child: const Text('Delete'),
+                      ),
+                      const SizedBox(width: 8),
+                    ],
                     TextButton(
                       onPressed: () => Navigator.pop(dialogContext),
                       child: const Text('Close'),

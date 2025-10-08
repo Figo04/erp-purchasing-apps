@@ -1,3 +1,4 @@
+import 'package:erp_purchasing_apps/data/repositories/inventory_repository.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:erp_purchasing_apps/data/models/purchase_order_model.dart';
 
@@ -173,6 +174,23 @@ class PoRepository {
     }
   }
 
+  // Mark PO as received
+  Future<void> receivePO(String id, DateTime receivedDate) async {
+    try {
+      // Update PO status
+      await _supabase.from('purchase_order').update({
+        'status': 'received',
+        'updated_at': DateTime.now().toIso8601String(),
+      }).eq('id', id);
+
+      // Auto-create inventory from PO items
+      final inventoryRepo = InventoryRepository();
+      await inventoryRepo.createInventoryFromPO(id, receivedDate);
+    } catch (e) {
+      throw Exception('Failed to mark PO as received: $e');
+    }
+  }
+
   // cancel po
   Future<void> cancelPO(String id) async {
     try {
@@ -187,10 +205,7 @@ class PoRepository {
   // Delete PO (only pending)
   Future<void> deletePO(String id) async {
     try {
-      await _supabase
-          .from('purchase_order')
-          .delete()
-          .eq('id', id);
+      await _supabase.from('purchase_order').delete().eq('id', id);
     } catch (e) {
       throw Exception('Failed to delete PO: $e');
     }

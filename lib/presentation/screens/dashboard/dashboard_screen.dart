@@ -1,3 +1,4 @@
+import 'package:erp_purchasing_apps/data/providers/inventory_provider.dart';
 import 'package:erp_purchasing_apps/data/providers/pr_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -11,6 +12,7 @@ class DashboardScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final currentUser = ref.watch(currentUserProvider);
     final pendingCount = ref.watch(pendingPRCountProvider);
+    final lowStockCount = ref.watch(lowStockCountProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -128,6 +130,11 @@ class DashboardScreen extends ConsumerWidget {
               title: const Text('Suppliers'),
               onTap: () => context.go('/suppliers'),
             ),
+            ListTile(
+              leading: const Icon(Icons.history),
+              title: const Text('PR History'),
+              onTap: () => context.go('/pr-history'),
+            ),
             if (currentUser?.role == 'admin' ||
                 currentUser?.role == 'purchasing')
               ListTile(
@@ -140,7 +147,40 @@ class DashboardScreen extends ConsumerWidget {
               title: const Text('PO Approval'),
               onTap: () => context.go('/po-approval'),
             ),
-            const Divider(), 
+            if (currentUser?.role == 'admin' ||
+                currentUser?.role == 'warehouse')
+              ListTile(
+                leading: const Icon(Icons.local_shipping),
+                title: const Text('Receiving'),
+                onTap: () => context.go('/receiving'),
+              ),
+            ListTile(
+              leading: Stack(
+                children: [
+                  const Icon(Icons.inventory),
+                  if (lowStockCount > 0)
+                    Positioned(
+                      right: 0,
+                      top: 0,
+                      child: Container(
+                        padding: const EdgeInsets.all(2),
+                        decoration: const BoxDecoration(
+                          color: Colors.red,
+                          shape: BoxShape.circle,
+                        ),
+                        child: Text(
+                          lowStockCount.toString(),
+                          style: const TextStyle(
+                              fontSize: 10, color: Colors.white),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+              title: const Text('Inventory'),
+              onTap: () => context.go('/inventory'),
+            ),
+            const Divider(),
             ListTile(
               leading: const Icon(Icons.logout),
               title: const Text('Logout'),
