@@ -1,3 +1,4 @@
+import 'package:erp_purchasing_apps/data/providers/asset_provider.dart';
 import 'package:erp_purchasing_apps/data/providers/inventory_provider.dart';
 import 'package:erp_purchasing_apps/data/providers/pr_provider.dart';
 import 'package:flutter/material.dart';
@@ -13,6 +14,7 @@ class DashboardScreen extends ConsumerWidget {
     final currentUser = ref.watch(currentUserProvider);
     final pendingCount = ref.watch(pendingPRCountProvider);
     final lowStockCount = ref.watch(lowStockCountProvider);
+    final borrowedAssetsCount = ref.watch(borrowedAssetsCountProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -102,19 +104,58 @@ class DashboardScreen extends ConsumerWidget {
               },
             ),
             ListTile(
-              leading: const Icon(Icons.inventory),
+              leading: Stack(
+                children: [
+                  const Icon(Icons.inventory),
+                  if (lowStockCount > 0)
+                    Positioned(
+                      right: 0,
+                      top: 0,
+                      child: Container(
+                        padding: const EdgeInsets.all(2),
+                        decoration: const BoxDecoration(
+                          color: Colors.red,
+                          shape: BoxShape.circle,
+                        ),
+                        child: Text(
+                          lowStockCount.toString(),
+                          style: const TextStyle(
+                              fontSize: 10, color: Colors.white),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
               title: const Text('Inventory'),
-              onTap: () {
-                Navigator.pop(context);
-                // TODO: Navigate to Inventory
-              },
+              onTap: () => context.go('/inventory'),
             ),
             ListTile(
-              leading: const Icon(Icons.assessment_sharp),
+              leading: Stack(
+                children: [
+                  const Icon(Icons.assessment),
+                  if (borrowedAssetsCount > 0)
+                    Positioned(
+                      right: 0,
+                      top: 0,
+                      child: Container(
+                        padding: const EdgeInsets.all(2),
+                        decoration: const BoxDecoration(
+                          color: Colors.orange,
+                          shape: BoxShape.circle,
+                        ),
+                        child: Text(
+                          borrowedAssetsCount.toString(),
+                          style: const TextStyle(
+                              fontSize: 10, color: Colors.white),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
               title: const Text('Asset'),
               onTap: () {
                 Navigator.pop(context);
-                // TODO: Navigate to Asset
+                context.go('/asset');
               },
             ),
             ListTile(
@@ -154,32 +195,6 @@ class DashboardScreen extends ConsumerWidget {
                 title: const Text('Receiving'),
                 onTap: () => context.go('/receiving'),
               ),
-            ListTile(
-              leading: Stack(
-                children: [
-                  const Icon(Icons.inventory),
-                  if (lowStockCount > 0)
-                    Positioned(
-                      right: 0,
-                      top: 0,
-                      child: Container(
-                        padding: const EdgeInsets.all(2),
-                        decoration: const BoxDecoration(
-                          color: Colors.red,
-                          shape: BoxShape.circle,
-                        ),
-                        child: Text(
-                          lowStockCount.toString(),
-                          style: const TextStyle(
-                              fontSize: 10, color: Colors.white),
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-              title: const Text('Inventory'),
-              onTap: () => context.go('/inventory'),
-            ),
             const Divider(),
             ListTile(
               leading: const Icon(Icons.logout),

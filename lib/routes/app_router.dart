@@ -1,3 +1,4 @@
+import 'package:erp_purchasing_apps/presentation/screens/asset/asset_list_screen.dart';
 import 'package:erp_purchasing_apps/presentation/screens/inventory/inventory_list_screen.dart';
 import 'package:erp_purchasing_apps/presentation/screens/purchase%20order/goods_receiving_screen.dart';
 import 'package:erp_purchasing_apps/presentation/screens/purchase%20order/po_approval_screen.dart';
@@ -90,6 +91,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/inventory',
         builder: (context, state) => const InventoryListScreen(),
+      ),
+      GoRoute(
+        path: '/asset',
+        builder: (context, state) => const AssetListScreen()
       ),
     ],
   );

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:erp_purchasing_apps/data/models/inventory_model.dart';
 import 'package:erp_purchasing_apps/data/providers/inventory_provider.dart';
+import 'package:erp_purchasing_apps/presentation/screens/inventory/inventory_detail_screen.dart';
 import 'package:intl/intl.dart';
 
 class InventoryListScreen extends ConsumerStatefulWidget {
@@ -17,6 +18,7 @@ class _InventoryListScreenState extends ConsumerState<InventoryListScreen> {
   String _filterStatus = 'all';
   String _searchQuery = '';
   final _searchController = TextEditingController();
+  bool _showLowStockOnly = false;
 
   @override
   void dispose() {
@@ -90,14 +92,46 @@ class _InventoryListScreenState extends ConsumerState<InventoryListScreen> {
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: () {
-              ref.invalidate(inventoryRepositoryProvider);
+              ref.invalidate(inventoryStreamProvider);
             },
-          )
+          ),
         ],
       ),
       body: Column(
         children: [
-          // search Bar
+          // Low Stock Alert Banner
+          if (lowStockCount > 0)
+            Container(
+              width: double.infinity,
+              color: Colors.red.shade50,
+              padding: const EdgeInsets.all(12),
+              child: Row(
+                children: [
+                  const Icon(Icons.warning, color: Colors.red),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      '$lowStockCount item${lowStockCount > 1 ? 's' : ''} running low on stock!',
+                      style: const TextStyle(
+                        color: Colors.red,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: () {
+                      setState(() {
+                        _showLowStockOnly = !_showLowStockOnly;
+                        _filterStatus = 'available';
+                      });
+                    },
+                    child: Text(_showLowStockOnly ? 'Show All' : 'View'),
+                  ),
+                ],
+              ),
+            ),
+
+          // Search Bar
           Padding(
             padding: const EdgeInsets.all(16.0),
             child: TextField(
@@ -130,7 +164,7 @@ class _InventoryListScreenState extends ConsumerState<InventoryListScreen> {
 
           // Filter Tabs
           Container(
-            padding: const EdgeInsets.all(8),
+            padding: const EdgeInsets.symmetric(horizontal: 16),
             child: SingleChildScrollView(
               scrollDirection: Axis.horizontal,
               child: inventoryStream.when(
@@ -141,6 +175,8 @@ class _InventoryListScreenState extends ConsumerState<InventoryListScreen> {
                       items.where((i) => i.status == 'reserved').length;
                   final damagedCount =
                       items.where((i) => i.status == 'damaged').length;
+                  final disposedCount =
+                      items.where((i) => i.status == 'disposed').length;
 
                   return Row(
                     children: [
@@ -148,10 +184,12 @@ class _InventoryListScreenState extends ConsumerState<InventoryListScreen> {
                       const SizedBox(width: 8),
                       _buildFilterChip(
                           'available', 'Available', availableCount),
-                      SizedBox(width: 8),
+                      const SizedBox(width: 8),
                       _buildFilterChip('reserved', 'Reserved', reservedCount),
                       const SizedBox(width: 8),
                       _buildFilterChip('damaged', 'Damaged', damagedCount),
+                      const SizedBox(width: 8),
+                      _buildFilterChip('disposed', 'Disposed', disposedCount),
                     ],
                   );
                 },
@@ -160,17 +198,30 @@ class _InventoryListScreenState extends ConsumerState<InventoryListScreen> {
               ),
             ),
           ),
+          const SizedBox(height: 8),
 
           // Inventory List
           Expanded(
             child: inventoryStream.when(
               data: (items) {
-                var filteredItems = _filterStatus == 'all'
-                    ? items
-                    : items
-                        .where((item) => item.status == _filterStatus)
-                        .toList();
+                var filteredItems = items;
 
+                // Filter by status
+                if (_filterStatus != 'all') {
+                  filteredItems = filteredItems
+                      .where((item) => item.status == _filterStatus)
+                      .toList();
+                }
+
+                // Filter low stock only
+                if (_showLowStockOnly) {
+                  filteredItems = filteredItems
+                      .where((item) =>
+                          item.quantity < 10 && item.status == 'available')
+                      .toList();
+                }
+
+                // Filter by search query
                 if (_searchQuery.isNotEmpty) {
                   filteredItems = filteredItems.where((item) {
                     return item.itemName.toLowerCase().contains(_searchQuery) ||
@@ -180,16 +231,25 @@ class _InventoryListScreenState extends ConsumerState<InventoryListScreen> {
                 }
 
                 if (filteredItems.isEmpty) {
-                  return const Center(
+                  return Center(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.inventory, size: 64, color: Colors.grey),
-                        SizedBox(height: 16),
+                        Icon(
+                          _showLowStockOnly
+                              ? Icons.check_circle
+                              : Icons.inventory,
+                          size: 64,
+                          color: Colors.grey,
+                        ),
+                        const SizedBox(height: 16),
                         Text(
-                          'No inventory items',
-                          style: TextStyle(fontSize: 16, color: Colors.grey),
-                        )
+                          _showLowStockOnly
+                              ? 'No low stock items'
+                              : 'No inventory items',
+                          style:
+                              const TextStyle(fontSize: 16, color: Colors.grey),
+                        ),
                       ],
                     ),
                   );
@@ -208,56 +268,91 @@ class _InventoryListScreenState extends ConsumerState<InventoryListScreen> {
                       child: ListTile(
                         leading: CircleAvatar(
                           backgroundColor: _getStockLevelColor(item.quantity),
-                          child: ListTile(
-                            leading: CircleAvatar(
-                              backgroundColor:
-                                  _getStockLevelColor(item.quantity),
-                              child: Text(
-                                item.quantity.toString(),
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
+                          child: Text(
+                            item.quantity.toString(),
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
                             ),
-                            title: Row(
-                              children: [
-                                Expanded(
-                                  child: Text(
-                                    item.itemName,
-                                    style: const TextStyle(
-                                        fontWeight: FontWeight.bold),
-                                  ),
-                                ),
-                                if (isLowStock)
-                                  const Icon(Icons.warning,
-                                      color: Colors.red, size: 20),
-                              ],
-                            ),
-                            subtitle: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text('Stock: ${item.quantity} ${item.unit}'),
-                                if (item.receivedDate != null)
-                                  Text('Location: ${item.location}'),
-                                if (item.receivedDate != null)
-                                  Text(
-                                    'Received: ${DateFormat('dd MMM yyyy').format(item.receivedDate!)}',
-                                    style: const TextStyle(fontSize: 12),
-                                  ),
-                              ],
-                            ),
-                            trailing: Chip(
-                              label: Text(
-                                item.status.toUpperCase(),
-                                style: const TextStyle(fontSize: 10),
-                              ),
-                              backgroundColor:
-                                  _getStatusColor(item.status).withOpacity(0.2),
-                            ),
-                            onTap: () => _showInventoryDetail(item),
                           ),
                         ),
+                        title: Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                item.itemName,
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.bold),
+                              ),
+                            ),
+                            if (isLowStock)
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 2,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Colors.red,
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: const Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(Icons.warning,
+                                        color: Colors.white, size: 14),
+                                    SizedBox(width: 4),
+                                    Text(
+                                      'LOW',
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                          ],
+                        ),
+                        subtitle: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Stock: ${item.quantity} ${item.unit}',
+                              style: TextStyle(
+                                color: _getStockLevelColor(item.quantity),
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            if (item.location != null)
+                              Text('Location: ${item.location}'),
+                            if (item.receivedDate != null)
+                              Text(
+                                'Received: ${DateFormat('dd MMM yyyy').format(item.receivedDate!)}',
+                                style: const TextStyle(fontSize: 12),
+                              ),
+                          ],
+                        ),
+                        trailing: Chip(
+                          label: Text(
+                            item.status.toUpperCase(),
+                            style: const TextStyle(fontSize: 10),
+                          ),
+                          backgroundColor:
+                              _getStatusColor(item.status).withOpacity(0.2),
+                        ),
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => InventoryDetailScreen(
+                                inventoryId: item.id,
+                              ),
+                            ),
+                          ).then((_) {
+                            ref.invalidate(inventoryStreamProvider);
+                          });
+                        },
                       ),
                     );
                   },
@@ -277,12 +372,12 @@ class _InventoryListScreenState extends ConsumerState<InventoryListScreen> {
                         ref.invalidate(inventoryStreamProvider);
                       },
                       child: const Text('Retry'),
-                    )
+                    ),
                   ],
                 ),
               ),
             ),
-          )
+          ),
         ],
       ),
     );
@@ -311,81 +406,17 @@ class _InventoryListScreenState extends ConsumerState<InventoryListScreen> {
                   fontWeight: FontWeight.bold,
                 ),
               ),
-            )
-          ]
+            ),
+          ],
         ],
       ),
       selected: isSelected,
       onSelected: (selected) {
         setState(() {
           _filterStatus = value;
+          _showLowStockOnly = false;
         });
       },
-    );
-  }
-
-  void _showInventoryDetail(InventoryModel item) {
-    showDialog(
-      context: context,
-      builder: (context) => Dialog(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 500),
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Inventory Detail',
-                  style: Theme.of(context).textTheme.titleLarge,
-                ),
-                const Divider(height: 24),
-                _buildInfoRow('Item Name', item.itemName),
-                _buildInfoRow('Quantity', '${item.quantity} ${item.unit}'),
-                _buildInfoRow('Status', item.status.toUpperCase()),
-                if (item.location != null)
-                  _buildInfoRow('Location', item.location!),
-                if (item.receivedDate != null)
-                  _buildInfoRow(
-                    'Received Date',
-                    DateFormat('dd MMM yyyy').format(item.receivedDate!),
-                  ),
-                if (item.notes != null) _buildInfoRow('Notes', item.notes!),
-                const SizedBox(height: 16),
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: TextButton(
-                    onPressed: () => Navigator.pop(context),
-                    child: const Text('Close'),
-                  ),
-                )
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildInfoRow(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 120,
-            child: Text(
-              '$label:',
-              style: const TextStyle(fontWeight: FontWeight.w600),
-            ),
-          ),
-          Expanded(
-            child: Text(value),
-          ),
-        ],
-      ),
     );
   }
 }

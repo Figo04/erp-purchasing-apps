@@ -147,4 +147,129 @@ class InventoryRepository {
       throw Exception('Failed to load low stock items: $e');
     }
   }
+
+  // Stock Out Functionality
+  Future<InventoryModel> stockOut({
+    required String id,
+    required int quantityOut,
+    required String reason,
+  }) async {
+    try {
+      final current = await getInventoryById(id);
+      if (current == null) {
+        throw Exception('Inventory not found');
+      }
+
+      if (quantityOut > current.quantity) {
+        throw Exception('Stock out quantity exceeds available stock');
+      }
+
+      final newQuantity = current.quantity - quantityOut;
+      final notes =
+          '${current.notes ?? ''}\n[STOCK OUT] -$quantityOut: $reason'.trim();
+
+      final data = {
+        'quantity': newQuantity,
+        'notes': notes,
+      };
+
+      final response = await _supabase
+          .from('inventory')
+          .update(data)
+          .eq('id', id)
+          .select()
+          .single();
+
+      return InventoryModel.fromJson(response);
+    } catch (e) {
+      throw Exception('Failed to stock out: $e');
+    }
+  }
+
+  // Stock Adjustment
+  Future<InventoryModel> stockAdjustment({
+    required String id,
+    required int adjustmentQuantity,
+    required String reason,
+  }) async {
+    try {
+      final current = await getInventoryById(id);
+      if (current == null) {
+        throw Exception('Inventory not found');
+      }
+
+      final newQuantity = current.quantity + adjustmentQuantity;
+
+      if (newQuantity < 0) {
+        throw Exception('Adjustment result in negative stock');
+      }
+
+      final adjustmentType = adjustmentQuantity > 0 ? '+' : '';
+      final notes =
+          '${current.notes ?? ''}\n[ADJUSTMENT] $adjustmentType$adjustmentQuantity: $reason'
+              .trim();
+
+      final data = {
+        'quantity': newQuantity,
+        'notes': notes,
+      };
+
+      final response = await _supabase
+          .from('inventory')
+          .update(data)
+          .eq('id', id)
+          .select()
+          .single();
+
+      return InventoryModel.fromJson(response);
+    } catch (e) {
+      throw Exception('Failed to adjust stock: $e');
+    }
+  }
+
+  // Update Status Only
+  Future<InventoryModel> updateStatus({
+    required String id,
+    required String status,
+    String? reason,
+  }) async {
+    try {
+      final current = await getInventoryById(id);
+      if (current == null) {
+        throw Exception('Inventory not found');
+      }
+
+      String? notes = current.notes;
+      if (reason != null && reason.isNotEmpty) {
+        notes =
+            '${notes ?? ''}\n[STATUS CHANGE] ${current.status} → $status: $reason'
+                .trim();
+      }
+
+      final data = {
+        'status': status,
+        if (reason != null) 'notes': notes,
+      };
+
+      final response = await _supabase
+          .from('inventory')
+          .update(data)
+          .eq('id', id)
+          .select()
+          .single();
+
+      return InventoryModel.fromJson(response);
+    } catch (e) {
+      throw Exception('Failed to update status: $e');
+    }
+  }
+
+  // Delete Inventory
+  Future<void> deleteInventory(String id) async {
+    try {
+      await _supabase.from('inventory').delete().eq('id', id);
+    } catch (e) {
+      throw Exception('Failed to delete inventory: $e');
+    }
+  }
 }
