@@ -1,11 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:erp_purchasing_apps/data/models/asset_model.dart';
 import 'package:erp_purchasing_apps/data/providers/asset_provider.dart';
 import 'package:erp_purchasing_apps/data/providers/auth_providers.dart';
-//import 'package:erp_purchasing_apps/presentation/screens/asset/asset_form_screen.dart';
-//import 'package:erp_purchasing_apps/presentation/screens/asset/asset_detail_screen.dart';
+import 'package:erp_purchasing_apps/presentation/screens/asset/asset_form_screen.dart';
+import 'package:erp_purchasing_apps/presentation/screens/asset/asset_detail_screen.dart';
 import 'package:intl/intl.dart';
 
 class AssetListScreen extends ConsumerStatefulWidget {
@@ -314,9 +313,10 @@ class _AssetListScreenState extends ConsumerState<AssetListScreen> {
                               )
                           ],
                         ),
-                        trailing: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          crossAxisAlignment: CrossAxisAlignment.end,
+                        trailing: Wrap(
+                          direction: Axis.vertical,
+                          spacing: 4, // jarak antar chip
+                          crossAxisAlignment: WrapCrossAlignment.end,
                           children: [
                             Chip(
                               label: Text(
@@ -330,7 +330,6 @@ class _AssetListScreenState extends ConsumerState<AssetListScreen> {
                               materialTapTargetSize:
                                   MaterialTapTargetSize.shrinkWrap,
                             ),
-                            const SizedBox(height: 4),
                             Chip(
                               label: Text(
                                 asset.status.toUpperCase(),
@@ -342,23 +341,23 @@ class _AssetListScreenState extends ConsumerState<AssetListScreen> {
                                   const EdgeInsets.symmetric(horizontal: 4),
                               materialTapTargetSize:
                                   MaterialTapTargetSize.shrinkWrap,
-                            )
+                            ),
                           ],
                         ),
-                        // onTap: () {
-                        //   Navigator.push(
-                        //     context,
-                        //     MaterialPageRoute(
-                        //       builder: (context) => AssetDetailScreen(
-                        //         assetId: asset.id,
-                        //       ),
-                        //     ),
-                        //   ).then(
-                        //     (_) {
-                        //       ref.invalidate(assetStreamProvider);
-                        //     },
-                        //   );
-                        // },
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => AssetDetailScreen(
+                                assetId: asset.id,
+                              ),
+                            ),
+                          ).then(
+                            (_) {
+                              ref.invalidate(assetStreamProvider);
+                            },
+                          );
+                        },
                       ),
                     );
                   },
@@ -386,21 +385,21 @@ class _AssetListScreenState extends ConsumerState<AssetListScreen> {
           )
         ],
       ),
-      // floatingActionButton: canManage
-      //     ? FloatingActionButton(
-      //         onPressed: () {
-      //           Navigator.push(
-      //             context,
-      //             MaterialPageRoute(
-      //               builder: (context) => const AssetFormScreen(),
-      //             ),
-      //           ).then((_) {
-      //             ref.invalidate(assetStreamProvider);
-      //           });
-      //         },
-      //         child: const Icon(Icons.add),
-      //       )
-      //     : null,
+      floatingActionButton: canManage
+          ? FloatingActionButton(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const AssetFormScreen(),
+                  ),
+                ).then((_) {
+                  ref.invalidate(assetStreamProvider);
+                });
+              },
+              child: const Icon(Icons.add),
+            )
+          : null,
     );
   }
 
