@@ -8,14 +8,24 @@ class PoRepository {
   // Get all POs
   Future<List<PurchaseOrderModel>> getAllPOs() async {
     try {
-      final response = await _supabase
-          .from('purchase_order')
-          .select('*, purchase_order_item(*)')
-          .order('created_at', ascending: false);
+      final response = await _supabase.from('purchase_order').select('''
+          *,
+          suppliers!purchase_order_supplier_id_fkey(name)
+        ''').order('created_at', ascending: false);
 
-      return (response as List)
-          .map((json) => PurchaseOrderModel.fromJson(json))
-          .toList();
+      return (response as List).map((json) {
+        // ✅ Extract supplier name dari joined data
+        final supplierData = json['suppliers'];
+        final Map<String, dynamic> poData = Map.from(json);
+        poData.remove('suppliers'); // Remove nested object
+
+        // ✅ Add supplier_name ke root level
+        if (supplierData != null) {
+          poData['supplier_name'] = supplierData['name'];
+        }
+
+        return PurchaseOrderModel.fromJson(poData);
+      }).toList();
     } catch (e) {
       throw Exception('Failed to load POs: $e');
     }

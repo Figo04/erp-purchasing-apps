@@ -1,4 +1,3 @@
-import 'package:erp_purchasing_apps/data/repositories/po_repository.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:erp_purchasing_apps/data/models/inventory_model.dart';
@@ -15,14 +14,13 @@ class InventoryDetailScreen extends ConsumerStatefulWidget {
   });
 
   @override
-  ConsumerState<InventoryDetailScreen> createState() =>
-      _InventoryDetailScreenState();
+  ConsumerState<InventoryDetailScreen> createState() => _InventoryDetailScreenState();
 }
 
 class _InventoryDetailScreenState extends ConsumerState<InventoryDetailScreen> {
   bool _isEditing = false;
   final _formKey = GlobalKey<FormState>();
-
+  
   late TextEditingController _itemNameController;
   late TextEditingController _quantityController;
   late TextEditingController _unitController;
@@ -84,13 +82,10 @@ class _InventoryDetailScreenState extends ConsumerState<InventoryDetailScreen> {
   @override
   Widget build(BuildContext context) {
     final currentUser = ref.watch(currentUserProvider);
-    final canEdit =
-        currentUser?.role == 'admin' || currentUser?.role == 'warehouse';
+    final canEdit = currentUser?.role == 'admin' || currentUser?.role == 'warehouse';
 
     return FutureBuilder<InventoryModel?>(
-      future: ref
-          .read(inventoryRepositoryProvider)
-          .getInventoryById(widget.inventoryId),
+      future: ref.read(inventoryRepositoryProvider).getInventoryById(widget.inventoryId),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Scaffold(
@@ -148,7 +143,7 @@ class _InventoryDetailScreenState extends ConsumerState<InventoryDetailScreen> {
                       _initializeControllers(item);
                     });
                   },
-                )
+                ),
             ],
           ),
           body: SingleChildScrollView(
@@ -181,30 +176,25 @@ class _InventoryDetailScreenState extends ConsumerState<InventoryDetailScreen> {
                                 ),
                                 Text(
                                   '${item.quantity} ${item.unit}',
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .headlineMedium
-                                      ?.copyWith(
-                                        fontWeight: FontWeight.bold,
-                                        color:
-                                            _getStockLevelColor(item.quantity),
-                                      ),
+                                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                    color: _getStockLevelColor(item.quantity),
+                                  ),
                                 ),
                                 if (isLowStock)
                                   Row(
                                     children: [
-                                      Icon(Icons.warning,
-                                          color: Colors.red, size: 16),
+                                      Icon(Icons.warning, color: Colors.red, size: 16),
                                       const SizedBox(width: 4),
                                       const Text(
-                                        'Low Stock Allert!',
+                                        'Low Stock Alert!',
                                         style: TextStyle(
                                           color: Colors.red,
                                           fontWeight: FontWeight.bold,
                                         ),
-                                      )
+                                      ),
                                     ],
-                                  )
+                                  ),
                               ],
                             ),
                           ),
@@ -216,15 +206,14 @@ class _InventoryDetailScreenState extends ConsumerState<InventoryDetailScreen> {
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
-                            backgroundColor:
-                                _getStatusColor(item.status).withOpacity(0.2),
-                          )
+                            backgroundColor: _getStatusColor(item.status).withOpacity(0.2),
+                          ),
                         ],
                       ),
                     ),
                   ),
-
                   const SizedBox(height: 24),
+
                   // Item Details Form
                   Text(
                     'Item Information',
@@ -247,6 +236,7 @@ class _InventoryDetailScreenState extends ConsumerState<InventoryDetailScreen> {
                     },
                   ),
                   const SizedBox(height: 16),
+
                   Row(
                     children: [
                       Expanded(
@@ -263,7 +253,7 @@ class _InventoryDetailScreenState extends ConsumerState<InventoryDetailScreen> {
                               return 'Required';
                             }
                             if (int.tryParse(value) == null) {
-                              return 'Invalid Number';
+                              return 'Invalid number';
                             }
                             return null;
                           },
@@ -285,7 +275,7 @@ class _InventoryDetailScreenState extends ConsumerState<InventoryDetailScreen> {
                             return null;
                           },
                         ),
-                      )
+                      ),
                     ],
                   ),
                   const SizedBox(height: 16),
@@ -298,14 +288,10 @@ class _InventoryDetailScreenState extends ConsumerState<InventoryDetailScreen> {
                         border: OutlineInputBorder(),
                       ),
                       items: const [
-                        DropdownMenuItem(
-                            value: 'available', child: Text('Available')),
-                        DropdownMenuItem(
-                            value: 'reserved', child: Text('Reserved')),
-                        DropdownMenuItem(
-                            value: 'damaged', child: Text('Damaged')),
-                        DropdownMenuItem(
-                            value: 'disposed', child: Text('Disposed')),
+                        DropdownMenuItem(value: 'available', child: Text('Available')),
+                        DropdownMenuItem(value: 'reserved', child: Text('Reserved')),
+                        DropdownMenuItem(value: 'damaged', child: Text('Damaged')),
+                        DropdownMenuItem(value: 'disposed', child: Text('Disposed')),
                       ],
                       onChanged: (value) {
                         setState(() {
@@ -327,9 +313,10 @@ class _InventoryDetailScreenState extends ConsumerState<InventoryDetailScreen> {
                   TextFormField(
                     controller: _locationController,
                     decoration: const InputDecoration(
-                        labelText: 'Location',
-                        border: OutlineInputBorder(),
-                        hintText: 'Warehouse location'),
+                      labelText: 'Location',
+                      border: OutlineInputBorder(),
+                      hintText: 'Warehouse location',
+                    ),
                     enabled: _isEditing,
                   ),
                   const SizedBox(height: 16),
@@ -350,11 +337,15 @@ class _InventoryDetailScreenState extends ConsumerState<InventoryDetailScreen> {
                   if (item.receivedDate != null)
                     _buildInfoRow(
                       'Received Date',
-                      DateFormat('dd MMMM yyyy').format(item.receivedDate!),
+                      DateFormat('dd MMM yyyy').format(item.receivedDate!),
                     ),
                   _buildInfoRow(
                     'Created At',
-                    DateFormat('dd MMMM yyyy HH:mm').format(item.updatedAt),
+                    DateFormat('dd MMM yyyy HH:mm').format(item.createdAt),
+                  ),
+                  _buildInfoRow(
+                    'Last Updated',
+                    DateFormat('dd MMM yyyy HH:mm').format(item.updatedAt),
                   ),
                   const SizedBox(height: 24),
 
@@ -372,30 +363,30 @@ class _InventoryDetailScreenState extends ConsumerState<InventoryDetailScreen> {
                       children: [
                         Expanded(
                           child: OutlinedButton.icon(
-                            onPressed: () => (item),
+                            onPressed: () => _showStockOutDialog(item),
                             icon: const Icon(Icons.remove_circle_outline),
                             label: const Text('Stock Out'),
                           ),
                         ),
-                        const SizedBox(height: 8),
+                        const SizedBox(width: 8),
                         Expanded(
                           child: OutlinedButton.icon(
-                            onPressed: () => (item),
+                            onPressed: () => _showStockAdjustmentDialog(item),
                             icon: const Icon(Icons.tune),
                             label: const Text('Adjustment'),
                           ),
-                        )
+                        ),
                       ],
                     ),
                     const SizedBox(height: 8),
                     SizedBox(
                       width: double.infinity,
                       child: OutlinedButton.icon(
-                        onPressed: () => (item),
+                        onPressed: () => _showStatusChangeDialog(item),
                         icon: const Icon(Icons.swap_horiz),
                         label: const Text('Change Status'),
                       ),
-                    )
+                    ),
                   ],
                 ],
               ),
@@ -427,7 +418,7 @@ class _InventoryDetailScreenState extends ConsumerState<InventoryDetailScreen> {
               value,
               style: const TextStyle(fontWeight: FontWeight.w500),
             ),
-          )
+          ),
         ],
       ),
     );
@@ -446,7 +437,7 @@ class _InventoryDetailScreenState extends ConsumerState<InventoryDetailScreen> {
       builder: (context) => const Center(
         child: Card(
           child: Padding(
-            padding: EdgeInsetsGeometry.all(20),
+            padding: EdgeInsets.all(20),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -466,25 +457,26 @@ class _InventoryDetailScreenState extends ConsumerState<InventoryDetailScreen> {
         itemName: _itemNameController.text,
         quantity: int.parse(_quantityController.text),
         unit: _unitController.text,
-        location:
-            _locationController.text.isEmpty ? null : _locationController.text,
+        location: _locationController.text.isEmpty ? null : _locationController.text,
         status: _selectedStatus,
         notes: _notesController.text.isEmpty ? null : _notesController.text,
       );
 
-      navigator.pop();
+      navigator.pop(); // Close loading
       ref.invalidate(inventoryStreamProvider);
 
-      scaffoldMessenger.showSnackBar(const SnackBar(
-        content: Row(
-          children: [
-            Icon(Icons.check_circle, color: Colors.white),
-            SizedBox(width: 16),
-            Text('Inventory updated succesfully'),
-          ],
+      scaffoldMessenger.showSnackBar(
+        const SnackBar(
+          content: Row(
+            children: [
+              Icon(Icons.check_circle, color: Colors.white),
+              SizedBox(width: 16),
+              Text('Inventory updated successfully'),
+            ],
+          ),
+          backgroundColor: Colors.green,
         ),
-        backgroundColor: Colors.green,
-      ));
+      );
 
       setState(() {
         _isEditing = false;
@@ -530,7 +522,7 @@ class _InventoryDetailScreenState extends ConsumerState<InventoryDetailScreen> {
                 hintText: 'e.g., Used in production',
               ),
               maxLines: 3,
-            )
+            ),
           ],
         ),
         actions: [
@@ -558,12 +550,10 @@ class _InventoryDetailScreenState extends ConsumerState<InventoryDetailScreen> {
               }
 
               Navigator.pop(dialogContext);
-              await
-                  //_performStockout
-                  (item.id, quantity, reason);
+              await _performStockOut(item.id, quantity, reason);
             },
             child: const Text('Confirm'),
-          )
+          ),
         ],
       ),
     );
@@ -575,22 +565,24 @@ class _InventoryDetailScreenState extends ConsumerState<InventoryDetailScreen> {
     final scaffoldMessenger = ScaffoldMessenger.of(context);
 
     showDialog(
-        context: context,
-        builder: (context) => const Center(
-              child: Card(
-                child: Padding(
-                  padding: EdgeInsets.all(20),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      CircularProgressIndicator(),
-                      SizedBox(height: 16),
-                      Text('Processing stock out...'),
-                    ],
-                  ),
-                ),
-              ),
-            ));
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(
+        child: Card(
+          child: Padding(
+            padding: EdgeInsets.all(20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                CircularProgressIndicator(),
+                SizedBox(height: 16),
+                Text('Processing stock out...'),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
 
     try {
       await repository.stockOut(
@@ -602,12 +594,14 @@ class _InventoryDetailScreenState extends ConsumerState<InventoryDetailScreen> {
       navigator.pop();
       ref.invalidate(inventoryStreamProvider);
 
-      scaffoldMessenger.showSnackBar(const SnackBar(
-        content: Text('Stock out successful'),
-        backgroundColor: Colors.green,
-      ));
+      scaffoldMessenger.showSnackBar(
+        const SnackBar(
+          content: Text('Stock out successful'),
+          backgroundColor: Colors.green,
+        ),
+      );
 
-      setState(() {}); // refresh ui
+      setState(() {}); // Refresh UI
     } catch (e) {
       navigator.pop();
       scaffoldMessenger.showSnackBar(
@@ -691,8 +685,7 @@ class _InventoryDetailScreenState extends ConsumerState<InventoryDetailScreen> {
                   return;
                 }
 
-                final adjustmentQty =
-                    adjustmentType == 'add' ? quantity : -quantity;
+                final adjustmentQty = adjustmentType == 'add' ? quantity : -quantity;
 
                 Navigator.pop(dialogContext);
                 await _performStockAdjustment(item.id, adjustmentQty, reason);
@@ -705,8 +698,7 @@ class _InventoryDetailScreenState extends ConsumerState<InventoryDetailScreen> {
     );
   }
 
-  Future<void> _performStockAdjustment(
-      String id, int adjustment, String reason) async {
+  Future<void> _performStockAdjustment(String id, int adjustment, String reason) async {
     final repository = ref.read(inventoryRepositoryProvider);
     final navigator = Navigator.of(context);
     final scaffoldMessenger = ScaffoldMessenger.of(context);
@@ -781,8 +773,7 @@ class _InventoryDetailScreenState extends ConsumerState<InventoryDetailScreen> {
                   border: OutlineInputBorder(),
                 ),
                 items: const [
-                  DropdownMenuItem(
-                      value: 'available', child: Text('Available')),
+                  DropdownMenuItem(value: 'available', child: Text('Available')),
                   DropdownMenuItem(value: 'reserved', child: Text('Reserved')),
                   DropdownMenuItem(value: 'damaged', child: Text('Damaged')),
                   DropdownMenuItem(value: 'disposed', child: Text('Disposed')),
@@ -834,8 +825,7 @@ class _InventoryDetailScreenState extends ConsumerState<InventoryDetailScreen> {
     );
   }
 
-  Future<void> _performStatusChange(
-      String id, String status, String reason) async {
+  Future<void> _performStatusChange(String id, String status, String reason) async {
     final repository = ref.read(inventoryRepositoryProvider);
     final navigator = Navigator.of(context);
     final scaffoldMessenger = ScaffoldMessenger.of(context);

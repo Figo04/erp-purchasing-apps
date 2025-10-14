@@ -14,6 +14,7 @@ class PurchaseOrderModel extends Equatable {
   final DateTime createdAt;
   final DateTime updatedAt;
   final List<POItemModel>? items;
+  final String? supplierName;
 
   const PurchaseOrderModel({
     required this.id,
@@ -29,6 +30,7 @@ class PurchaseOrderModel extends Equatable {
     required this.createdAt,
     required this.updatedAt,
     this.items,
+    this.supplierName,
   });
 
   factory PurchaseOrderModel.fromJson(Map<String, dynamic> json) {
