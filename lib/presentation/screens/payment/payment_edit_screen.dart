@@ -2,37 +2,35 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:erp_purchasing_apps/data/providers/payment_provider.dart';
-import 'package:erp_purchasing_apps/data/repositories/po_repository.dart';
+import 'package:erp_purchasing_apps/data/models/payment_model.dart';
 import 'package:intl/intl.dart';
 
-class PaymentFormScreen extends ConsumerStatefulWidget {
-  final String? poId;
+class PaymentEditScreen extends ConsumerStatefulWidget {
+  final String paymentId;
 
-  const PaymentFormScreen({
+  const PaymentEditScreen({
     super.key,
-    this.poId,
+    required this.paymentId,
   });
 
   @override
-  ConsumerState<PaymentFormScreen> createState() => _PaymentFormScreenState();
+  ConsumerState<PaymentEditScreen> createState() => _PaymentEditScreenState();
 }
 
-class _PaymentFormScreenState extends ConsumerState<PaymentFormScreen> {
+class _PaymentEditScreenState extends ConsumerState<PaymentEditScreen> {
   final _formKey = GlobalKey<FormState>();
   final _invoiceNumberController = TextEditingController();
   final _amountController = TextEditingController();
   final _notesController = TextEditingController();
 
-  String? _selectedPoId;
   DateTime? _selectedDueDate;
   bool _isLoading = false;
-  List<Map<String, dynamic>> _receivedPOs = [];
+  PaymentModel? _payment;
 
   @override
   void initState() {
     super.initState();
-    _selectedPoId = widget.poId;
-    _loadReceivedPOs();
+    _loadPaymentData();
   }
 
   @override
@@ -43,62 +41,33 @@ class _PaymentFormScreenState extends ConsumerState<PaymentFormScreen> {
     super.dispose();
   }
 
-  Future<void> _loadReceivedPOs() async {
+  Future<void> _loadPaymentData() async {
     setState(() => _isLoading = true);
 
     try {
-      final poRepo = PoRepository();
-      final pos = await poRepo.getAllPOs();
+      final repository = ref.read(paymentRepositoryProvider);
+      final payment = await repository.getPaymentById(widget.paymentId);
 
-      // Filter POs that are received don't have payment yet
-      final paymentRepo = ref.read(paymentRepositoryProvider);
-      final List<Map<String, dynamic>> receivedPOs = [];
-
-      for (var po in pos) {
-        if (po.status == 'received') {
-          // Check if payment already exists
-          final existingPaayment = await paymentRepo.getPaymentByPOId(po.id);
-          if (existingPaayment == null) {
-            receivedPOs.add({
-              'id': po.id,
-              'po_number': po.poNumber,
-              'supplier_name': po.supplierName,
-              'total_amount': po.totalAmount,
-            });
-          }
-        }
+      if (payment != null) {
+        setState(() {
+          _payment = payment;
+          _invoiceNumberController.text = payment.invoiceNumber ?? '';
+          _amountController.text = payment.amount.toStringAsFixed(0);
+          _notesController.text = payment.notes ?? '';
+          _selectedDueDate = payment.dueDate;
+        });
       }
-
-      setState(() {
-        _receivedPOs = receivedPOs;
-        if (_selectedPoId != null) {
-          _loadPOData();
-        }
-      });
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error loading POs: $e'),
+            content: Text('Error loading payment: $e'),
             backgroundColor: Colors.red,
           ),
         );
       }
     } finally {
       setState(() => _isLoading = false);
-    }
-  }
-
-  void _loadPOData() {
-    if (_selectedPoId == null) return;
-
-    final po = _receivedPOs.firstWhere(
-      (po) => po['id'] == _selectedPoId,
-      orElse: () => {},
-    );
-
-    if (po.isNotEmpty) {
-      _amountController.text = po['total_amount'].toStringAsFized(0);
     }
   }
 
@@ -118,13 +87,17 @@ class _PaymentFormScreenState extends ConsumerState<PaymentFormScreen> {
     }
   }
 
-  Future<void> _createPayment() async {
+  Future<void> _updatePayment() async {
     if (!_formKey.currentState!.validate()) return;
 
-    if (_selectedPoId == null) {
+    if (_payment == null) return;
+
+    // Check if payment is still pending
+    if (_payment!.status != 'pending') {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please select a PO'),
+        SnackBar(
+          content: Text(
+              'Can only edit pending payments. Current status: ${_payment!.status}'),
           backgroundColor: Colors.red,
         ),
       );
@@ -142,27 +115,28 @@ class _PaymentFormScreenState extends ConsumerState<PaymentFormScreen> {
       final invoiceNumber = _invoiceNumberController.text.trim();
       final notes = _notesController.text.trim();
 
-      await repository.createPayment(
-        poId: _selectedPoId!,
-        amount: amount,
+      await repository.updatePayment(
+        id: widget.paymentId,
         invoiceNumber: invoiceNumber.isEmpty ? null : invoiceNumber,
+        amount: amount,
         dueDate: _selectedDueDate,
         notes: notes.isEmpty ? null : notes,
       );
 
-      scaffoldMessenger.showSnackBar(const SnackBar(
-        content: Text('Payment created successfully'),
-        backgroundColor: Colors.green,
-      ));
-      ref.invalidate(paymentStreamProvider);
-      navigator.pop();
-    } catch (e) {
       scaffoldMessenger.showSnackBar(
-        SnackBar(
-          content: Text('Failed: ${e.toString()}'),
-          backgroundColor: Colors.red,
+        const SnackBar(
+          content: Text('Payment updated succesfully'),
+          backgroundColor: Colors.green,
         ),
       );
+
+      ref.invalidate(paymentStreamProvider);
+      navigator.pop(true);
+    } catch (e) {
+      scaffoldMessenger.showSnackBar(SnackBar(
+        content: Text(('Failed: ${e.toString()}')),
+        backgroundColor: Colors.red,
+      ));
     } finally {
       if (mounted) {
         setState(() => _isLoading = false);
@@ -172,9 +146,56 @@ class _PaymentFormScreenState extends ConsumerState<PaymentFormScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (_payment == null && _isLoading) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    if (_payment == null) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Error')),
+        body: const Center(
+          child: Text('Payment not found'),
+        ),
+      );
+    }
+
+    // Check if payment can be edited
+    final canEdit = _payment!.status == 'pending';
+
+    if (!canEdit) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Cannot Edit')),
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.lock, size: 64, color: Colors.orange),
+              const SizedBox(height: 16),
+              Text(
+                'Payment cannot be edited',
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Status: ${_payment!.status.toUpperCase()}',
+                style: const TextStyle(color: Colors.grey),
+              ),
+              const SizedBox(height: 25),
+              ElevatedButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Go Back'),
+              )
+            ],
+          ),
+        ),
+      );
+    }
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Create Payment'),
+        title: const Text('Edit Payment'),
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
@@ -185,22 +206,22 @@ class _PaymentFormScreenState extends ConsumerState<PaymentFormScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Info Card
+                    // Info card
                     Card(
-                      color: Colors.blue.shade50,
+                      color: Colors.orange.shade50,
                       child: Padding(
                         padding: const EdgeInsets.all(12),
                         child: Row(
                           children: [
                             Icon(Icons.info_outline,
-                                color: Colors.blue.shade700),
+                                color: Colors.orange.shade700),
                             const SizedBox(width: 8),
                             Expanded(
                               child: Text(
-                                'Create payment for received Purchase Orders',
+                                'you can only edit payments with "Pendig" status',
                                 style: TextStyle(
                                   fontSize: 12,
-                                  color: Colors.blue.shade700,
+                                  color: Colors.orange.shade700,
                                 ),
                               ),
                             )
@@ -210,51 +231,43 @@ class _PaymentFormScreenState extends ConsumerState<PaymentFormScreen> {
                     ),
                     const SizedBox(height: 16),
 
-                    // Select PO
-                    DropdownButtonFormField<String>(
-                      value: _selectedPoId,
+                    // Payment Number (Read-Only)
+                    TextFormField(
+                      initialValue: _payment!.paymentNumber,
                       decoration: const InputDecoration(
-                        labelText: 'Select Purchase Order *',
+                        labelText: 'Payment Number',
                         border: OutlineInputBorder(),
-                        prefixIcon: Icon(Icons.shopping_cart),
+                        prefixIcon: Icon(Icons.tag),
                       ),
-                      items: _receivedPOs.map((po) {
-                        return DropdownMenuItem<String>(
-                          value: po['id'],
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text(
-                                po['po_number'],
-                                style: const TextStyle(
-                                    fontWeight: FontWeight.bold),
-                              ),
-                              Text(
-                                '${po['supplier_name']} - Rp ${NumberFormat('#,###').format(po['total_amount'])}',
-                                style: const TextStyle(
-                                    fontSize: 12, color: Colors.grey),
-                              ),
-                            ],
-                          ),
-                        );
-                      }).toList(),
-                      onChanged: (value) {
-                        setState(() {
-                          _selectedPoId = value;
-                          _loadPOData();
-                        });
-                      },
-                      validator: (value) {
-                        if (value == null) {
-                          return 'Please select a PO';
-                        }
-                        return null;
-                      },
+                      enabled: false,
                     ),
                     const SizedBox(height: 16),
 
-                    // Invoice Number
+                    // PO Number (Read-only)
+                    TextFormField(
+                      initialValue: _payment!.poNumber ?? 'N/A',
+                      decoration: const InputDecoration(
+                        labelText: 'Purchase order',
+                        border: OutlineInputBorder(),
+                        prefixIcon: Icon(Icons.shopping_cart),
+                      ),
+                      enabled: false,
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Supplier (Read-only)
+                    TextFormField(
+                      initialValue: _payment!.supplierName ?? 'N/A',
+                      decoration: const InputDecoration(
+                        labelText: 'Supplier',
+                        border: OutlineInputBorder(),
+                        prefixIcon: Icon(Icons.business),
+                      ),
+                      enabled: false,
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Invoice Number (Editable)
                     TextFormField(
                       controller: _invoiceNumberController,
                       decoration: const InputDecoration(
@@ -266,6 +279,7 @@ class _PaymentFormScreenState extends ConsumerState<PaymentFormScreen> {
                     ),
                     const SizedBox(height: 16),
 
+                    // Payment Amount (Editable)
                     TextFormField(
                       controller: _amountController,
                       decoration: const InputDecoration(
@@ -294,7 +308,7 @@ class _PaymentFormScreenState extends ConsumerState<PaymentFormScreen> {
                     ),
                     const SizedBox(height: 8),
 
-                    // Amount Display
+                    // Amount display
                     if (_amountController.text.isNotEmpty)
                       Container(
                         padding: const EdgeInsets.all(12),
@@ -315,19 +329,19 @@ class _PaymentFormScreenState extends ConsumerState<PaymentFormScreen> {
                               ),
                             ),
                             Text(
-                              'Rp ${NumberFormat('#,###').format(double.tryParse(_amountController.text.replaceAll(',', '')) ?? 0)}',
+                              'Rp ${NumberFormat('#,###').format(double.tryParse(_amountController.text.replaceAll('', '')) ?? 0)}',
                               style: TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.bold,
                                 color: Colors.green.shade700,
                               ),
-                            ),
+                            )
                           ],
                         ),
                       ),
                     const SizedBox(height: 16),
 
-                    // Due Date
+                    // Due Date (Editable)
                     InkWell(
                       onTap: _selectDueDate,
                       child: InputDecorator(
@@ -338,7 +352,7 @@ class _PaymentFormScreenState extends ConsumerState<PaymentFormScreen> {
                         ),
                         child: Text(
                           _selectedDueDate != null
-                              ? DateFormat('dd MMMM yyyy')
+                              ? DateFormat('dd MMM yyyy')
                                   .format(_selectedDueDate!)
                               : 'Select due date (optional)',
                           style: TextStyle(
@@ -351,55 +365,17 @@ class _PaymentFormScreenState extends ConsumerState<PaymentFormScreen> {
                     ),
                     const SizedBox(height: 16),
 
-                    // Notes
-                    TextFormField(
-                      controller: _notesController,
-                      decoration: const InputDecoration(
-                        labelText: 'Notes (Optional)',
-                        hintText: 'Additional information...',
-                        border: OutlineInputBorder(),
-                        prefixIcon: Icon(Icons.note),
-                      ),
-                      maxLines: 4,
-                    ),
-                    const SizedBox(height: 24),
-
-                    // Create Button
+                    // Update Button
                     SizedBox(
                       width: double.infinity,
                       height: 50,
                       child: ElevatedButton.icon(
-                        onPressed: _isLoading ? null : _createPayment,
-                        icon: const Icon(Icons.add),
+                        onPressed: _isLoading ? null : _updatePayment,
+                        icon: const Icon(Icons.save),
                         label: const Text(
-                          'Create Payment',
+                          'Update Payment',
                           style: TextStyle(fontSize: 16),
                         ),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-
-                    // info Note
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: Colors.orange.shade50,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Icon(Icons.info_outline,
-                              color: Colors.orange.shade700, size: 20),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              'Payment will be created with "Pending" status. Finance team can verify and process the payment later.',
-                              style: TextStyle(
-                                  fontSize: 12, color: Colors.orange.shade700),
-                            ),
-                          )
-                        ],
                       ),
                     )
                   ],

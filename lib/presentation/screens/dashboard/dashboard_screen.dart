@@ -1,5 +1,6 @@
 import 'package:erp_purchasing_apps/data/providers/asset_provider.dart';
 import 'package:erp_purchasing_apps/data/providers/inventory_provider.dart';
+import 'package:erp_purchasing_apps/data/providers/payment_provider.dart';
 import 'package:erp_purchasing_apps/data/providers/pr_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -15,6 +16,7 @@ class DashboardScreen extends ConsumerWidget {
     final pendingCount = ref.watch(pendingPRCountProvider);
     final lowStockCount = ref.watch(lowStockCountProvider);
     final borrowedAssetsCount = ref.watch(borrowedAssetsCountProvider);
+    final overduePaymentsCount = ref.watch(overduePaymentsCountProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -159,11 +161,32 @@ class DashboardScreen extends ConsumerWidget {
               },
             ),
             ListTile(
-              leading: const Icon(Icons.payment),
+              leading: Stack(
+                children: [
+                  const Icon(Icons.payment),
+                  if (overduePaymentsCount > 0)
+                    Positioned(
+                      right: 0,
+                      top: 0,
+                      child: Container(
+                        padding: const EdgeInsets.all(2),
+                        decoration: const BoxDecoration(
+                          color: Colors.red,
+                          shape: BoxShape.circle,
+                        ),
+                        child: Text(
+                          overduePaymentsCount.toString(),
+                          style: const TextStyle(
+                              fontSize: 10, color: Colors.white),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
               title: const Text('Payment'),
               onTap: () {
                 Navigator.pop(context);
-                // TODO: Navigate to Payment
+                context.go('/payment');
               },
             ),
             ListTile(
@@ -257,9 +280,9 @@ class DashboardScreen extends ConsumerWidget {
                     context,
                     icon: Icons.payment,
                     title: 'Payment',
-                    count: '0',
+                    count: overduePaymentsCount.toString(),
                     color: Colors.purple,
-                    onTap: () {},
+                    onTap: () => context.go('/payment'),
                   ),
                 ],
               ),

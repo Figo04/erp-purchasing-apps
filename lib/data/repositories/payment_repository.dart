@@ -1,3 +1,4 @@
+import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:erp_purchasing_apps/data/models/payment_model.dart';
 
@@ -279,12 +280,43 @@ class PaymentRepository {
     String? notes,
   }) async {
     try {
+      final current = await getPaymentById(id);
+      if (current == null) {
+        throw Exception('Payment not found');
+      }
+
+      // Build update history
+      String updatedNotes = current.notes ?? '';
+      final List<String> changes = [];
+
+      if (invoiceNumber != null && invoiceNumber != current.invoiceNumber) {
+        changes
+            .add('Invoice: ${current.invoiceNumber ?? 'N/A'} → $invoiceNumber');
+      }
+      if (amount != null && amount != current.amount) {
+        changes.add('Amount: Rp ${current.amount} → Rp $amount');
+      }
+      if (dueDate != null && dueDate != current.dueDate) {
+        final oldDate = current.dueDate != null
+            ? DateFormat('dd/MM/yyyy').format(current.dueDate!)
+            : 'N/A';
+        final newDate = DateFormat('dd/MM/yyyy').format(dueDate);
+        changes.add('Due Date: $oldDate → $newDate');
+      }
+
+      if (changes.isNotEmpty) {
+        updatedNotes =
+            '$updatedNotes\n[UPDATED] ${DateTime.now()}: ${changes.join(', ')}'
+                .trim();
+      }
+
       final data = <String, dynamic>{};
 
       if (invoiceNumber != null) data['invoice_number'] = invoiceNumber;
       if (amount != null) data['amount'] = amount;
       if (dueDate != null) data['due_date'] = dueDate.toIso8601String();
-      if (notes != null) data['notes'] = notes;
+      if (notes != null || changes.isNotEmpty)
+        data['notes'] = notes ?? updatedNotes;
 
       final response = await _supabase
           .from('payment')
@@ -383,7 +415,7 @@ class PaymentRepository {
     try {
       final count = await _supabase.from('payment').select().count();
 
-      final nextNumber = (count.count ?? 0) + 1;
+      final nextNumber = count.count + 1;
       final yearMonth =
           DateTime.now().toString().substring(0, 7).replaceAll('-', '');
       return 'PAY-$yearMonth-${nextNumber.toString().padLeft(4, '0')}';

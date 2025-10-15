@@ -7,24 +7,21 @@ class AssetRepository {
   // Get all assets with user info (joined)
   Future<List<AssetModel>> getAllAssets() async {
     try {
-      final response = await _supabase
-          .from('asset')
-          .select('''
+      final response = await _supabase.from('asset').select('''
             *,
             users!asset_assigned_to_fkey(full_name)
-          ''')
-          .order('created_at', ascending: false);
+          ''').order('created_at', ascending: false);
 
       return (response as List).map((json) {
         // Extract user full_name from joined data
         final userData = json['users'];
         final Map<String, dynamic> assetData = Map.from(json);
         assetData.remove('users');
-        
+
         if (userData != null) {
           assetData['assigned_to_name'] = userData['full_name'];
         }
-        
+
         return AssetModel.fromJson(assetData);
       }).toList();
     } catch (e) {
@@ -35,21 +32,17 @@ class AssetRepository {
   // Get asset by ID
   Future<AssetModel?> getAssetById(String id) async {
     try {
-      final response = await _supabase
-          .from('asset')
-          .select('''
+      final response = await _supabase.from('asset').select('''
             *,
             users!asset_assigned_to_fkey(full_name)
-          ''')
-          .eq('id', id)
-          .maybeSingle();
+          ''').eq('id', id).maybeSingle();
 
       if (response == null) return null;
 
       final userData = response['users'];
       final Map<String, dynamic> assetData = Map.from(response);
       assetData.remove('users');
-      
+
       if (userData != null) {
         assetData['assigned_to_name'] = userData['full_name'];
       }
@@ -82,11 +75,8 @@ class AssetRepository {
         'notes': notes,
       };
 
-      final response = await _supabase
-          .from('asset')
-          .insert(data)
-          .select()
-          .single();
+      final response =
+          await _supabase.from('asset').insert(data).select().single();
 
       return AssetModel.fromJson(response);
     } catch (e) {
@@ -153,7 +143,9 @@ class AssetRepository {
       // Add to notes
       String? notes = current.notes;
       if (reason != null && reason.isNotEmpty) {
-        notes = '${notes ?? ''}\n[ASSIGNED] to user on ${DateTime.now()}: $reason'.trim();
+        notes =
+            '${notes ?? ''}\n[ASSIGNED] to user on ${DateTime.now()}: $reason'
+                .trim();
       }
 
       final data = {
@@ -190,7 +182,8 @@ class AssetRepository {
       // Add to notes
       String? notes = current.notes;
       if (returnNotes != null && returnNotes.isNotEmpty) {
-        notes = '${notes ?? ''}\n[RETURNED] on ${DateTime.now()}: $returnNotes'.trim();
+        notes = '${notes ?? ''}\n[RETURNED] on ${DateTime.now()}: $returnNotes'
+            .trim();
       } else {
         notes = '${notes ?? ''}\n[RETURNED] on ${DateTime.now()}'.trim();
       }
@@ -229,7 +222,9 @@ class AssetRepository {
 
       String? notes = current.notes;
       if (reason != null && reason.isNotEmpty) {
-        notes = '${notes ?? ''}\n[STATUS CHANGE] ${current.status} → $status: $reason'.trim();
+        notes =
+            '${notes ?? ''}\n[STATUS CHANGE] ${current.status} → $status: $reason'
+                .trim();
       }
 
       final data = {
@@ -253,24 +248,20 @@ class AssetRepository {
   // Get assets by category
   Future<List<AssetModel>> getAssetsByCategory(String category) async {
     try {
-      final response = await _supabase
-          .from('asset')
-          .select('''
+      final response = await _supabase.from('asset').select('''
             *,
             users!asset_assigned_to_fkey(full_name)
-          ''')
-          .eq('category', category)
-          .order('name', ascending: true);
+          ''').eq('category', category).order('name', ascending: true);
 
       return (response as List).map((json) {
         final userData = json['users'];
         final Map<String, dynamic> assetData = Map.from(json);
         assetData.remove('users');
-        
+
         if (userData != null) {
           assetData['assigned_to_name'] = userData['full_name'];
         }
-        
+
         return AssetModel.fromJson(assetData);
       }).toList();
     } catch (e) {
@@ -281,24 +272,20 @@ class AssetRepository {
   // Get assets by status
   Future<List<AssetModel>> getAssetsByStatus(String status) async {
     try {
-      final response = await _supabase
-          .from('asset')
-          .select('''
+      final response = await _supabase.from('asset').select('''
             *,
             users!asset_assigned_to_fkey(full_name)
-          ''')
-          .eq('status', status)
-          .order('name', ascending: true);
+          ''').eq('status', status).order('name', ascending: true);
 
       return (response as List).map((json) {
         final userData = json['users'];
         final Map<String, dynamic> assetData = Map.from(json);
         assetData.remove('users');
-        
+
         if (userData != null) {
           assetData['assigned_to_name'] = userData['full_name'];
         }
-        
+
         return AssetModel.fromJson(assetData);
       }).toList();
     } catch (e) {
@@ -322,11 +309,11 @@ class AssetRepository {
         final userData = json['users'];
         final Map<String, dynamic> assetData = Map.from(json);
         assetData.remove('users');
-        
+
         if (userData != null) {
           assetData['assigned_to_name'] = userData['full_name'];
         }
-        
+
         return AssetModel.fromJson(assetData);
       }).toList();
     } catch (e) {
@@ -350,11 +337,11 @@ class AssetRepository {
         final userData = json['users'];
         final Map<String, dynamic> assetData = Map.from(json);
         assetData.remove('users');
-        
+
         if (userData != null) {
           assetData['assigned_to_name'] = userData['full_name'];
         }
-        
+
         return AssetModel.fromJson(assetData);
       }).toList();
     } catch (e) {
@@ -383,7 +370,8 @@ class AssetRepository {
       }
 
       final newQuantity = current.quantity - quantity;
-      final notes = '${current.notes ?? ''}\n[CONSUMED] -$quantity: $reason'.trim();
+      final notes =
+          '${current.notes ?? ''}\n[CONSUMED] -$quantity: $reason'.trim();
 
       final data = {
         'quantity': newQuantity,
@@ -406,13 +394,11 @@ class AssetRepository {
   // Generate asset code
   Future<String> _generateAssetCode() async {
     try {
-      final count = await _supabase
-          .from('asset')
-          .select()
-          .count();
+      final count = await _supabase.from('asset').select().count();
 
-      final nextNumber = (count.count ?? 0) + 1;
-      final yearMonth = DateTime.now().toString().substring(0, 7).replaceAll('-', '');
+      final nextNumber = count.count + 1;
+      final yearMonth =
+          DateTime.now().toString().substring(0, 7).replaceAll('-', '');
       return 'AST-$yearMonth-${nextNumber.toString().padLeft(4, '0')}';
     } catch (e) {
       throw Exception('Failed to generate asset code: $e');

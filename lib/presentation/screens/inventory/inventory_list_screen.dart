@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:erp_purchasing_apps/data/models/inventory_model.dart';
+// import 'package:erp_purchasing_apps/data/models/inventory_model.dart';
 import 'package:erp_purchasing_apps/data/providers/inventory_provider.dart';
 import 'package:erp_purchasing_apps/presentation/screens/inventory/inventory_detail_screen.dart';
 import 'package:intl/intl.dart';

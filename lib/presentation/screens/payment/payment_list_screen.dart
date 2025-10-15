@@ -4,8 +4,8 @@ import 'package:go_router/go_router.dart';
 import 'package:erp_purchasing_apps/data/models/payment_model.dart';
 import 'package:erp_purchasing_apps/data/providers/payment_provider.dart';
 import 'package:erp_purchasing_apps/data/providers/auth_providers.dart';
-//import 'package:erp_purchasing_apps/presentation/screens/payment/payment_form_screen.dart';
-//import 'package:erp_purchasing_apps/presentation/screens/payment/payment_detail_screen.dart';
+import 'package:erp_purchasing_apps/presentation/screens/payment/payment_form_screen.dart';
+import 'package:erp_purchasing_apps/presentation/screens/payment/payment_detail_screen.dart';
 import 'package:intl/intl.dart';
 
 class PaymentListScreen extends ConsumerStatefulWidget {
@@ -345,18 +345,18 @@ class _PaymentListScreenState extends ConsumerState<PaymentListScreen> {
                           backgroundColor:
                               _getStatusColor(payment.status).withOpacity(0.2),
                         ),
-                        // onTap: () {
-                        //   Navigator.push(
-                        //     context,
-                        //     MaterialPageRoute(
-                        //       builder: (context) => PaymentDetailScreen(
-                        //         paymentId: payment.id,
-                        //       ),
-                        //     ),
-                        //   ).then((_) {
-                        //     ref.invalidate(paymentStreamProvider);
-                        //   });
-                        // },
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => PaymentDetailScreen(
+                                paymentId: payment.id,
+                              ),
+                            ),
+                          ).then((_) {
+                            ref.invalidate(paymentStreamProvider);
+                          });
+                        },
                       ),
                     );
                   },
@@ -384,22 +384,22 @@ class _PaymentListScreenState extends ConsumerState<PaymentListScreen> {
           )
         ],
       ),
-      // floatingActionButton: canManage
-      //     ? FloatingActionButton.extended(
-      //         onPressed: () {
-      //           Navigator.push(
-      //             context,
-      //             MaterialPageRoute(
-      //               builder: (context) => const PaymentFormScreen(),
-      //             ),
-      //           ).then((_) {
-      //             ref.invalidate(paymentStreamProvider);
-      //           });
-      //         },
-      //         icon: const Icon(Icons.add),
-      //         label: const Text('New Payment'),
-      //       )
-      //     : null,
+      floatingActionButton: canManage
+          ? FloatingActionButton.extended(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const PaymentFormScreen(),
+                  ),
+                ).then((_) {
+                  ref.invalidate(paymentStreamProvider);
+                });
+              },
+              icon: const Icon(Icons.add),
+              label: const Text('New Payment'),
+            )
+          : null,
     );
   }
 

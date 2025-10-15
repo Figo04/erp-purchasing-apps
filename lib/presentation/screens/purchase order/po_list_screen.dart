@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:erp_purchasing_apps/data/providers/po_provider.dart';
-import 'package:erp_purchasing_apps/data/providers/auth_providers.dart';
+// import 'package:erp_purchasing_apps/data/providers/auth_providers.dart';
 import 'package:erp_purchasing_apps/presentation/screens/purchase order/po_form_screen.dart';
 import 'package:intl/intl.dart';
 
@@ -59,7 +59,7 @@ class _POListScreenState extends ConsumerState<POListScreen> {
   @override
   Widget build(BuildContext context) {
     final poStream = ref.watch(poStreamProvider);
-    final currentUser = ref.watch(currentUserProvider);
+    // final currentUser = ref.watch(currentUserProvider);
 
     return Scaffold(
       appBar: AppBar(

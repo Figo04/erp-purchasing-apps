@@ -1,3 +1,5 @@
+import 'package:erp_purchasing_apps/presentation/screens/payment/payment_edit_screen.dart';
+import 'package:erp_purchasing_apps/presentation/screens/payment/payment_history_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:erp_purchasing_apps/data/models/payment_model.dart';
@@ -103,6 +105,25 @@ class _PaymentDetailScreenState extends ConsumerState<PaymentDetailScreen> {
           appBar: AppBar(
             title: const Text('Payment Detail'),
             actions: [
+              if (canManage && payment.status == 'pending')
+                IconButton(
+                  icon: const Icon(Icons.edit),
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) =>
+                            PaymentEditScreen(paymentId: payment.id),
+                      ),
+                    ).then((updated) {
+                      if (updated == true) {
+                        ref.invalidate(paymentStreamProvider);
+                        setState(() {});
+                      }
+                    });
+                  },
+                  tooltip: 'Edit Payment',
+                ),
               if (canManage &&
                   payment.status != 'paid' &&
                   payment.status != 'cancelled')
@@ -340,6 +361,10 @@ class _PaymentDetailScreenState extends ConsumerState<PaymentDetailScreen> {
                   'Last Updated',
                   DateFormat('dd MMM yyyy HH:mm').format(payment.updatedAt),
                 ),
+                const SizedBox(height: 24),
+
+                const SizedBox(height: 16),
+                PaymentHistoryWidget(payment: payment),
                 const SizedBox(height: 24),
 
                 // Action Buttons (Finance/Admin only)
