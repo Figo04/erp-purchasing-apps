@@ -3,17 +3,17 @@ import 'package:erp_purchasing_apps/data/models/payment_model.dart';
 import 'package:intl/intl.dart';
 
 class PaymentHistoryWidget extends StatelessWidget {
+  final PaymentModel payment;
+
   const PaymentHistoryWidget({
     super.key,
     required this.payment,
   });
 
-  final PaymentModel payment;
-
   List<Map<String, dynamic>> _extractHistory() {
     final List<Map<String, dynamic>> history = [];
 
-    //1. Payment Created
+    // 1. Payment Created
     history.add({
       'icon': Icons.add_circle,
       'color': Colors.blue,
@@ -23,8 +23,8 @@ class PaymentHistoryWidget extends StatelessWidget {
           'Payment ${payment.paymentNumber} created\nAmount: Rp ${NumberFormat('#,###').format(payment.amount)}',
     });
 
-    //2. Invoice Number (if exists)
-    if (payment.invoiceNumber != null) {
+    // 2. Invoice Number (if exists)
+    if (payment.invoiceNumber != null && payment.invoiceNumber!.isNotEmpty) {
       history.add({
         'icon': Icons.receipt,
         'color': Colors.orange,
@@ -39,34 +39,36 @@ class PaymentHistoryWidget extends StatelessWidget {
       history.add({
         'icon': Icons.calendar_today,
         'color': Colors.purple,
-        'title': payment.createdAt,
+        'title': 'Due Date Set',
+        'date': payment.createdAt,
         'description':
             'Payment due: ${DateFormat('dd MMM yyyy').format(payment.dueDate!)}',
       });
     }
 
-    // 4. Verified (if exists)
-    if (payment.verifiedBy != null) {
+    // 4. Verified (if exists) - FIX: Proper null check
+    if (payment.verifiedBy != null && payment.verifiedAt != null) {
       history.add({
         'icon': Icons.verified,
         'color': Colors.blue,
         'title': 'Payment Verified',
-        'date': payment.verifiedAt ?? payment.updatedAt,
+        'date': payment.verifiedAt!, // Now safe because we checked null
         'description':
             'Verified by: ${payment.verifiedByName ?? 'Unknown'}\nStatus changed to: SCHEDULED',
       });
     }
 
-    // 5. Payment Processed (if paid)
+    // 5. Payment Processed (if paid) - FIX: Proper null check
     if (payment.status == 'paid') {
+      final paidDate = payment.paymentDate ?? payment.updatedAt;
       history.add({
         'icon': Icons.check_circle,
         'color': Colors.green,
         'title': 'Payment Processed',
-        'date': payment.paymentDate ?? payment.updatedAt,
+        'date': paidDate,
         'description': 'Paid by: ${payment.paidByName ?? 'Unknown'}\n'
             'Method: ${_formatMethod(payment.method ?? 'N/A')}\n'
-            '${payment.referenceNumber != null ? 'Ref: ${payment.referenceNumber}' : ''}',
+            '${payment.referenceNumber != null && payment.referenceNumber!.isNotEmpty ? 'Ref: ${payment.referenceNumber}' : ''}',
       });
     }
 
@@ -85,7 +87,9 @@ class PaymentHistoryWidget extends StatelessWidget {
     if (payment.notes != null && payment.notes!.isNotEmpty) {
       final notesLines = payment.notes!.split('\n');
       for (var line in notesLines) {
-        if (line.contains('[Cancellled]')) {
+        if (line.trim().isEmpty) continue;
+
+        if (line.contains('[STATUS CHANGE]')) {
           history.add({
             'icon': Icons.swap_horiz,
             'color': Colors.orange,
@@ -101,20 +105,13 @@ class PaymentHistoryWidget extends StatelessWidget {
             'date': payment.updatedAt,
             'description': line.replaceAll('[UPDATED]', '').trim(),
           });
-        } else if (line.contains('[UPDATED]')) {
-          history.add({
-            'icon': Icons.edit,
-            'color': Colors.blue,
-            'title': 'Payment.updatedAt',
-            'description': line.replaceAll('[UPDATED]', '').trim(),
-          });
         }
       }
     }
 
-    // 8. Last Updated
-    if (payment.updatedAt
-        .isAfter(payment.createdAt.add(const Duration(seconds: 1)))) {
+    // 8. Last Updated (only if significantly different from created)
+    final timeDiff = payment.updatedAt.difference(payment.createdAt).inSeconds;
+    if (timeDiff > 5) {
       history.add({
         'icon': Icons.update,
         'color': Colors.grey,
@@ -125,20 +122,23 @@ class PaymentHistoryWidget extends StatelessWidget {
     }
 
     // Sort by date (newest first)
-    history
-        .sort((a, b) => (b['d'] as DateTime).compareTo(a['date'] as DateTime));
+    history.sort((a, b) {
+      final dateA = a['date'] as DateTime;
+      final dateB = b['date'] as DateTime;
+      return dateB.compareTo(dateA);
+    });
 
     return history;
   }
 
   String _formatMethod(String method) {
-    switch (method) {
+    switch (method.toLowerCase()) {
       case 'bank_transfer':
         return 'Bank Transfer';
       case 'cash':
         return 'Cash';
       case 'e_wallet':
-        return 'E_Wallet';
+        return 'E-Wallet';
       case 'check':
         return 'Check';
       default:
@@ -165,14 +165,14 @@ class PaymentHistoryWidget extends StatelessWidget {
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.bold,
                       ),
-                )
+                ),
               ],
             ),
             const SizedBox(height: 16),
             if (history.isEmpty)
               const Center(
                 child: Padding(
-                  padding: EdgeInsetsGeometry.all(16),
+                  padding: EdgeInsets.all(16),
                   child: Text(
                     'No history available',
                     style: TextStyle(color: Colors.grey),
@@ -189,15 +189,16 @@ class PaymentHistoryWidget extends StatelessWidget {
                 itemBuilder: (context, index) {
                   final item = history[index];
                   return _buildHistoryItem(
-                      icon: item['icon'],
-                      color: item['color'],
-                      title: item['title'],
-                      date: item['date'],
-                      description: item['description'],
-                      isFirst: index == 0,
-                      isLast: index == history.length - 1);
+                    icon: item['icon'] as IconData,
+                    color: item['color'] as Color,
+                    title: item['title'] as String,
+                    date: item['date'] as DateTime,
+                    description: item['description'] as String,
+                    isFirst: index == 0,
+                    isLast: index == history.length - 1,
+                  );
                 },
-              )
+              ),
           ],
         ),
       ),
@@ -216,7 +217,7 @@ class PaymentHistoryWidget extends StatelessWidget {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Timeline dot & Line
+        // Timeline dot & line
         Column(
           children: [
             Container(
@@ -253,7 +254,7 @@ class PaymentHistoryWidget extends StatelessWidget {
               ),
               const SizedBox(height: 4),
               Text(
-                DateFormat('dd MMM yyyy, HHL:mm').format(date),
+                DateFormat('dd MMM yyyy, HH:mm').format(date),
                 style: const TextStyle(
                   fontSize: 12,
                   color: Colors.grey,
@@ -264,11 +265,11 @@ class PaymentHistoryWidget extends StatelessWidget {
                 Text(
                   description,
                   style: const TextStyle(fontSize: 13),
-                )
-              ]
+                ),
+              ],
             ],
           ),
-        )
+        ),
       ],
     );
   }

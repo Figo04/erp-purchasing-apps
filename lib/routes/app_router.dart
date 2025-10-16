@@ -85,10 +85,10 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/pr-history',
         builder: (context, state) => const PRApprovalHistoryScreen(),
       ),
-      GoRoute(
-        path: '/receiving',
-        builder: (context, state) => const GoodsReceivingScreen(),
-      ),
+      // GoRoute(
+      //   path: '/receiving',
+      //   builder: (context, state) => const GoodsReceivingScreen(),
+      // ),
       GoRoute(
         path: '/inventory',
         builder: (context, state) => const InventoryListScreen(),
