@@ -1,333 +1,333 @@
-import 'package:erp_purchasing_apps/data/providers/asset_provider.dart';
-import 'package:erp_purchasing_apps/data/providers/inventory_provider.dart';
-import 'package:erp_purchasing_apps/data/providers/payment_provider.dart';
-import 'package:erp_purchasing_apps/data/providers/pr_provider.dart';
-import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:erp_purchasing_apps/data/providers/auth_providers.dart';
-import 'package:go_router/go_router.dart';
+// import 'package:erp_purchasing_apps/data/providers/asset_provider.dart';
+// import 'package:erp_purchasing_apps/data/providers/inventory_provider.dart';
+// import 'package:erp_purchasing_apps/data/providers/payment_provider.dart';
+// import 'package:erp_purchasing_apps/data/providers/pr_provider.dart';
+// import 'package:flutter/material.dart';
+// import 'package:flutter_riverpod/flutter_riverpod.dart';
+// import 'package:erp_purchasing_apps/data/providers/auth_providers.dart';
+// import 'package:go_router/go_router.dart';
 
-class DashboardScreen extends ConsumerWidget {
-  const DashboardScreen({super.key});
+// class DashboardScreen extends ConsumerWidget {
+//   const DashboardScreen({super.key});
 
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final currentUser = ref.watch(currentUserProvider);
-    final pendingCount = ref.watch(pendingPRCountProvider);
-    final lowStockCount = ref.watch(lowStockCountProvider);
-    final borrowedAssetsCount = ref.watch(borrowedAssetsCountProvider);
-    final overduePaymentsCount = ref.watch(overduePaymentsCountProvider);
+//   @override
+//   Widget build(BuildContext context, WidgetRef ref) {
+//     final currentUser = ref.watch(currentUserProvider);
+//     final pendingCount = ref.watch(pendingPRCountProvider);
+//     final lowStockCount = ref.watch(lowStockCountProvider);
+//     final borrowedAssetsCount = ref.watch(borrowedAssetsCountProvider);
+//     final overduePaymentsCount = ref.watch(overduePaymentsCountProvider);
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Dashboard'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout),
-            onPressed: () async {
-              await ref.read(authStateProvider.notifier).signOut();
-            },
-          ),
-        ],
-      ),
-      drawer: Drawer(
-        child: ListView(
-          padding: EdgeInsets.zero,
-          children: [
-            UserAccountsDrawerHeader(
-              accountName: Text(currentUser?.fullName ?? 'User'),
-              accountEmail: Text(currentUser?.email ?? ''),
-              currentAccountPicture: CircleAvatar(
-                backgroundColor: Colors.white,
-                child: Text(
-                  currentUser?.username.substring(0, 1).toUpperCase() ?? 'U',
-                  style: const TextStyle(fontSize: 24),
-                ),
-              ),
-              decoration: BoxDecoration(
-                color: Theme.of(context).primaryColor,
-              ),
-            ),
-            ListTile(
-              leading: const Icon(Icons.dashboard),
-              title: const Text('Dashboard'),
-              onTap: () {
-                Navigator.pop(context);
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.people),
-              title: const Text('User Management'),
-              onTap: () => context.go('/users'),
-            ),
-            ListTile(
-              leading: Stack(
-                children: [
-                  const Icon(Icons.request_page),
-                  if (pendingCount > 0)
-                    Positioned(
-                      right: 0,
-                      top: 0,
-                      child: Container(
-                        padding: const EdgeInsets.all(2),
-                        decoration: BoxDecoration(
-                          color: Colors.red,
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        constraints: const BoxConstraints(
-                          minWidth: 16,
-                          minHeight: 16,
-                        ),
-                        child: Text(
-                          pendingCount.toString(),
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-              title: const Text('Purchase Requisition'),
-              onTap: () {
-                Navigator.pop(context);
-                context.go('/pr');
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.shopping_cart),
-              title: const Text('Purchase Order'),
-              onTap: () {
-                Navigator.pop(context);
-                context.go('/po');
-              },
-            ),
-            ListTile(
-              leading: Stack(
-                children: [
-                  const Icon(Icons.inventory),
-                  if (lowStockCount > 0)
-                    Positioned(
-                      right: 0,
-                      top: 0,
-                      child: Container(
-                        padding: const EdgeInsets.all(2),
-                        decoration: const BoxDecoration(
-                          color: Colors.red,
-                          shape: BoxShape.circle,
-                        ),
-                        child: Text(
-                          lowStockCount.toString(),
-                          style: const TextStyle(
-                              fontSize: 10, color: Colors.white),
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-              title: const Text('Inventory'),
-              onTap: () => context.go('/inventory'),
-            ),
-            ListTile(
-              leading: Stack(
-                children: [
-                  const Icon(Icons.assessment),
-                  if (borrowedAssetsCount > 0)
-                    Positioned(
-                      right: 0,
-                      top: 0,
-                      child: Container(
-                        padding: const EdgeInsets.all(2),
-                        decoration: const BoxDecoration(
-                          color: Colors.orange,
-                          shape: BoxShape.circle,
-                        ),
-                        child: Text(
-                          borrowedAssetsCount.toString(),
-                          style: const TextStyle(
-                              fontSize: 10, color: Colors.white),
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-              title: const Text('Asset'),
-              onTap: () {
-                Navigator.pop(context);
-                context.go('/asset');
-              },
-            ),
-            ListTile(
-              leading: Stack(
-                children: [
-                  const Icon(Icons.payment),
-                  if (overduePaymentsCount > 0)
-                    Positioned(
-                      right: 0,
-                      top: 0,
-                      child: Container(
-                        padding: const EdgeInsets.all(2),
-                        decoration: const BoxDecoration(
-                          color: Colors.red,
-                          shape: BoxShape.circle,
-                        ),
-                        child: Text(
-                          overduePaymentsCount.toString(),
-                          style: const TextStyle(
-                              fontSize: 10, color: Colors.white),
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-              title: const Text('Payment'),
-              onTap: () {
-                Navigator.pop(context);
-                context.go('/payment');
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.business),
-              title: const Text('Suppliers'),
-              onTap: () => context.go('/suppliers'),
-            ),
-            ListTile(
-              leading: const Icon(Icons.history),
-              title: const Text('PR History'),
-              onTap: () => context.go('/pr-history'),
-            ),
-            if (currentUser?.role == 'admin' ||
-                currentUser?.role == 'purchasing')
-              ListTile(
-                leading: const Icon(Icons.approval),
-                title: const Text('PR Approval'),
-                onTap: () => context.go('/pr-approval'),
-              ),
-            ListTile(
-              leading: const Icon(Icons.approval),
-              title: const Text('PO Approval'),
-              onTap: () => context.go('/po-approval'),
-            ),
-            if (currentUser?.role == 'admin' ||
-                currentUser?.role == 'warehouse')
-              ListTile(
-                leading: const Icon(Icons.local_shipping),
-                title: const Text('Receiving'),
-                onTap: () => context.go('/receiving'),
-              ),
-            const Divider(),
-            ListTile(
-              leading: const Icon(Icons.logout),
-              title: const Text('Logout'),
-              onTap: () async {
-                await ref.read(authStateProvider.notifier).signOut();
-              },
-            ),
-          ],
-        ),
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Welcome, ${currentUser?.fullName ?? 'User'}!',
-              style: Theme.of(context).textTheme.headlineSmall,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Role: ${currentUser?.role.toUpperCase()}',
-              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                    color: Colors.grey,
-                  ),
-            ),
-            const SizedBox(height: 24),
-            Expanded(
-              child: GridView.count(
-                crossAxisCount: 2,
-                crossAxisSpacing: 16,
-                mainAxisSpacing: 16,
-                children: [
-                  _buildDashboardCard(
-                    context,
-                    icon: Icons.request_page,
-                    title: 'PR',
-                    count: '0',
-                    color: Colors.blue,
-                    onTap: () => context.go('/pr'),
-                  ),
-                  _buildDashboardCard(
-                    context,
-                    icon: Icons.shopping_cart,
-                    title: 'PO',
-                    count: '0',
-                    color: Colors.green,
-                    onTap: () {},
-                  ),
-                  _buildDashboardCard(
-                    context,
-                    icon: Icons.inventory,
-                    title: 'Inventory',
-                    count: '0',
-                    color: Colors.orange,
-                    onTap: () {},
-                  ),
-                  _buildDashboardCard(
-                    context,
-                    icon: Icons.payment,
-                    title: 'Payment',
-                    count: overduePaymentsCount.toString(),
-                    color: Colors.purple,
-                    onTap: () => context.go('/payment'),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+//     return Scaffold(
+//       appBar: AppBar(
+//         title: const Text('Dashboard'),
+//         actions: [
+//           IconButton(
+//             icon: const Icon(Icons.logout),
+//             onPressed: () async {
+//               await ref.read(authStateProvider.notifier).signOut();
+//             },
+//           ),
+//         ],
+//       ),
+//       drawer: Drawer(
+//         child: ListView(
+//           padding: EdgeInsets.zero,
+//           children: [
+//             UserAccountsDrawerHeader(
+//               accountName: Text(currentUser?.fullName ?? 'User'),
+//               accountEmail: Text(currentUser?.email ?? ''),
+//               currentAccountPicture: CircleAvatar(
+//                 backgroundColor: Colors.white,
+//                 child: Text(
+//                   currentUser?.username.substring(0, 1).toUpperCase() ?? 'U',
+//                   style: const TextStyle(fontSize: 24),
+//                 ),
+//               ),
+//               decoration: BoxDecoration(
+//                 color: Theme.of(context).primaryColor,
+//               ),
+//             ),
+//             ListTile(
+//               leading: const Icon(Icons.dashboard),
+//               title: const Text('Dashboard'),
+//               onTap: () {
+//                 Navigator.pop(context);
+//               },
+//             ),
+//             ListTile(
+//               leading: const Icon(Icons.people),
+//               title: const Text('User Management'),
+//               onTap: () => context.go('/users'),
+//             ),
+//             ListTile(
+//               leading: Stack(
+//                 children: [
+//                   const Icon(Icons.request_page),
+//                   if (pendingCount > 0)
+//                     Positioned(
+//                       right: 0,
+//                       top: 0,
+//                       child: Container(
+//                         padding: const EdgeInsets.all(2),
+//                         decoration: BoxDecoration(
+//                           color: Colors.red,
+//                           borderRadius: BorderRadius.circular(10),
+//                         ),
+//                         constraints: const BoxConstraints(
+//                           minWidth: 16,
+//                           minHeight: 16,
+//                         ),
+//                         child: Text(
+//                           pendingCount.toString(),
+//                           style: const TextStyle(
+//                             color: Colors.white,
+//                             fontSize: 10,
+//                             fontWeight: FontWeight.bold,
+//                           ),
+//                           textAlign: TextAlign.center,
+//                         ),
+//                       ),
+//                     ),
+//                 ],
+//               ),
+//               title: const Text('Purchase Requisition'),
+//               onTap: () {
+//                 Navigator.pop(context);
+//                 context.go('/pr');
+//               },
+//             ),
+//             ListTile(
+//               leading: const Icon(Icons.shopping_cart),
+//               title: const Text('Purchase Order'),
+//               onTap: () {
+//                 Navigator.pop(context);
+//                 context.go('/po');
+//               },
+//             ),
+//             ListTile(
+//               leading: Stack(
+//                 children: [
+//                   const Icon(Icons.inventory),
+//                   if (lowStockCount > 0)
+//                     Positioned(
+//                       right: 0,
+//                       top: 0,
+//                       child: Container(
+//                         padding: const EdgeInsets.all(2),
+//                         decoration: const BoxDecoration(
+//                           color: Colors.red,
+//                           shape: BoxShape.circle,
+//                         ),
+//                         child: Text(
+//                           lowStockCount.toString(),
+//                           style: const TextStyle(
+//                               fontSize: 10, color: Colors.white),
+//                         ),
+//                       ),
+//                     ),
+//                 ],
+//               ),
+//               title: const Text('Inventory'),
+//               onTap: () => context.go('/inventory'),
+//             ),
+//             ListTile(
+//               leading: Stack(
+//                 children: [
+//                   const Icon(Icons.assessment),
+//                   if (borrowedAssetsCount > 0)
+//                     Positioned(
+//                       right: 0,
+//                       top: 0,
+//                       child: Container(
+//                         padding: const EdgeInsets.all(2),
+//                         decoration: const BoxDecoration(
+//                           color: Colors.orange,
+//                           shape: BoxShape.circle,
+//                         ),
+//                         child: Text(
+//                           borrowedAssetsCount.toString(),
+//                           style: const TextStyle(
+//                               fontSize: 10, color: Colors.white),
+//                         ),
+//                       ),
+//                     ),
+//                 ],
+//               ),
+//               title: const Text('Asset'),
+//               onTap: () {
+//                 Navigator.pop(context);
+//                 context.go('/asset');
+//               },
+//             ),
+//             ListTile(
+//               leading: Stack(
+//                 children: [
+//                   const Icon(Icons.payment),
+//                   if (overduePaymentsCount > 0)
+//                     Positioned(
+//                       right: 0,
+//                       top: 0,
+//                       child: Container(
+//                         padding: const EdgeInsets.all(2),
+//                         decoration: const BoxDecoration(
+//                           color: Colors.red,
+//                           shape: BoxShape.circle,
+//                         ),
+//                         child: Text(
+//                           overduePaymentsCount.toString(),
+//                           style: const TextStyle(
+//                               fontSize: 10, color: Colors.white),
+//                         ),
+//                       ),
+//                     ),
+//                 ],
+//               ),
+//               title: const Text('Payment'),
+//               onTap: () {
+//                 Navigator.pop(context);
+//                 context.go('/payment');
+//               },
+//             ),
+//             ListTile(
+//               leading: const Icon(Icons.business),
+//               title: const Text('Suppliers'),
+//               onTap: () => context.go('/suppliers'),
+//             ),
+//             ListTile(
+//               leading: const Icon(Icons.history),
+//               title: const Text('PR History'),
+//               onTap: () => context.go('/pr-history'),
+//             ),
+//             if (currentUser?.role == 'admin' ||
+//                 currentUser?.role == 'purchasing')
+//               ListTile(
+//                 leading: const Icon(Icons.approval),
+//                 title: const Text('PR Approval'),
+//                 onTap: () => context.go('/pr-approval'),
+//               ),
+//             ListTile(
+//               leading: const Icon(Icons.approval),
+//               title: const Text('PO Approval'),
+//               onTap: () => context.go('/po-approval'),
+//             ),
+//             if (currentUser?.role == 'admin' ||
+//                 currentUser?.role == 'warehouse')
+//               ListTile(
+//                 leading: const Icon(Icons.local_shipping),
+//                 title: const Text('Receipt'),
+//                 onTap: () => context.go('/receipt'),
+//               ),
+//             const Divider(),
+//             ListTile(
+//               leading: const Icon(Icons.logout),
+//               title: const Text('Logout'),
+//               onTap: () async {
+//                 await ref.read(authStateProvider.notifier).signOut();
+//               },
+//             ),
+//           ],
+//         ),
+//       ),
+//       body: Padding(
+//         padding: const EdgeInsets.all(16.0),
+//         child: Column(
+//           crossAxisAlignment: CrossAxisAlignment.start,
+//           children: [
+//             Text(
+//               'Welcome, ${currentUser?.fullName ?? 'User'}!',
+//               style: Theme.of(context).textTheme.headlineSmall,
+//             ),
+//             const SizedBox(height: 8),
+//             Text(
+//               'Role: ${currentUser?.role.toUpperCase()}',
+//               style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+//                     color: Colors.grey,
+//                   ),
+//             ),
+//             const SizedBox(height: 24),
+//             Expanded(
+//               child: GridView.count(
+//                 crossAxisCount: 2,
+//                 crossAxisSpacing: 16,
+//                 mainAxisSpacing: 16,
+//                 children: [
+//                   _buildDashboardCard(
+//                     context,
+//                     icon: Icons.request_page,
+//                     title: 'PR',
+//                     count: '0',
+//                     color: Colors.blue,
+//                     onTap: () => context.go('/pr'),
+//                   ),
+//                   _buildDashboardCard(
+//                     context,
+//                     icon: Icons.shopping_cart,
+//                     title: 'PO',
+//                     count: '0',
+//                     color: Colors.green,
+//                     onTap: () {},
+//                   ),
+//                   _buildDashboardCard(
+//                     context,
+//                     icon: Icons.inventory,
+//                     title: 'Inventory',
+//                     count: '0',
+//                     color: Colors.orange,
+//                     onTap: () {},
+//                   ),
+//                   _buildDashboardCard(
+//                     context,
+//                     icon: Icons.payment,
+//                     title: 'Payment',
+//                     count: overduePaymentsCount.toString(),
+//                     color: Colors.purple,
+//                     onTap: () => context.go('/payment'),
+//                   ),
+//                 ],
+//               ),
+//             ),
+//           ],
+//         ),
+//       ),
+//     );
+//   }
 
-  Widget _buildDashboardCard(
-    BuildContext context, {
-    required IconData icon,
-    required String title,
-    required String count,
-    required Color color,
-    required VoidCallback onTap,
-  }) {
-    return Card(
-      elevation: 2,
-      child: InkWell(
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(icon, size: 48, color: color),
-              const SizedBox(height: 8),
-              Text(
-                title,
-                style: Theme.of(context).textTheme.titleMedium,
-              ),
-              const SizedBox(height: 4),
-              Text(
-                count,
-                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: color,
-                    ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
+//   Widget _buildDashboardCard(
+//     BuildContext context, {
+//     required IconData icon,
+//     required String title,
+//     required String count,
+//     required Color color,
+//     required VoidCallback onTap,
+//   }) {
+//     return Card(
+//       elevation: 2,
+//       child: InkWell(
+//         onTap: onTap,
+//         child: Padding(
+//           padding: const EdgeInsets.all(16.0),
+//           child: Column(
+//             mainAxisAlignment: MainAxisAlignment.center,
+//             children: [
+//               Icon(icon, size: 48, color: color),
+//               const SizedBox(height: 8),
+//               Text(
+//                 title,
+//                 style: Theme.of(context).textTheme.titleMedium,
+//               ),
+//               const SizedBox(height: 4),
+//               Text(
+//                 count,
+//                 style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+//                       fontWeight: FontWeight.bold,
+//                       color: color,
+//                     ),
+//               ),
+//             ],
+//           ),
+//         ),
+//       ),
+//     );
+//   }
+// }

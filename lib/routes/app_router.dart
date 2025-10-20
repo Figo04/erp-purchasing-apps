@@ -1,7 +1,9 @@
 import 'package:erp_purchasing_apps/presentation/screens/asset/asset_list_screen.dart';
+import 'package:erp_purchasing_apps/presentation/screens/dashboard/dashboard2_screen.dart';
 import 'package:erp_purchasing_apps/presentation/screens/inventory/inventory_list_screen.dart';
+import 'package:erp_purchasing_apps/presentation/screens/lpb/goods_receipt_list_screen.dart';
 import 'package:erp_purchasing_apps/presentation/screens/payment/payment_list_screen.dart';
-import 'package:erp_purchasing_apps/presentation/screens/purchase%20order/goods_receiving_screen.dart';
+//import 'package:erp_purchasing_apps/presentation/screens/purchase%20order/goods_receiving_screen.dart';
 import 'package:erp_purchasing_apps/presentation/screens/purchase%20order/po_approval_screen.dart';
 import 'package:erp_purchasing_apps/presentation/screens/purchase%20order/po_list_screen.dart';
 import 'package:erp_purchasing_apps/presentation/screens/purchase%20requisition/pr_approval_history_screen.dart';
@@ -13,7 +15,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:erp_purchasing_apps/data/providers/auth_providers.dart';
 import '../presentation/screens/auth/login_screen.dart';
-import '../presentation/screens/dashboard/dashboard_screen.dart';
+//import '../presentation/screens/dashboard/dashboard_screen.dart';
 // import '../presentation/screens/auth/register_screen.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
@@ -55,7 +57,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       // ),
       GoRoute(
         path: '/dashboard',
-        builder: (context, state) => const DashboardScreen(),
+        builder: (context, state) => const DashboardScreen2(),
       ),
       GoRoute(
         path: '/suppliers',
@@ -85,10 +87,10 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/pr-history',
         builder: (context, state) => const PRApprovalHistoryScreen(),
       ),
-      // GoRoute(
-      //   path: '/receiving',
-      //   builder: (context, state) => const GoodsReceivingScreen(),
-      // ),
+      GoRoute(
+        path: '/receipt',
+        builder: (context, state) => const GoodsReceiptListScreen(),
+      ),
       GoRoute(
         path: '/inventory',
         builder: (context, state) => const InventoryListScreen(),

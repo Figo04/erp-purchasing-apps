@@ -63,6 +63,20 @@ dependencies:
   pdf: ^3.11.3
   excel: ^4.0.6
 
+  # QR Code
+  qr_flutter: ^4.1.0          
+  mobile_scanner: ^5.2.3      
+  
+  # Platform detection
+  universal_io: ^2.2.2
+  
+  # PDF (untuk print surat jalan)
+  printing: ^5.13.2
+
+  # Design
+  google_fonts: ^6.1.0  
+  fl_chart: ^0.68.0 
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

@@ -193,7 +193,7 @@ class GoodsReceiptRepository {
   Future<void> completeReceipt(String receiptId) async {
     try {
       await _supabase.from('goods_receipt').update({
-        'status': 'complete',
+        'status': 'completed',
         'updated_at': DateTime.now().toIso8601String(),
       }).eq('id', receiptId);
 
