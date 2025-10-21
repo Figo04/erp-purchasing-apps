@@ -151,9 +151,9 @@ class _GoodsReceiptFormScreenState
       // Create receipt
       await repo.createReceipt(
         poId: _selectedPOId!,
-        recivedBy: currentUser.id,
+        receivedBy: currentUser.id,
         items: itemsData,
-        reciptDate: _receiptDate,
+        receiptDate: _receiptDate,
         notes: _notesController.text.trim().isNotEmpty
             ? _notesController.text.trim()
             : null,

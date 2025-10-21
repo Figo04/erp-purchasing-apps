@@ -141,9 +141,9 @@ class GoodsReceiptRepository {
   // Create new receipt (LPB)
   Future<GoodsReceiptModel> createReceipt({
     required String poId,
-    required String recivedBy,
+    required String receivedBy,
     required List<Map<String, dynamic>> items,
-    DateTime? reciptDate,
+    DateTime? receiptDate,
     String? notes,
   }) async {
     try {
@@ -156,8 +156,8 @@ class GoodsReceiptRepository {
           .insert({
             'receipt_number': receiptNumber,
             'po_id': poId,
-            'receipt_date': (reciptDate ?? DateTime.now()).toIso8601String(),
-            'received_by': recivedBy,
+            'receipt_date': (receiptDate ?? DateTime.now()).toIso8601String(),
+            'received_by': receivedBy,
             'status': 'draft',
             'notes': notes,
           })
