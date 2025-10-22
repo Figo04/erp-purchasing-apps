@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:erp_purchasing_apps/data/models/shipment_model.dart';
 import 'package:erp_purchasing_apps/data/repositories/shipment_repository.dart';
-import 'package:erp_purchasing_apps/presentation/screens/lpb/goods_receipt_from_qr_screen.dart';
+import 'package:erp_purchasing_apps/presentation/screens/qr/goods_receipt_from_qr_screen.dart';
 
 class QRScannerScreen extends ConsumerStatefulWidget {
   const QRScannerScreen({super.key});

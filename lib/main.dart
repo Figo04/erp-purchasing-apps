@@ -1,3 +1,5 @@
+import 'package:erp_purchasing_apps/routes/supplier_portal_app.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -14,7 +16,11 @@ void main() async {
   );
 
   runApp(
-    const ProviderScope(child: MyApp()),
+    const ProviderScope(
+      child: kIsWeb
+          ? SupplierPortalApp() // ✅ Web = Portal
+          : MyApp(), // ✅ Desktop = ERP
+    ),
   );
 }
 

@@ -197,6 +197,12 @@ class DashboardScreen2 extends ConsumerWidget {
                           'Receipt',
                           () => context.go('/receipt'),
                         ),
+                      _buildSideMenuItem(
+                        context,
+                        Icons.history,
+                        'Creat account suppliers',
+                        () => context.go('/admin'),
+                      ),
                     ],
                   ),
                 ),

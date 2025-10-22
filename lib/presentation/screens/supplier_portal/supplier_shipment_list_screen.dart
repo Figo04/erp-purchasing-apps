@@ -25,7 +25,11 @@ class _SupplierShipmentListScreenState
   @override
   void initState() {
     super.initState();
-    _loadShipments();
+
+    // ✅ Pakai addPostFrameCallback
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadShipments();
+    });
   }
 
   Future<void> _loadShipments() async {

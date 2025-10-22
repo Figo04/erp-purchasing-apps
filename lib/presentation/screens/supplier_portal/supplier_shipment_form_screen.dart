@@ -39,11 +39,15 @@ class _SupplierShipmentFormScreenState
   @override
   void initState() {
     super.initState();
-    _loadSupplierInfo();
-    if (widget.poId != null) {
-      _selectedPOId = widget.poId;
-      _loadPOData();
-    }
+
+    // ✅ Pakai addPostFrameCallback
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadSupplierInfo();
+      if (widget.poId != null) {
+        _selectedPOId = widget.poId;
+        _loadPOData();
+      }
+    });
   }
 
   Future<void> _loadSupplierInfo() async {
@@ -498,23 +502,19 @@ class _SupplierShipmentFormScreenState
             if (!_isLoading && _items.isNotEmpty)
               Container(
                 padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  boxShadow: [
-                    BoxShadow(
+                decoration: BoxDecoration(color: Colors.white, boxShadow: [
+                  BoxShadow(
                       color: Colors.grey.shade300,
                       blurRadius: 4,
-                      offset: const Offset(0, -2)
-                    )
-                  ]
-                ),
+                      offset: const Offset(0, -2))
+                ]),
                 child: SizedBox(
                   width: double.infinity,
                   height: 48,
                   child: ElevatedButton.icon(
                     onPressed: _isLoading ? null : _handleSubmit,
                     icon: const Icon(Icons.qr_code),
-                    label:  const Text('Create Shipment & Generate QR'),
+                    label: const Text('Create Shipment & Generate QR'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.green,
                       foregroundColor: Colors.white,
@@ -603,7 +603,6 @@ class _SupplierShipmentFormScreenState
               ],
             ),
             const SizedBox(height: 12),
-
             TextFormField(
               controller: item.notesController,
               maxLines: 2,

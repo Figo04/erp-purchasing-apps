@@ -1,3 +1,4 @@
+import 'package:erp_purchasing_apps/data/providers/supplier_auth_providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -24,7 +25,9 @@ class _SupplierDashboardScreenState
   @override
   void initState() {
     super.initState();
-    _loadData();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadData();
+    });
   }
 
   Future<void> _loadData() async {
@@ -92,14 +95,33 @@ class _SupplierDashboardScreenState
 
   Future<void> _handleLogout() async {
     try {
-      await Supabase.instance.client.auth.signOut();
+      print('👋 Logout button clicked');
+
+      // ✅ Pakai SupplierAuthNotifier.signOut()
+      await ref.read(supplierAuthStateProvider.notifier).signOut();
+
+      print('✅ Logout complete, provider cleared');
+
+      // ✅ Verify provider cleared
+      final supplier = ref.read(currentSupplierProvider);
+      print('🔍 After logout, supplier state: $supplier');
+
       if (mounted) {
+        // Small delay untuk pastikan state propagate
+        await Future.delayed(const Duration(milliseconds: 100));
+
+        print('🚀 Navigating to login...');
         context.go('/supplier/login');
+        print('✅ Navigation complete');
       }
     } catch (e) {
+      print('❌ Logout error: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Logout failed: $e')),
+          SnackBar(
+            content: Text('Logout failed: $e'),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     }

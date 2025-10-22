@@ -1,3 +1,4 @@
+import 'package:erp_purchasing_apps/presentation/screens/admin/admin_creat_suppliers.dart';
 import 'package:erp_purchasing_apps/presentation/screens/asset/asset_list_screen.dart';
 import 'package:erp_purchasing_apps/presentation/screens/dashboard/dashboard2_screen.dart';
 import 'package:erp_purchasing_apps/presentation/screens/inventory/inventory_list_screen.dart';
@@ -100,6 +101,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/payment',
         builder: (context, state) => const PaymentListScreen(),
+      ),
+      GoRoute(
+        path: '/admin',
+        builder: (context, state) => const AdminCreateUserScreen(),
       )
     ],
   );

@@ -22,7 +22,10 @@ class _SupplierPOListScreenState extends ConsumerState<SupplierPOListScreen> {
   @override
   void initState() {
     super.initState();
-    _loadPOs();
+    // ✅ Pakai addPostFrameCallback
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadPOs();
+    });
   }
 
   Future<void> _loadPOs() async {

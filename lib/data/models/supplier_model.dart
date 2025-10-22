@@ -1,3 +1,4 @@
+// supplier_model.dart
 import 'package:equatable/equatable.dart';
 
 class SupplierModel extends Equatable {
@@ -10,6 +11,8 @@ class SupplierModel extends Equatable {
   final bool isActive;
   final DateTime createdAt;
   final DateTime updatedAt;
+  final String? authEmail;    // ✅ Pastikan ada
+  final bool canLogin;        // ✅ Pastikan ada
 
   const SupplierModel({
     required this.id,
@@ -21,6 +24,8 @@ class SupplierModel extends Equatable {
     required this.isActive,
     required this.createdAt,
     required this.updatedAt,
+    this.authEmail,
+    this.canLogin = false,
   });
 
   factory SupplierModel.fromJson(Map<String, dynamic> json) {
@@ -34,6 +39,8 @@ class SupplierModel extends Equatable {
       isActive: json['is_active'] ?? true,
       createdAt: DateTime.parse(json['created_at']),
       updatedAt: DateTime.parse(json['updated_at']),
+      authEmail: json['auth_email'],        // ✅
+      canLogin: json['can_login'] ?? false, // ✅
     );
   }
 
@@ -48,6 +55,8 @@ class SupplierModel extends Equatable {
       'is_active': isActive,
       'created_at': createdAt.toIso8601String(),
       'updated_at': updatedAt.toIso8601String(),
+      'auth_email': authEmail,       // ✅
+      'can_login': canLogin,         // ✅
     };
   }
 
@@ -62,5 +71,7 @@ class SupplierModel extends Equatable {
         isActive,
         createdAt,
         updatedAt,
+        authEmail,    // ✅
+        canLogin,     // ✅
       ];
 }
