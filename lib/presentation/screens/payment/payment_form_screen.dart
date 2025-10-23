@@ -2,15 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:erp_purchasing_apps/data/providers/payment_provider.dart';
+import 'package:erp_purchasing_apps/data/providers/goods_receipt_provider.dart';
 import 'package:erp_purchasing_apps/data/repositories/po_repository.dart';
 import 'package:intl/intl.dart';
 
 class PaymentFormScreen extends ConsumerStatefulWidget {
-  final String? poId;
+  final String? receiptId; // 🔄 Changed from poId
 
   const PaymentFormScreen({
     super.key,
-    this.poId,
+    this.receiptId, // 🔄 Changed parameter name
   });
 
   @override
@@ -23,16 +24,17 @@ class _PaymentFormScreenState extends ConsumerState<PaymentFormScreen> {
   final _amountController = TextEditingController();
   final _notesController = TextEditingController();
 
-  String? _selectedPoId;
+  String? _selectedReceiptId; // 🔄 Changed from _selectedPoId
   DateTime? _selectedDueDate;
   bool _isLoading = false;
-  List<Map<String, dynamic>> _receivedPOs = [];
+  List<Map<String, dynamic>> _completedReceipts =
+      []; // 🔄 Changed from _receivedPOs
 
   @override
   void initState() {
     super.initState();
-    _selectedPoId = widget.poId;
-    _loadReceivedPOs();
+    _selectedReceiptId = widget.receiptId; // 🔄
+    _loadCompletedReceipts(); // 🔄 Changed function name
   }
 
   @override
@@ -43,43 +45,54 @@ class _PaymentFormScreenState extends ConsumerState<PaymentFormScreen> {
     super.dispose();
   }
 
-  Future<void> _loadReceivedPOs() async {
+  // 🔄 MODIFIED: Load completed receipts instead of POs
+  Future<void> _loadCompletedReceipts() async {
     setState(() => _isLoading = true);
 
     try {
-      final poRepo = PoRepository();
-      final pos = await poRepo.getAllPOs();
+      final grRepo = ref.read(goodsReceiptRepositoryProvider);
+      final receipts = await grRepo.getAllReceipts();
 
-      // Filter POs that are received don't have payment yet
       final paymentRepo = ref.read(paymentRepositoryProvider);
-      final List<Map<String, dynamic>> receivedPOs = [];
+      final List<Map<String, dynamic>> availableReceipts = [];
 
-      for (var po in pos) {
-        if (po.status == 'received') {
-          // Check if payment already exists
-          final existingPaayment = await paymentRepo.getPaymentByPOId(po.id);
-          if (existingPaayment == null) {
-            receivedPOs.add({
-              'id': po.id,
-              'po_number': po.poNumber,
-              'supplier_name': po.supplierName,
-              'total_amount': po.totalAmount,
-            });
+      for (var receipt in receipts) {
+        if (receipt.status == 'completed') {
+          final existingPayment =
+              await paymentRepo.getPaymentByReceiptId(receipt.id);
+
+          if (existingPayment == null) {
+            // poId sudah String, langsung pakai
+            final poRepo = PoRepository();
+            final po =
+                await poRepo.getPOById(receipt.poId); // ✅ Langsung String
+
+            if (po != null) {
+              availableReceipts.add({
+                'id': receipt.id,
+                'receipt_number': receipt.receiptNumber,
+                'po_number': receipt.poNumber ?? po.poNumber,
+                'supplier_name': po.supplierName ?? 'N/A',
+                'total_amount': po.totalAmount,
+                'receipt_date': receipt.receiptDate,
+              });
+            }
           }
         }
       }
 
       setState(() {
-        _receivedPOs = receivedPOs;
-        if (_selectedPoId != null) {
-          _loadPOData();
+        _completedReceipts = availableReceipts;
+        if (_selectedReceiptId != null) {
+          _loadReceiptData();
         }
       });
     } catch (e) {
+      print('🔴 Error details: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error loading POs: $e'),
+            content: Text('Error loading receipts: $e'),
             backgroundColor: Colors.red,
           ),
         );
@@ -89,16 +102,17 @@ class _PaymentFormScreenState extends ConsumerState<PaymentFormScreen> {
     }
   }
 
-  void _loadPOData() {
-    if (_selectedPoId == null) return;
+  // 🔄 MODIFIED: Load receipt data instead of PO data
+  void _loadReceiptData() {
+    if (_selectedReceiptId == null) return;
 
-    final po = _receivedPOs.firstWhere(
-      (po) => po['id'] == _selectedPoId,
+    final receipt = _completedReceipts.firstWhere(
+      (r) => r['id'] == _selectedReceiptId,
       orElse: () => {},
     );
 
-    if (po.isNotEmpty) {
-      _amountController.text = po['total_amount'].toStringAsFized(0);
+    if (receipt.isNotEmpty) {
+      _amountController.text = receipt['total_amount'].toStringAsFixed(0);
     }
   }
 
@@ -121,10 +135,10 @@ class _PaymentFormScreenState extends ConsumerState<PaymentFormScreen> {
   Future<void> _createPayment() async {
     if (!_formKey.currentState!.validate()) return;
 
-    if (_selectedPoId == null) {
+    if (_selectedReceiptId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Please select a PO'),
+          content: Text('Please select a Goods Receipt (LPB)'),
           backgroundColor: Colors.red,
         ),
       );
@@ -142,8 +156,9 @@ class _PaymentFormScreenState extends ConsumerState<PaymentFormScreen> {
       final invoiceNumber = _invoiceNumberController.text.trim();
       final notes = _notesController.text.trim();
 
+      // 🔄 CHANGED: Pass receiptId instead of poId
       await repository.createPayment(
-        poId: _selectedPoId!,
+        receiptId: _selectedReceiptId!, // 🔄 Changed parameter
         amount: amount,
         invoiceNumber: invoiceNumber.isEmpty ? null : invoiceNumber,
         dueDate: _selectedDueDate,
@@ -185,7 +200,7 @@ class _PaymentFormScreenState extends ConsumerState<PaymentFormScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Info Card
+                    // Info Card - 🔄 UPDATED text
                     Card(
                       color: Colors.blue.shade50,
                       child: Padding(
@@ -197,7 +212,7 @@ class _PaymentFormScreenState extends ConsumerState<PaymentFormScreen> {
                             const SizedBox(width: 8),
                             Expanded(
                               child: Text(
-                                'Create payment for received Purchase Orders',
+                                'Create payment from completed Goods Receipt (LPB). Invoice from supplier must be received first.',
                                 style: TextStyle(
                                   fontSize: 12,
                                   color: Colors.blue.shade700,
@@ -210,62 +225,64 @@ class _PaymentFormScreenState extends ConsumerState<PaymentFormScreen> {
                     ),
                     const SizedBox(height: 16),
 
-                    // Select PO
+                    // 🔄 MODIFIED: Select Goods Receipt instead of PO
                     DropdownButtonFormField<String>(
-                      value: _selectedPoId,
+                      value: _selectedReceiptId,
                       decoration: const InputDecoration(
-                        labelText: 'Select Purchase Order *',
+                        labelText: 'Select Goods Receipt (LPB) *',
                         border: OutlineInputBorder(),
-                        prefixIcon: Icon(Icons.shopping_cart),
+                        prefixIcon: Icon(Icons.inventory_2),
+                        helperText:
+                            'Select completed LPB that has no payment yet',
                       ),
-                      items: _receivedPOs.map((po) {
+                      isExpanded: true, // ✅ TAMBAHKAN INI
+                      items: _completedReceipts.map((receipt) {
                         return DropdownMenuItem<String>(
-                          value: po['id'],
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text(
-                                po['po_number'],
-                                style: const TextStyle(
-                                    fontWeight: FontWeight.bold),
-                              ),
-                              Text(
-                                '${po['supplier_name']} - Rp ${NumberFormat('#,###').format(po['total_amount'])}',
-                                style: const TextStyle(
-                                    fontSize: 12, color: Colors.grey),
-                              ),
-                            ],
+                          value: receipt['id'],
+                          child: Text(
+                            '${receipt['receipt_number']} - ${receipt['supplier_name']} - Rp ${NumberFormat('#,###').format(receipt['total_amount'])}',
+                            overflow:
+                                TextOverflow.ellipsis, // ✅ Handle text panjang
+                            maxLines: 1, // ✅ Batasi 1 baris
+                            style: const TextStyle(fontSize: 14),
                           ),
                         );
                       }).toList(),
                       onChanged: (value) {
                         setState(() {
-                          _selectedPoId = value;
-                          _loadPOData();
+                          _selectedReceiptId = value;
+                          _loadReceiptData();
                         });
                       },
                       validator: (value) {
                         if (value == null) {
-                          return 'Please select a PO';
+                          return 'Please select a Goods Receipt';
                         }
                         return null;
                       },
                     ),
                     const SizedBox(height: 16),
 
-                    // Invoice Number
+                    // 🔄 UPDATED: Invoice Number field with better description
                     TextFormField(
                       controller: _invoiceNumberController,
                       decoration: const InputDecoration(
-                        labelText: 'Invoice Number (from Supplier)',
+                        labelText: 'Invoice Number (from Supplier) *',
                         hintText: 'e.g., INV-2024-001',
                         border: OutlineInputBorder(),
                         prefixIcon: Icon(Icons.receipt),
+                        helperText: 'Invoice number received from supplier',
                       ),
+                      validator: (value) {
+                        if (value == null || value.trim().isEmpty) {
+                          return 'Invoice number is required';
+                        }
+                        return null;
+                      },
                     ),
                     const SizedBox(height: 16),
 
+                    // Amount Field
                     TextFormField(
                       controller: _amountController,
                       decoration: const InputDecoration(
@@ -274,6 +291,7 @@ class _PaymentFormScreenState extends ConsumerState<PaymentFormScreen> {
                         border: OutlineInputBorder(),
                         prefixIcon: Icon(Icons.attach_money),
                         prefixText: 'Rp ',
+                        helperText: 'Amount must match invoice from supplier',
                       ),
                       keyboardType: TextInputType.number,
                       inputFormatters: [
@@ -335,6 +353,7 @@ class _PaymentFormScreenState extends ConsumerState<PaymentFormScreen> {
                           labelText: 'Due Date (Payment Schedule)',
                           border: OutlineInputBorder(),
                           prefixIcon: Icon(Icons.calendar_today),
+                          helperText: 'When this payment should be made',
                         ),
                         child: Text(
                           _selectedDueDate != null
@@ -379,7 +398,7 @@ class _PaymentFormScreenState extends ConsumerState<PaymentFormScreen> {
                     ),
                     const SizedBox(height: 16),
 
-                    // info Note
+                    // Info Note - 🔄 UPDATED text
                     Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
@@ -394,14 +413,42 @@ class _PaymentFormScreenState extends ConsumerState<PaymentFormScreen> {
                           const SizedBox(width: 8),
                           Expanded(
                             child: Text(
-                              'Payment will be created with "Pending" status. Finance team can verify and process the payment later.',
+                              'Payment will be created with "Pending" status. Finance team will verify the invoice and process the payment later.',
                               style: TextStyle(
                                   fontSize: 12, color: Colors.orange.shade700),
                             ),
                           )
                         ],
                       ),
-                    )
+                    ),
+
+                    // 🆕 NEW: Show warning if no receipts available
+                    if (_completedReceipts.isEmpty) ...[
+                      const SizedBox(height: 16),
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: Colors.red.shade50,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: Colors.red.shade200),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(Icons.warning, color: Colors.red.shade700),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                'No completed Goods Receipts (LPB) available. Please complete LPB first before creating payment.',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.red.shade700,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),

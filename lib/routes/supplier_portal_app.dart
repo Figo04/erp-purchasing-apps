@@ -87,7 +87,7 @@ class _SupplierPortalAppState extends ConsumerState<SupplierPortalApp> {
   Widget build(BuildContext context) {
     // ✅ Listen ke perubahan supplier auth dan refresh router
     ref.listen(currentSupplierProvider, (previous, next) {
-      print('🔔 Supplier auth state changed:');
+      print(' Supplier auth state changed:');
       print('   - Previous: ${previous?.name}');
       print('   - Next: ${next?.name}');
       print('   - Refreshing router...');

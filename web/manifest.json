@@ -1,6 +1,6 @@
 {
-    "name": "erp_purchasing_apps",
-    "short_name": "erp_purchasing_apps",
+    "name": "supplier_portal",
+    "short_name": "supplier Portal",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",

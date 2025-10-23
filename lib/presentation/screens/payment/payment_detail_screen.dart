@@ -244,9 +244,9 @@ class _PaymentDetailScreenState extends ConsumerState<PaymentDetailScreen> {
                 ),
                 const SizedBox(height: 16),
 
-                // PO Information
+                // PO & Receipt Information
                 Text(
-                  'Purchase Order Information',
+                  'Purchase Order & Receipt Information',
                   style: Theme.of(context).textTheme.titleMedium,
                 ),
                 const SizedBox(height: 8),
@@ -258,15 +258,76 @@ class _PaymentDetailScreenState extends ConsumerState<PaymentDetailScreen> {
                       children: [
                         if (payment.poNumber != null)
                           _buildInfoRow('PO Number', payment.poNumber!),
+
+                        // 🆕 NEW: Show Receipt Number
+                        if (payment.receiptNumber != null)
+                          _buildInfoRow(
+                              'Receipt Number (LPB)', payment.receiptNumber!),
+
                         if (payment.supplierName != null)
                           _buildInfoRow('Supplier', payment.supplierName!),
+
+                        // 🔄 UPDATED: Invoice Number - emphasize it's from supplier
                         if (payment.invoiceNumber != null)
-                          _buildInfoRow(
-                              'Invoice Number', payment.invoiceNumber!),
+                          _buildInfoRow('Invoice Number (Supplier)',
+                              payment.invoiceNumber!),
                       ],
                     ),
                   ),
                 ),
+                const SizedBox(height: 16),
+
+                // Goods Receipt Information
+                if (payment.receiptNumber != null) ...[
+                  Text(
+                    'Goods Receipt (LPB) Information',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                  const SizedBox(height: 8),
+                  Card(
+                    color: Colors.green.shade50,
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Row(
+                        children: [
+                          Icon(Icons.inventory_2,
+                              color: Colors.green.shade700, size: 32),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Receipt Number',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.green.shade700,
+                                  ),
+                                ),
+                                Text(
+                                  payment.receiptNumber!,
+                                  style: const TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  'Payment is linked to this goods receipt',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: Colors.grey.shade600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                ],
                 const SizedBox(height: 16),
 
                 // Payment Schedule
@@ -464,7 +525,7 @@ class _PaymentDetailScreenState extends ConsumerState<PaymentDetailScreen> {
       builder: (dialogContext) => AlertDialog(
         title: const Text('Verify Payment'),
         content: const Text(
-          'Verify that the invoice amount matches the PO amount. After verification, payment will be scheduled.',
+          'Pastikan jumlah faktur sesuai dengan jumlah PO. Setelah verifikasi, pembayaran akan dijadwalkan.',
         ),
         actions: [
           TextButton(

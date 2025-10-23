@@ -14,8 +14,8 @@ class GoodsReceiptRepository {
           ''').order('created_at', ascending: false);
 
       return (response as List).map((json) {
-        final poData = json('purchase_order');
-        final userData = json('users');
+        final poData = json['purchase_order'];
+        final userData = json['users'];
 
         final Map<String, dynamic> receiptData = Map.from(json);
         receiptData.remove('purchase_order');

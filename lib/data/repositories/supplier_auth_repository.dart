@@ -4,7 +4,7 @@ import '../models/supplier_model.dart';
 class SupplierAuthRepository {
   final SupabaseClient _supabase = Supabase.instance.client;
 
-  /// ✅ Sign in supplier menggunakan Supabase Auth
+  ///  Sign in supplier menggunakan Supabase Auth
   Future<SupplierModel?> signIn({
     required String email,
     required String password,
@@ -13,7 +13,7 @@ class SupplierAuthRepository {
       print('🔐 SupplierAuthRepository: Starting sign in...');
       print('📧 Email: $email');
 
-      // 1. ✅ Login via Supabase Auth (untuk validasi password)
+      // 1. Login via Supabase Auth (untuk validasi password)
       final authResponse = await _supabase.auth.signInWithPassword(
         email: email,
         password: password,
@@ -26,7 +26,7 @@ class SupplierAuthRepository {
         throw Exception('Authentication failed: No user returned');
       }
 
-      // 2. ✅ Fetch supplier data dari database menggunakan auth_email
+      // 2. Fetch supplier data dari database menggunakan auth_email
       print('🔍 Fetching supplier data from database...');
       final supplierData = await _supabase
           .from('suppliers')

@@ -230,7 +230,6 @@ class _PaymentListScreenState extends ConsumerState<PaymentListScreen> {
                       .toList();
                 }
 
-                // Filter  by search
                 if (_searchQuery.isNotEmpty) {
                   filteredPayments = filteredPayments.where((payment) {
                     return payment.paymentNumber
@@ -241,6 +240,11 @@ class _PaymentListScreenState extends ConsumerState<PaymentListScreen> {
                                 .contains(_searchQuery) ??
                             false) ||
                         (payment.supplierName
+                                ?.toLowerCase()
+                                .contains(_searchQuery) ??
+                            false) ||
+                        // 🆕 NEW: Also search by receipt number
+                        (payment.receiptNumber
                                 ?.toLowerCase()
                                 .contains(_searchQuery) ??
                             false);
@@ -314,16 +318,42 @@ class _PaymentListScreenState extends ConsumerState<PaymentListScreen> {
                         subtitle: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
+                            // 🆕 NEW: Show Receipt Number first (if exists)
+                            if (payment.receiptNumber != null)
+                              Row(
+                                children: [
+                                  Icon(Icons.inventory_2,
+                                      size: 14, color: Colors.green.shade700),
+                                  const SizedBox(width: 4),
+                                  Expanded(
+                                    child: Text(
+                                      'LPB: ${payment.receiptNumber}',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.w600,
+                                        color: Colors.green.shade700,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+
+                            // Existing PO Number
                             if (payment.poNumber != null)
                               Text('PO: ${payment.poNumber}'),
+
+                            // Existing Supplier Name
                             if (payment.supplierName != null)
                               Text('Supplier: ${payment.supplierName}'),
+
+                            // Existing Amount
                             Text(
                               'Amount: Rp ${NumberFormat('#,###').format(payment.amount)}',
                               style: const TextStyle(
                                   fontWeight: FontWeight.w600,
                                   color: Colors.blue),
                             ),
+
+                            // Existing Due Date
                             if (payment.dueDate != null)
                               Text(
                                 'Due: ${DateFormat('dd MMM yyyy').format(payment.dueDate!)}',

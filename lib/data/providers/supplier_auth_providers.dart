@@ -9,7 +9,6 @@ final supplierAuthRepositoryProvider = Provider<SupplierAuthRepository>((ref) {
   return SupplierAuthRepository();
 });
 
-// ✅ TAMBAH: Provider untuk current supplier
 final currentSupplierProvider = StateProvider<SupplierModel?>((ref) => null);
 
 // Auth State Notifier

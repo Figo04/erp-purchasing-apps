@@ -7,7 +7,7 @@ final paymentRepositoryProvider = Provider<PaymentRepository>((ref) {
   return PaymentRepository();
 });
 
-// Real-time Payment Stream Provider
+// Real-time Payment Stream Provider - 🔄 UPDATED with goods_receipt join
 final paymentStreamProvider = StreamProvider<List<PaymentModel>>((ref) {
   final supabase = Supabase.instance.client;
 
@@ -34,6 +34,19 @@ final paymentStreamProvider = StreamProvider<List<PaymentModel>>((ref) {
                 if (poResponse['suppliers'] != null) {
                   json['supplier_name'] = poResponse['suppliers']['name'];
                 }
+              }
+            }
+
+            // 🆕 NEW: Fetch goods receipt data
+            if (json['goods_receipt_id'] != null) {
+              final grResponse = await supabase
+                  .from('goods_receipt')
+                  .select('receipt_number')
+                  .eq('id', json['goods_receipt_id'])
+                  .maybeSingle();
+
+              if (grResponse != null) {
+                json['receipt_number'] = grResponse['receipt_number'];
               }
             }
 
@@ -74,7 +87,7 @@ final paymentStreamProvider = StreamProvider<List<PaymentModel>>((ref) {
       });
 });
 
-// Pending payments count
+// Pending payments count (no changes)
 final pendingPaymentsCountProvider = Provider<int>((ref) {
   final paymentStream = ref.watch(paymentStreamProvider);
 
@@ -85,7 +98,7 @@ final pendingPaymentsCountProvider = Provider<int>((ref) {
   );
 });
 
-// Overdue payments count
+// Overdue payments count (no changes)
 final overduePaymentsCountProvider = Provider<int>((ref) {
   final paymentStream = ref.watch(paymentStreamProvider);
 
@@ -103,7 +116,7 @@ final overduePaymentsCountProvider = Provider<int>((ref) {
   );
 });
 
-// Payments by status
+// Payments by status (no changes)
 final paymentsByStatusProvider = Provider.family<int, String>((ref, status) {
   final paymentStream = ref.watch(paymentStreamProvider);
 

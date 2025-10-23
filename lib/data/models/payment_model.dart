@@ -4,30 +4,33 @@ class PaymentModel extends Equatable {
   final String id;
   final String paymentNumber;
   final String poId;
-  final String? invoiceNumber; // Invoice dari supplier
+  final String? goodsReceiptId; // 🆕 NEW: Link ke HPB/LPB
+  final String? invoiceNumber;
   final double amount;
   final DateTime? paymentDate;
-  final DateTime? dueDate; // Jadwal pembayaran
-  final String status; // pending, scheduled, paid, failed, cancelled
-  final String? method; // bank_transfer, cash, e_wallet, check
-  final String? referenceNumber; // Nomor transaksi bank
+  final DateTime? dueDate;
+  final String status;
+  final String? method;
+  final String? referenceNumber;
   final String? notes;
-  final String? verifiedBy; // User ID yang verifikasi
+  final String? verifiedBy;
   final DateTime? verifiedAt;
-  final String? paidBy; // User ID yang bayar
+  final String? paidBy;
   final DateTime createdAt;
   final DateTime updatedAt;
-
-  // Joined data from PO
+  
+  // Joined data from other tables
   final String? poNumber;
   final String? supplierName;
   final String? verifiedByName;
   final String? paidByName;
+  final String? receiptNumber; // 🆕 NEW: HPB number untuk display
 
   const PaymentModel({
     required this.id,
     required this.paymentNumber,
     required this.poId,
+    this.goodsReceiptId, // 🆕
     this.invoiceNumber,
     required this.amount,
     this.paymentDate,
@@ -45,6 +48,7 @@ class PaymentModel extends Equatable {
     this.supplierName,
     this.verifiedByName,
     this.paidByName,
+    this.receiptNumber, // 🆕
   });
 
   factory PaymentModel.fromJson(Map<String, dynamic> json) {
@@ -52,13 +56,15 @@ class PaymentModel extends Equatable {
       id: json['id'],
       paymentNumber: json['payment_number'],
       poId: json['po_id'],
+      goodsReceiptId: json['goods_receipt_id'], // 🆕
       invoiceNumber: json['invoice_number'],
       amount: double.parse(json['amount'].toString()),
       paymentDate: json['payment_date'] != null
           ? DateTime.parse(json['payment_date'])
           : null,
-      dueDate:
-          json['due_date'] != null ? DateTime.parse(json['due_date']) : null,
+      dueDate: json['due_date'] != null 
+          ? DateTime.parse(json['due_date']) 
+          : null,
       status: json['status'] ?? 'pending',
       method: json['method'],
       referenceNumber: json['reference_number'],
@@ -74,6 +80,7 @@ class PaymentModel extends Equatable {
       supplierName: json['supplier_name'],
       verifiedByName: json['verified_by_name'],
       paidByName: json['paid_by_name'],
+      receiptNumber: json['receipt_number'], // 🆕
     );
   }
 
@@ -82,6 +89,7 @@ class PaymentModel extends Equatable {
       'id': id,
       'payment_number': paymentNumber,
       'po_id': poId,
+      'goods_receipt_id': goodsReceiptId, // 🆕
       'invoice_number': invoiceNumber,
       'amount': amount,
       'payment_date': paymentDate?.toIso8601String(),
@@ -102,6 +110,7 @@ class PaymentModel extends Equatable {
     String? id,
     String? paymentNumber,
     String? poId,
+    String? goodsReceiptId, // 🆕
     String? invoiceNumber,
     double? amount,
     DateTime? paymentDate,
@@ -119,11 +128,13 @@ class PaymentModel extends Equatable {
     String? supplierName,
     String? verifiedByName,
     String? paidByName,
+    String? receiptNumber, // 🆕
   }) {
     return PaymentModel(
       id: id ?? this.id,
       paymentNumber: paymentNumber ?? this.paymentNumber,
       poId: poId ?? this.poId,
+      goodsReceiptId: goodsReceiptId ?? this.goodsReceiptId, // 🆕
       invoiceNumber: invoiceNumber ?? this.invoiceNumber,
       amount: amount ?? this.amount,
       paymentDate: paymentDate ?? this.paymentDate,
@@ -141,6 +152,7 @@ class PaymentModel extends Equatable {
       supplierName: supplierName ?? this.supplierName,
       verifiedByName: verifiedByName ?? this.verifiedByName,
       paidByName: paidByName ?? this.paidByName,
+      receiptNumber: receiptNumber ?? this.receiptNumber, // 🆕
     );
   }
 
@@ -149,6 +161,7 @@ class PaymentModel extends Equatable {
         id,
         paymentNumber,
         poId,
+        goodsReceiptId, // 🆕
         invoiceNumber,
         amount,
         paymentDate,
@@ -166,5 +179,6 @@ class PaymentModel extends Equatable {
         supplierName,
         verifiedByName,
         paidByName,
+        receiptNumber, // 🆕
       ];
 }
