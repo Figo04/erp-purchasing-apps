@@ -7,8 +7,8 @@
 // import 'package:erp_purchasing_apps/data/providers/auth_providers.dart';
 // import 'package:go_router/go_router.dart';
 
-// class DashboardScreen3 extends ConsumerWidget {
-//   const DashboardScreen3({super.key});
+// class DashboardScreen2 extends ConsumerWidget {
+//   const DashboardScreen2({super.key});
 
 //   @override
 //   Widget build(BuildContext context, WidgetRef ref) {
@@ -74,7 +74,7 @@
 //                         backgroundColor: Colors.white.withOpacity(0.3),
 //                         child: Text(
 //                           currentUser?.username.substring(0, 1).toUpperCase() ??
-//                               'U',
+//                               'A',
 //                           style: const TextStyle(
 //                             color: Colors.white,
 //                             fontWeight: FontWeight.bold,
@@ -87,7 +87,7 @@
 //                           crossAxisAlignment: CrossAxisAlignment.start,
 //                           children: [
 //                             Text(
-//                               currentUser?.fullName ?? 'User',
+//                               '${currentUser?.fullName ?? 'User'}',
 //                               style: const TextStyle(
 //                                 color: Colors.white,
 //                                 fontWeight: FontWeight.bold,
@@ -96,7 +96,7 @@
 //                               overflow: TextOverflow.ellipsis,
 //                             ),
 //                             Text(
-//                               currentUser?.email ?? '',
+//                               '${currentUser?.role.toUpperCase()}',
 //                               style: const TextStyle(
 //                                 color: Colors.white70,
 //                                 fontSize: 11,
@@ -119,7 +119,7 @@
 //                         context,
 //                         Icons.dashboard,
 //                         'Dashboard',
-//                         () => context.go('/'),
+//                         () {},
 //                         isActive: true,
 //                       ),
 //                       _buildSideMenuItem(
@@ -193,23 +193,11 @@
 //                           currentUser?.role == 'warehouse')
 //                         _buildSideMenuItem(
 //                           context,
-//                           Icons.local_shipping,
+//                           Icons.receipt_long,
 //                           'Receipt',
 //                           () => context.go('/receipt'),
 //                         ),
 //                     ],
-//                   ),
-//                 ),
-//                 // Logout Button
-//                 Container(
-//                   padding: const EdgeInsets.all(8),
-//                   child: _buildSideMenuItem(
-//                     context,
-//                     Icons.logout,
-//                     'Logout',
-//                     () async {
-//                       await ref.read(authStateProvider.notifier).signOut();
-//                     },
 //                   ),
 //                 ),
 //               ],
@@ -226,7 +214,6 @@
 //                   padding: const EdgeInsets.symmetric(horizontal: 24),
 //                   child: Row(
 //                     children: [
-//                       const Icon(Icons.menu_open, color: Colors.grey),
 //                       const SizedBox(width: 16),
 //                       const Text(
 //                         'ERP System',
@@ -236,11 +223,6 @@
 //                         ),
 //                       ),
 //                       const Spacer(),
-//                       IconButton(
-//                         icon: const Icon(Icons.notifications_outlined),
-//                         onPressed: () {},
-//                       ),
-//                       const SizedBox(width: 8),
 //                       IconButton(
 //                         icon: const Icon(Icons.logout),
 //                         onPressed: () async {
@@ -252,13 +234,121 @@
 //                 ),
 //                 // Dashboard Content
 //                 Expanded(
-//                   child: _buildDashboardContent(
-//                     context,
-//                     currentUser,
-//                     pendingCount,
-//                     lowStockCount,
-//                     borrowedAssetsCount,
-//                     overduePaymentsCount,
+//                   child: SingleChildScrollView(
+//                     padding: const EdgeInsets.all(24),
+//                     child: Column(
+//                       crossAxisAlignment: CrossAxisAlignment.start,
+//                       children: [
+//                         // Welcome Text
+//                         Text(
+//                           'Welcome, ${currentUser?.fullName ?? 'User'}!',
+//                           style: const TextStyle(
+//                             fontSize: 28,
+//                             fontWeight: FontWeight.bold,
+//                             color: Color(0xFF2196F3),
+//                           ),
+//                         ),
+//                         const SizedBox(height: 4),
+//                         Text(
+//                           "Here's what's happening with your ERP system today",
+//                           style: TextStyle(
+//                             fontSize: 14,
+//                             color: Colors.grey[600],
+//                           ),
+//                         ),
+//                         const SizedBox(height: 24),
+//                         // Stats Cards Row 1 - 4 cards
+//                         Row(
+//                           children: [
+//                             Expanded(
+//                               child: _buildStatCard(
+//                                 'Total PR',
+//                                 '24',
+//                                 Icons.description,
+//                                 const Color(0xFF2196F3),
+//                               ),
+//                             ),
+//                             const SizedBox(width: 16),
+//                             Expanded(
+//                               child: _buildStatCard(
+//                                 'Total PO',
+//                                 '18',
+//                                 Icons.shopping_cart,
+//                                 const Color(0xFF4CAF50),
+//                               ),
+//                             ),
+//                             const SizedBox(width: 16),
+//                             Expanded(
+//                               child: _buildStatCard(
+//                                 'Inventory Items',
+//                                 '342',
+//                                 Icons.inventory_2,
+//                                 const Color(0xFF9C27B0),
+//                               ),
+//                             ),
+//                             const SizedBox(width: 16),
+//                             Expanded(
+//                               child: _buildStatCard(
+//                                 'Active Users',
+//                                 '15',
+//                                 Icons.people,
+//                                 const Color(0xFF2196F3),
+//                               ),
+//                             ),
+//                           ],
+//                         ),
+//                         const SizedBox(height: 16),
+//                         // Stats Cards Row 2 - 3 cards
+//                         Row(
+//                           children: [
+//                             Expanded(
+//                               child: _buildMoneyCard(
+//                                 'Monthly Spending',
+//                                 '\$45,231',
+//                                 '+13.2% from last month',
+//                                 const Color(0xFF2196F3),
+//                               ),
+//                             ),
+//                             const SizedBox(width: 16),
+//                             Expanded(
+//                               child: _buildAlertCard(
+//                                 'Pending Approvals',
+//                                 '8',
+//                                 'Requires attention',
+//                                 Colors.orange,
+//                               ),
+//                             ),
+//                             const SizedBox(width: 16),
+//                             Expanded(
+//                               child: _buildSuccessCard(
+//                                 'Completed Today',
+//                                 '12',
+//                                 'Great progress!',
+//                                 Colors.green,
+//                               ),
+//                             ),
+//                           ],
+//                         ),
+//                         const SizedBox(height: 24),
+//                         // Bottom Section - 2 columns
+//                         Row(
+//                           crossAxisAlignment: CrossAxisAlignment.start,
+//                           children: [
+//                             // Recent Activity
+//                             Expanded(
+//                               flex: 5,
+//                               child: _buildRecentActivity(),
+//                             ),
+//                             const SizedBox(width: 16),
+//                             // Pending Approvals
+//                             Expanded(
+//                               flex: 4,
+//                               child: _buildPendingApprovals(),
+//                             ),
+//                           ],
+//                         ),
+//                       ],
+//                     ),
 //                   ),
 //                 ),
 //               ],
@@ -269,7 +359,7 @@
 //     );
 //   }
 
-//   // Mobile Layout dengan Drawer
+//   // Mobile Layout
 //   Widget _buildMobileLayout(
 //     BuildContext context,
 //     WidgetRef ref,
@@ -307,13 +397,55 @@
 //         borrowedAssetsCount,
 //         overduePaymentsCount,
 //       ),
-//       body: _buildDashboardContent(
-//         context,
-//         currentUser,
-//         pendingCount,
-//         lowStockCount,
-//         borrowedAssetsCount,
-//         overduePaymentsCount,
+//       body: SingleChildScrollView(
+//         padding: const EdgeInsets.all(16),
+//         child: Column(
+//           crossAxisAlignment: CrossAxisAlignment.start,
+//           children: [
+//             Text(
+//               'Welcome Back, ${currentUser?.fullName ?? 'System Admin'}!',
+//               style: const TextStyle(
+//                 fontSize: 24,
+//                 fontWeight: FontWeight.bold,
+//                 color: Color(0xFF2196F3),
+//               ),
+//             ),
+//             const SizedBox(height: 4),
+//             Text(
+//               "Here's what's happening with your ERP system today",
+//               style: TextStyle(
+//                 fontSize: 13,
+//                 color: Colors.grey[600],
+//               ),
+//             ),
+//             const SizedBox(height: 20),
+//             // Mobile grid
+//             _buildStatCard(
+//                 'Total PR', '24', Icons.description, const Color(0xFF2196F3)),
+//             const SizedBox(height: 12),
+//             _buildStatCard(
+//                 'Total PO', '18', Icons.shopping_cart, const Color(0xFF4CAF50)),
+//             const SizedBox(height: 12),
+//             _buildStatCard('Inventory Items', '342', Icons.inventory_2,
+//                 const Color(0xFF9C27B0)),
+//             const SizedBox(height: 12),
+//             _buildStatCard(
+//                 'Active Users', '15', Icons.people, const Color(0xFF2196F3)),
+//             const SizedBox(height: 16),
+//             _buildMoneyCard('Monthly Spending', '\$45,231',
+//                 '+13.2% from last month', const Color(0xFF2196F3)),
+//             const SizedBox(height: 12),
+//             _buildAlertCard(
+//                 'Pending Approvals', '8', 'Requires attention', Colors.orange),
+//             const SizedBox(height: 12),
+//             _buildSuccessCard(
+//                 'Completed Today', '12', 'Great progress!', Colors.green),
+//             const SizedBox(height: 20),
+//             _buildRecentActivity(),
+//             const SizedBox(height: 16),
+//             _buildPendingApprovals(),
+//           ],
+//         ),
 //       ),
 //     );
 //   }
@@ -346,7 +478,7 @@
 //                     radius: 30,
 //                     child: Text(
 //                       currentUser?.username.substring(0, 1).toUpperCase() ??
-//                           'U',
+//                           'A',
 //                       style: const TextStyle(
 //                         color: Colors.white,
 //                         fontWeight: FontWeight.bold,
@@ -356,7 +488,7 @@
 //                   ),
 //                   const SizedBox(height: 12),
 //                   Text(
-//                     currentUser?.fullName ?? 'User',
+//                     currentUser?.fullName ?? 'System Admin',
 //                     style: const TextStyle(
 //                       color: Colors.white,
 //                       fontWeight: FontWeight.bold,
@@ -364,7 +496,7 @@
 //                     ),
 //                   ),
 //                   Text(
-//                     currentUser?.email ?? '',
+//                     currentUser?.email ?? 'admin@example.com',
 //                     style: const TextStyle(
 //                       color: Colors.white70,
 //                       fontSize: 12,
@@ -373,24 +505,13 @@
 //                 ],
 //               ),
 //             ),
-//             _buildDrawerMenuItem(
-//               context,
-//               Icons.dashboard,
-//               'Dashboard',
-//               () {
-//                 Navigator.pop(context);
-//                 context.go('/');
-//               },
-//             ),
-//             _buildDrawerMenuItem(
-//               context,
-//               Icons.people,
-//               'User Management',
-//               () {
-//                 Navigator.pop(context);
-//                 context.go('/users');
-//               },
-//             ),
+//             _buildDrawerMenuItem(context, Icons.dashboard, 'Dashboard', () {
+//               Navigator.pop(context);
+//             }),
+//             _buildDrawerMenuItem(context, Icons.people, 'User Management', () {
+//               Navigator.pop(context);
+//               context.go('/users');
+//             }),
 //             _buildDrawerMenuItemWithBadge(
 //               context,
 //               Icons.request_page,
@@ -401,15 +522,11 @@
 //               },
 //               pendingCount,
 //             ),
-//             _buildDrawerMenuItem(
-//               context,
-//               Icons.shopping_cart,
-//               'Purchase Order',
-//               () {
-//                 Navigator.pop(context);
-//                 context.go('/po');
-//               },
-//             ),
+//             _buildDrawerMenuItem(context, Icons.shopping_cart, 'Purchase Order',
+//                 () {
+//               Navigator.pop(context);
+//               context.go('/po');
+//             }),
 //             _buildDrawerMenuItemWithBadge(
 //               context,
 //               Icons.inventory,
@@ -441,392 +558,37 @@
 //               },
 //               overduePaymentsCount,
 //             ),
-//             _buildDrawerMenuItem(
-//               context,
-//               Icons.business,
-//               'Suppliers',
-//               () {
-//                 Navigator.pop(context);
-//                 context.go('/suppliers');
-//               },
-//             ),
-//             _buildDrawerMenuItem(
-//               context,
-//               Icons.history,
-//               'PR History',
-//               () {
-//                 Navigator.pop(context);
-//                 context.go('/pr-history');
-//               },
-//             ),
+//             _buildDrawerMenuItem(context, Icons.business, 'Suppliers', () {
+//               Navigator.pop(context);
+//               context.go('/suppliers');
+//             }),
+//             _buildDrawerMenuItem(context, Icons.history, 'PR History', () {
+//               Navigator.pop(context);
+//               context.go('/pr-history');
+//             }),
 //             if (currentUser?.role == 'admin' ||
 //                 currentUser?.role == 'purchasing')
-//               _buildDrawerMenuItem(
-//                 context,
-//                 Icons.approval,
-//                 'PR Approval',
-//                 () {
-//                   Navigator.pop(context);
-//                   context.go('/pr-approval');
-//                 },
-//               ),
-//             _buildDrawerMenuItem(
-//               context,
-//               Icons.check_circle,
-//               'PO Approval',
-//               () {
+//               _buildDrawerMenuItem(context, Icons.approval, 'PR Approval', () {
 //                 Navigator.pop(context);
-//                 context.go('/po-approval');
-//               },
-//             ),
+//                 context.go('/pr-approval');
+//               }),
+//             _buildDrawerMenuItem(context, Icons.check_circle, 'PO Approval',
+//                 () {
+//               Navigator.pop(context);
+//               context.go('/po-approval');
+//             }),
 //             if (currentUser?.role == 'admin' ||
 //                 currentUser?.role == 'warehouse')
-//               _buildDrawerMenuItem(
-//                 context,
-//                 Icons.local_shipping,
-//                 'Receipt',
-//                 () {
-//                   Navigator.pop(context);
-//                   context.go('/receipt');
-//                 },
-//               ),
+//               _buildDrawerMenuItem(context, Icons.receipt_long, 'Receipt', () {
+//                 Navigator.pop(context);
+//                 context.go('/receipt');
+//               }),
 //             const Divider(color: Colors.white24),
-//             _buildDrawerMenuItem(
-//               context,
-//               Icons.logout,
-//               'Logout',
-//               () async {
-//                 await ref.read(authStateProvider.notifier).signOut();
-//               },
-//             ),
+//             _buildDrawerMenuItem(context, Icons.logout, 'Logout', () async {
+//               await ref.read(authStateProvider.notifier).signOut();
+//             }),
 //           ],
 //         ),
-//       ),
-//     );
-//   }
-
-//   Widget _buildDashboardContent(
-//     BuildContext context,
-//     dynamic currentUser,
-//     int pendingCount,
-//     int lowStockCount,
-//     int borrowedAssetsCount,
-//     int overduePaymentsCount,
-//   ) {
-//     final isDesktop = MediaQuery.of(context).size.width > 900;
-
-//     return SingleChildScrollView(
-//       padding: const EdgeInsets.all(24),
-//       child: Column(
-//         crossAxisAlignment: CrossAxisAlignment.start,
-//         children: [
-//           // Welcome Text
-//           Text(
-//             'Welcome Back, ${currentUser?.fullName ?? 'User'}!',
-//             style: const TextStyle(
-//               fontSize: 28,
-//               fontWeight: FontWeight.bold,
-//               color: Color(0xFF2196F3),
-//             ),
-//           ),
-//           const SizedBox(height: 4),
-//           Text(
-//             "Here's what's happening with your ERP system today",
-//             style: TextStyle(
-//               fontSize: 14,
-//               color: Colors.grey[600],
-//             ),
-//           ),
-//           const SizedBox(height: 8),
-//           Container(
-//             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-//             decoration: BoxDecoration(
-//               color: const Color(0xFF1ABC9C).withOpacity(0.1),
-//               borderRadius: BorderRadius.circular(20),
-//             ),
-//             child: Text(
-//               'Role: ${currentUser?.role.toUpperCase()}',
-//               style: const TextStyle(
-//                 fontSize: 12,
-//                 fontWeight: FontWeight.w600,
-//                 color: Color(0xFF1ABC9C),
-//               ),
-//             ),
-//           ),
-//           const SizedBox(height: 24),
-//           // Stats Cards Row 1
-//           LayoutBuilder(
-//             builder: (context, constraints) {
-//               if (isDesktop) {
-//                 return Row(
-//                   children: [
-//                     Expanded(
-//                       child: _buildStatCard(
-//                         'Total PR',
-//                         pendingCount.toString(),
-//                         Icons.description,
-//                         const Color(0xFF2196F3),
-//                         () => context.go('/pr'),
-//                       ),
-//                     ),
-//                     const SizedBox(width: 16),
-//                     Expanded(
-//                       child: _buildStatCard(
-//                         'Total PO',
-//                         '0',
-//                         Icons.shopping_cart,
-//                         const Color(0xFF4CAF50),
-//                         () => context.go('/po'),
-//                       ),
-//                     ),
-//                     const SizedBox(width: 16),
-//                     Expanded(
-//                       child: _buildStatCard(
-//                         'Inventory Items',
-//                         lowStockCount.toString(),
-//                         Icons.inventory_2,
-//                         const Color(0xFF9C27B0),
-//                         () => context.go('/inventory'),
-//                       ),
-//                     ),
-//                     const SizedBox(width: 16),
-//                     Expanded(
-//                       child: _buildStatCard(
-//                         'Active Users',
-//                         '0',
-//                         Icons.people,
-//                         const Color(0xFF2196F3),
-//                         () => context.go('/users'),
-//                       ),
-//                     ),
-//                   ],
-//                 );
-//               } else {
-//                 return Column(
-//                   children: [
-//                     Row(
-//                       children: [
-//                         Expanded(
-//                           child: _buildStatCard(
-//                             'Total PR',
-//                             pendingCount.toString(),
-//                             Icons.description,
-//                             const Color(0xFF2196F3),
-//                             () => context.go('/pr'),
-//                           ),
-//                         ),
-//                         const SizedBox(width: 12),
-//                         Expanded(
-//                           child: _buildStatCard(
-//                             'Total PO',
-//                             '0',
-//                             Icons.shopping_cart,
-//                             const Color(0xFF4CAF50),
-//                             () => context.go('/po'),
-//                           ),
-//                         ),
-//                       ],
-//                     ),
-//                     const SizedBox(height: 12),
-//                     Row(
-//                       children: [
-//                         Expanded(
-//                           child: _buildStatCard(
-//                             'Inventory',
-//                             lowStockCount.toString(),
-//                             Icons.inventory_2,
-//                             const Color(0xFF9C27B0),
-//                             () => context.go('/inventory'),
-//                           ),
-//                         ),
-//                         const SizedBox(width: 12),
-//                         Expanded(
-//                           child: _buildStatCard(
-//                             'Users',
-//                             '0',
-//                             Icons.people,
-//                             const Color(0xFF2196F3),
-//                             () => context.go('/users'),
-//                           ),
-//                         ),
-//                       ],
-//                     ),
-//                   ],
-//                 );
-//               }
-//             },
-//           ),
-//           const SizedBox(height: 16),
-//           // Stats Cards Row 2
-//           LayoutBuilder(
-//             builder: (context, constraints) {
-//               if (isDesktop) {
-//                 return Row(
-//                   children: [
-//                     Expanded(
-//                       child: _buildInfoCard(
-//                         'Pending Approvals',
-//                         pendingCount.toString(),
-//                         'Requires attention',
-//                         Icons.access_time,
-//                         Colors.orange,
-//                         isWarning: true,
-//                       ),
-//                     ),
-//                     const SizedBox(width: 16),
-//                     Expanded(
-//                       child: _buildInfoCard(
-//                         'Low Stock Items',
-//                         lowStockCount.toString(),
-//                         'Need reorder',
-//                         Icons.warning,
-//                         Colors.red,
-//                         isWarning: true,
-//                       ),
-//                     ),
-//                     const SizedBox(width: 16),
-//                     Expanded(
-//                       child: _buildInfoCard(
-//                         'Borrowed Assets',
-//                         borrowedAssetsCount.toString(),
-//                         'Currently in use',
-//                         Icons.assignment,
-//                         Colors.blue,
-//                       ),
-//                     ),
-//                     const SizedBox(width: 16),
-//                     Expanded(
-//                       child: _buildInfoCard(
-//                         'Overdue Payments',
-//                         overduePaymentsCount.toString(),
-//                         overduePaymentsCount > 0
-//                             ? 'Action required'
-//                             : 'All clear',
-//                         Icons.payment,
-//                         overduePaymentsCount > 0 ? Colors.red : Colors.green,
-//                         isWarning: overduePaymentsCount > 0,
-//                       ),
-//                     ),
-//                   ],
-//                 );
-//               } else {
-//                 return Column(
-//                   children: [
-//                     _buildInfoCard(
-//                       'Pending Approvals',
-//                       pendingCount.toString(),
-//                       'Requires attention',
-//                       Icons.access_time,
-//                       Colors.orange,
-//                       isWarning: true,
-//                     ),
-//                     const SizedBox(height: 12),
-//                     _buildInfoCard(
-//                       'Low Stock Items',
-//                       lowStockCount.toString(),
-//                       'Need reorder',
-//                       Icons.warning,
-//                       Colors.red,
-//                       isWarning: true,
-//                     ),
-//                     const SizedBox(height: 12),
-//                     _buildInfoCard(
-//                       'Borrowed Assets',
-//                       borrowedAssetsCount.toString(),
-//                       'Currently in use',
-//                       Icons.assignment,
-//                       Colors.blue,
-//                     ),
-//                     const SizedBox(height: 12),
-//                     _buildInfoCard(
-//                       'Overdue Payments',
-//                       overduePaymentsCount.toString(),
-//                       overduePaymentsCount > 0
-//                           ? 'Action required'
-//                           : 'All clear',
-//                       Icons.payment,
-//                       overduePaymentsCount > 0 ? Colors.red : Colors.green,
-//                       isWarning: overduePaymentsCount > 0,
-//                     ),
-//                   ],
-//                 );
-//               }
-//             },
-//           ),
-//           const SizedBox(height: 24),
-//           // Quick Actions
-//           Container(
-//             decoration: BoxDecoration(
-//               color: Colors.white,
-//               borderRadius: BorderRadius.circular(8),
-//               boxShadow: [
-//                 BoxShadow(
-//                   color: Colors.black.withOpacity(0.05),
-//                   blurRadius: 10,
-//                   offset: const Offset(0, 2),
-//                 ),
-//               ],
-//             ),
-//             padding: const EdgeInsets.all(20),
-//             child: Column(
-//               crossAxisAlignment: CrossAxisAlignment.start,
-//               children: [
-//                 Row(
-//                   children: [
-//                     Icon(
-//                       Icons.bolt,
-//                       size: 18,
-//                       color: Colors.blue[700],
-//                     ),
-//                     const SizedBox(width: 8),
-//                     const Text(
-//                       'Quick Actions',
-//                       style: TextStyle(
-//                         fontSize: 16,
-//                         fontWeight: FontWeight.bold,
-//                       ),
-//                     ),
-//                   ],
-//                 ),
-//                 const SizedBox(height: 16),
-//                 Wrap(
-//                   spacing: 12,
-//                   runSpacing: 12,
-//                   children: [
-//                     _buildQuickActionButton(
-//                       context,
-//                       'New PR',
-//                       Icons.add_circle,
-//                       Colors.blue,
-//                       () => context.go('/pr'),
-//                     ),
-//                     _buildQuickActionButton(
-//                       context,
-//                       'New PO',
-//                       Icons.shopping_bag,
-//                       Colors.green,
-//                       () => context.go('/po'),
-//                     ),
-//                     _buildQuickActionButton(
-//                       context,
-//                       'Check Inventory',
-//                       Icons.search,
-//                       Colors.purple,
-//                       () => context.go('/inventory'),
-//                     ),
-//                     _buildQuickActionButton(
-//                       context,
-//                       'View Payments',
-//                       Icons.receipt,
-//                       Colors.orange,
-//                       () => context.go('/payment'),
-//                     ),
-//                   ],
-//                 ),
-//               ],
-//             ),
-//           ),
-//         ],
 //       ),
 //     );
 //   }
@@ -935,7 +697,6 @@
 //     );
 //   }
 
-//   // Drawer Menu Items
 //   Widget _buildDrawerMenuItem(
 //     BuildContext context,
 //     IconData icon,
@@ -944,10 +705,7 @@
 //   ) {
 //     return ListTile(
 //       leading: Icon(icon, color: Colors.white),
-//       title: Text(
-//         title,
-//         style: const TextStyle(color: Colors.white),
-//       ),
+//       title: Text(title, style: const TextStyle(color: Colors.white)),
 //       onTap: onTap,
 //     );
 //   }
@@ -992,72 +750,63 @@
 //             ),
 //         ],
 //       ),
-//       title: Text(
-//         title,
-//         style: const TextStyle(color: Colors.white),
-//       ),
+//       title: Text(title, style: const TextStyle(color: Colors.white)),
 //       onTap: onTap,
 //     );
 //   }
 
-//   // Stat Card with Click
+//   // Stat Card
 //   Widget _buildStatCard(
 //     String label,
 //     String value,
 //     IconData icon,
 //     Color color,
-//     VoidCallback onTap,
 //   ) {
-//     return InkWell(
-//       onTap: onTap,
-//       child: Container(
-//         padding: const EdgeInsets.all(20),
-//         decoration: BoxDecoration(
-//           color: Colors.white,
-//           borderRadius: BorderRadius.circular(8),
-//           boxShadow: [
-//             BoxShadow(
-//               color: Colors.black.withOpacity(0.05),
-//               blurRadius: 10,
-//               offset: const Offset(0, 2),
+//     return Container(
+//       padding: const EdgeInsets.all(20),
+//       decoration: BoxDecoration(
+//         color: Colors.white,
+//         borderRadius: BorderRadius.circular(8),
+//         boxShadow: [
+//           BoxShadow(
+//             color: Colors.black.withOpacity(0.05),
+//             blurRadius: 10,
+//             offset: const Offset(0, 2),
+//           ),
+//         ],
+//       ),
+//       child: Column(
+//         crossAxisAlignment: CrossAxisAlignment.start,
+//         children: [
+//           Icon(icon, color: color.withOpacity(0.7), size: 32),
+//           const SizedBox(height: 12),
+//           Text(
+//             label,
+//             style: TextStyle(
+//               color: Colors.grey[600],
+//               fontSize: 13,
 //             ),
-//           ],
-//         ),
-//         child: Column(
-//           crossAxisAlignment: CrossAxisAlignment.start,
-//           children: [
-//             Icon(icon, color: color.withOpacity(0.7), size: 32),
-//             const SizedBox(height: 12),
-//             Text(
-//               label,
-//               style: TextStyle(
-//                 color: Colors.grey[600],
-//                 fontSize: 13,
-//               ),
+//           ),
+//           const SizedBox(height: 4),
+//           Text(
+//             value,
+//             style: const TextStyle(
+//               fontSize: 28,
+//               fontWeight: FontWeight.bold,
 //             ),
-//             const SizedBox(height: 4),
-//             Text(
-//               value,
-//               style: const TextStyle(
-//                 fontSize: 28,
-//                 fontWeight: FontWeight.bold,
-//               ),
-//             ),
-//           ],
-//         ),
+//           ),
+//         ],
 //       ),
 //     );
 //   }
 
-//   // Info Card
-//   Widget _buildInfoCard(
+//   // Money Card with trend
+//   Widget _buildMoneyCard(
 //     String label,
 //     String value,
 //     String subtitle,
-//     IconData icon,
-//     Color color, {
-//     bool isWarning = false,
-//   }) {
+//     Color color,
+//   ) {
 //     return Container(
 //       padding: const EdgeInsets.all(20),
 //       decoration: BoxDecoration(
@@ -1093,7 +842,7 @@
 //               ),
 //               const SizedBox(width: 12),
 //               Icon(
-//                 icon,
+//                 Icons.monetization_on,
 //                 color: color.withOpacity(0.5),
 //                 size: 32,
 //               ),
@@ -1102,19 +851,17 @@
 //           const SizedBox(height: 8),
 //           Row(
 //             children: [
-//               Icon(
-//                 isWarning ? Icons.warning : Icons.check,
-//                 color: color,
+//               const Icon(
+//                 Icons.arrow_upward,
+//                 color: Colors.green,
 //                 size: 14,
 //               ),
 //               const SizedBox(width: 4),
-//               Expanded(
-//                 child: Text(
-//                   subtitle,
-//                   style: TextStyle(
-//                     color: color,
-//                     fontSize: 12,
-//                   ),
+//               Text(
+//                 subtitle,
+//                 style: const TextStyle(
+//                   color: Colors.green,
+//                   fontSize: 12,
 //                 ),
 //               ),
 //             ],
@@ -1124,27 +871,431 @@
 //     );
 //   }
 
-//   // Quick Action Button
-//   Widget _buildQuickActionButton(
-//     BuildContext context,
+//   // Alert Card
+//   Widget _buildAlertCard(
 //     String label,
+//     String value,
+//     String subtitle,
+//     Color color,
+//   ) {
+//     return Container(
+//       padding: const EdgeInsets.all(20),
+//       decoration: BoxDecoration(
+//         color: Colors.white,
+//         borderRadius: BorderRadius.circular(8),
+//         boxShadow: [
+//           BoxShadow(
+//             color: Colors.black.withOpacity(0.05),
+//             blurRadius: 10,
+//             offset: const Offset(0, 2),
+//           ),
+//         ],
+//       ),
+//       child: Column(
+//         crossAxisAlignment: CrossAxisAlignment.start,
+//         children: [
+//           Text(
+//             label,
+//             style: TextStyle(
+//               color: Colors.grey[600],
+//               fontSize: 13,
+//             ),
+//           ),
+//           const SizedBox(height: 8),
+//           Row(
+//             children: [
+//               Text(
+//                 value,
+//                 style: const TextStyle(
+//                   fontSize: 24,
+//                   fontWeight: FontWeight.bold,
+//                 ),
+//               ),
+//               const SizedBox(width: 12),
+//               Icon(
+//                 Icons.access_time,
+//                 color: color.withOpacity(0.5),
+//                 size: 32,
+//               ),
+//             ],
+//           ),
+//           const SizedBox(height: 8),
+//           Row(
+//             children: [
+//               Icon(
+//                 Icons.warning,
+//                 color: color,
+//                 size: 14,
+//               ),
+//               const SizedBox(width: 4),
+//               Text(
+//                 subtitle,
+//                 style: TextStyle(
+//                   color: color,
+//                   fontSize: 12,
+//                 ),
+//               ),
+//             ],
+//           ),
+//         ],
+//       ),
+//     );
+//   }
+
+//   // Success Card
+//   Widget _buildSuccessCard(
+//     String label,
+//     String value,
+//     String subtitle,
+//     Color color,
+//   ) {
+//     return Container(
+//       padding: const EdgeInsets.all(20),
+//       decoration: BoxDecoration(
+//         color: Colors.white,
+//         borderRadius: BorderRadius.circular(8),
+//         boxShadow: [
+//           BoxShadow(
+//             color: Colors.black.withOpacity(0.05),
+//             blurRadius: 10,
+//             offset: const Offset(0, 2),
+//           ),
+//         ],
+//       ),
+//       child: Column(
+//         crossAxisAlignment: CrossAxisAlignment.start,
+//         children: [
+//           Text(
+//             label,
+//             style: TextStyle(
+//               color: Colors.grey[600],
+//               fontSize: 13,
+//             ),
+//           ),
+//           const SizedBox(height: 8),
+//           Row(
+//             children: [
+//               Text(
+//                 value,
+//                 style: const TextStyle(
+//                   fontSize: 24,
+//                   fontWeight: FontWeight.bold,
+//                 ),
+//               ),
+//               const SizedBox(width: 12),
+//               Icon(
+//                 Icons.check_circle,
+//                 color: color.withOpacity(0.5),
+//                 size: 32,
+//               ),
+//             ],
+//           ),
+//           const SizedBox(height: 8),
+//           Row(
+//             children: [
+//               Icon(
+//                 Icons.check,
+//                 color: color,
+//                 size: 14,
+//               ),
+//               const SizedBox(width: 4),
+//               Text(
+//                 subtitle,
+//                 style: TextStyle(
+//                   color: color,
+//                   fontSize: 12,
+//                 ),
+//               ),
+//             ],
+//           ),
+//         ],
+//       ),
+//     );
+//   }
+
+//   // Recent Activity Widget
+//   Widget _buildRecentActivity() {
+//     return Container(
+//       decoration: BoxDecoration(
+//         color: Colors.white,
+//         borderRadius: BorderRadius.circular(8),
+//         boxShadow: [
+//           BoxShadow(
+//             color: Colors.black.withOpacity(0.05),
+//             blurRadius: 10,
+//             offset: const Offset(0, 2),
+//           ),
+//         ],
+//       ),
+//       padding: const EdgeInsets.all(20),
+//       child: Column(
+//         crossAxisAlignment: CrossAxisAlignment.start,
+//         children: [
+//           Row(
+//             children: [
+//               Icon(
+//                 Icons.access_time,
+//                 size: 18,
+//                 color: Colors.blue[700],
+//               ),
+//               const SizedBox(width: 8),
+//               const Text(
+//                 'Recent Activity',
+//                 style: TextStyle(
+//                   fontSize: 16,
+//                   fontWeight: FontWeight.bold,
+//                 ),
+//               ),
+//             ],
+//           ),
+//           const SizedBox(height: 16),
+//           _buildActivityItem(
+//             Icons.check_circle,
+//             Colors.green,
+//             'Purchase Order #PO-2024-001 approved',
+//             '2 hours ago',
+//           ),
+//           _buildActivityItem(
+//             Icons.description,
+//             Colors.blue,
+//             'New Purchase Requisition #PR-2024-045',
+//             '4 hours ago',
+//           ),
+//           _buildActivityItem(
+//             Icons.inventory,
+//             Colors.blue,
+//             'Inventory updated for Item #ITM-890',
+//             '6 hours ago',
+//           ),
+//           _buildActivityItem(
+//             Icons.check_circle,
+//             Colors.green,
+//             'Payment processed for Supplier XYZ',
+//             '1 day ago',
+//           ),
+//           _buildActivityItem(
+//             Icons.warning,
+//             Colors.red,
+//             'Pending approval for PR-2024-044',
+//             '1 day ago',
+//             isLast: true,
+//           ),
+//         ],
+//       ),
+//     );
+//   }
+
+//   Widget _buildActivityItem(
 //     IconData icon,
 //     Color color,
-//     VoidCallback onTap,
-//   ) {
-//     return ElevatedButton.icon(
-//       onPressed: onTap,
-//       icon: Icon(icon, size: 18),
-//       label: Text(label),
-//       style: ElevatedButton.styleFrom(
-//         backgroundColor: color,
-//         foregroundColor: Colors.white,
-//         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-//         shape: RoundedRectangleBorder(
-//           borderRadius: BorderRadius.circular(8),
+//     String title,
+//     String time, {
+//     bool isLast = false,
+//   }) {
+//     return Column(
+//       children: [
+//         Row(
+//           children: [
+//             Container(
+//               padding: const EdgeInsets.all(8),
+//               decoration: BoxDecoration(
+//                 color: color.withOpacity(0.1),
+//                 borderRadius: BorderRadius.circular(8),
+//               ),
+//               child: Icon(icon, color: color, size: 16),
+//             ),
+//             const SizedBox(width: 12),
+//             Expanded(
+//               child: Column(
+//                 crossAxisAlignment: CrossAxisAlignment.start,
+//                 children: [
+//                   Text(
+//                     title,
+//                     style: const TextStyle(
+//                       fontSize: 13,
+//                       fontWeight: FontWeight.w500,
+//                     ),
+//                   ),
+//                   Text(
+//                     time,
+//                     style: TextStyle(
+//                       fontSize: 11,
+//                       color: Colors.grey[500],
+//                     ),
+//                   ),
+//                 ],
+//               ),
+//             ),
+//           ],
 //         ),
-//         elevation: 2,
+//         if (!isLast) ...[
+//           const SizedBox(height: 12),
+//           const Divider(height: 1),
+//           const SizedBox(height: 12),
+//         ],
+//       ],
+//     );
+//   }
+
+//   // Pending Approvals Widget
+//   Widget _buildPendingApprovals() {
+//     return Container(
+//       decoration: BoxDecoration(
+//         color: Colors.white,
+//         borderRadius: BorderRadius.circular(8),
+//         boxShadow: [
+//           BoxShadow(
+//             color: Colors.black.withOpacity(0.05),
+//             blurRadius: 10,
+//             offset: const Offset(0, 2),
+//           ),
+//         ],
 //       ),
+//       padding: const EdgeInsets.all(20),
+//       child: Column(
+//         crossAxisAlignment: CrossAxisAlignment.start,
+//         children: [
+//           Row(
+//             children: [
+//               Icon(
+//                 Icons.error_outline,
+//                 size: 18,
+//                 color: Colors.red[700],
+//               ),
+//               const SizedBox(width: 8),
+//               const Text(
+//                 'Pending Approvals',
+//                 style: TextStyle(
+//                   fontSize: 16,
+//                   fontWeight: FontWeight.bold,
+//                 ),
+//               ),
+//             ],
+//           ),
+//           const SizedBox(height: 16),
+//           _buildApprovalItem(
+//             'PR-2024-044',
+//             'IT Department',
+//             '\$12,500',
+//             'High',
+//             Colors.red,
+//           ),
+//           const SizedBox(height: 12),
+//           _buildApprovalItem(
+//             'PO-2024-023',
+//             'Operations',
+//             '\$8,200',
+//             'Medium',
+//             Colors.orange,
+//           ),
+//           const SizedBox(height: 12),
+//           _buildApprovalItem(
+//             'PR-2024-043',
+//             'Marketing',
+//             '\$5,400',
+//             'Low',
+//             Colors.grey,
+//             isLast: true,
+//           ),
+//         ],
+//       ),
+//     );
+//   }
+
+//   Widget _buildApprovalItem(
+//     String id,
+//     String department,
+//     String amount,
+//     String priority,
+//     Color priorityColor, {
+//     bool isLast = false,
+//   }) {
+//     return Column(
+//       children: [
+//         Row(
+//           crossAxisAlignment: CrossAxisAlignment.start,
+//           children: [
+//             Expanded(
+//               child: Column(
+//                 crossAxisAlignment: CrossAxisAlignment.start,
+//                 children: [
+//                   Row(
+//                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
+//                     children: [
+//                       Text(
+//                         id,
+//                         style: const TextStyle(
+//                           fontWeight: FontWeight.bold,
+//                           fontSize: 14,
+//                         ),
+//                       ),
+//                       Container(
+//                         padding: const EdgeInsets.symmetric(
+//                             horizontal: 8, vertical: 4),
+//                         decoration: BoxDecoration(
+//                           color: priorityColor.withOpacity(0.1),
+//                           borderRadius: BorderRadius.circular(4),
+//                         ),
+//                         child: Text(
+//                           priority,
+//                           style: TextStyle(
+//                             color: priorityColor,
+//                             fontSize: 11,
+//                             fontWeight: FontWeight.w600,
+//                           ),
+//                         ),
+//                       ),
+//                     ],
+//                   ),
+//                   const SizedBox(height: 4),
+//                   Text(
+//                     department,
+//                     style: TextStyle(
+//                       color: Colors.grey[600],
+//                       fontSize: 12,
+//                     ),
+//                   ),
+//                   const SizedBox(height: 4),
+//                   Text(
+//                     amount,
+//                     style: const TextStyle(
+//                       fontWeight: FontWeight.bold,
+//                       fontSize: 13,
+//                     ),
+//                   ),
+//                   const SizedBox(height: 8),
+//                   Align(
+//                     alignment: Alignment.centerRight,
+//                     child: TextButton(
+//                       onPressed: () {},
+//                       style: TextButton.styleFrom(
+//                         padding: const EdgeInsets.symmetric(
+//                             horizontal: 12, vertical: 6),
+//                         minimumSize: Size.zero,
+//                         tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+//                       ),
+//                       child: Row(
+//                         mainAxisSize: MainAxisSize.min,
+//                         children: [
+//                           Text(
+//                             'Review',
+//                             style: TextStyle(
+//                                 fontSize: 12, color: Colors.blue[700]),
+//                           ),
+//                           const SizedBox(width: 4),
+//                           Icon(Icons.arrow_forward,
+//                               size: 14, color: Colors.blue[700]),
+//                         ],
+//                       ),
+//                     ),
+//                   ),
+//                 ],
+//               ),
+//             ),
+//           ],
+//         ),
+//         if (!isLast) const Divider(height: 1),
+//       ],
 //     );
 //   }
 // }

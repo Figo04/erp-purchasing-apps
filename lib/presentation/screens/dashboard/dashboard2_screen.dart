@@ -2,6 +2,12 @@ import 'package:erp_purchasing_apps/data/providers/asset_provider.dart';
 import 'package:erp_purchasing_apps/data/providers/inventory_provider.dart';
 import 'package:erp_purchasing_apps/data/providers/payment_provider.dart';
 import 'package:erp_purchasing_apps/data/providers/pr_provider.dart';
+import 'package:erp_purchasing_apps/core/utils/rbac_helper.dart';
+import 'package:erp_purchasing_apps/presentation/widgets/user_dashboard_content.dart';
+import 'package:erp_purchasing_apps/presentation/widgets/purchasing_dashboard_content.dart';
+import 'package:erp_purchasing_apps/presentation/widgets/warehouse_dashboard_content.dart';
+import 'package:erp_purchasing_apps/presentation/widgets/finance_dashboard_content.dart';
+import 'package:erp_purchasing_apps/presentation/widgets/kadiv_dashboard_content.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:erp_purchasing_apps/data/providers/auth_providers.dart';
@@ -18,33 +24,18 @@ class DashboardScreen2 extends ConsumerWidget {
     final borrowedAssetsCount = ref.watch(borrowedAssetsCountProvider);
     final overduePaymentsCount = ref.watch(overduePaymentsCountProvider);
 
-    // Responsive check
-    final isDesktop = MediaQuery.of(context).size.width > 900;
-
-    if (isDesktop) {
-      return _buildDesktopLayout(
-        context,
-        ref,
-        currentUser,
-        pendingCount,
-        lowStockCount,
-        borrowedAssetsCount,
-        overduePaymentsCount,
-      );
-    } else {
-      return _buildMobileLayout(
-        context,
-        ref,
-        currentUser,
-        pendingCount,
-        lowStockCount,
-        borrowedAssetsCount,
-        overduePaymentsCount,
-      );
-    }
+    // Dekstop only - no responsive check
+    return _buildDesktopLayout(
+      context,
+      ref,
+      currentUser,
+      pendingCount,
+      lowStockCount,
+      borrowedAssetsCount,
+      overduePaymentsCount,
+    );
   }
 
-  // Desktop Layout dengan Sidebar
   Widget _buildDesktopLayout(
     BuildContext context,
     WidgetRef ref,
@@ -58,7 +49,7 @@ class DashboardScreen2 extends ConsumerWidget {
       backgroundColor: const Color(0xFFF5F7FA),
       body: Row(
         children: [
-          // Sidebar
+          // Sidebar with RBAC
           Container(
             width: 250,
             color: const Color(0xFF1ABC9C),
@@ -76,9 +67,7 @@ class DashboardScreen2 extends ConsumerWidget {
                           currentUser?.username.substring(0, 1).toUpperCase() ??
                               'A',
                           style: const TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                          ),
+                              color: Colors.white, fontWeight: FontWeight.bold),
                         ),
                       ),
                       const SizedBox(width: 12),
@@ -89,121 +78,125 @@ class DashboardScreen2 extends ConsumerWidget {
                             Text(
                               '${currentUser?.fullName ?? 'User'}',
                               style: const TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 14,
-                              ),
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 14),
                               overflow: TextOverflow.ellipsis,
                             ),
                             Text(
-                              '${currentUser?.role.toUpperCase()}',
+                              RBACHelper.getRoleDisplayName(
+                                  currentUser?.role ?? 'User'),
                               style: const TextStyle(
-                                color: Colors.white70,
-                                fontSize: 11,
-                              ),
+                                  color: Colors.white70, fontSize: 11),
                               overflow: TextOverflow.ellipsis,
-                            ),
+                            )
                           ],
                         ),
-                      ),
+                      )
                     ],
                   ),
                 ),
                 const Divider(color: Colors.white24, height: 1),
-                // Menu Items
+
+                // Menu Items with RBAC filtering
                 Expanded(
                   child: ListView(
                     padding: const EdgeInsets.symmetric(vertical: 8),
                     children: [
                       _buildSideMenuItem(
-                        context,
-                        Icons.dashboard,
-                        'Dashboard',
-                        () {},
-                        isActive: true,
-                      ),
-                      _buildSideMenuItem(
-                        context,
-                        Icons.people,
-                        'User Management',
-                        () => context.go('/users'),
-                      ),
-                      _buildSideMenuItemWithBadge(
-                        context,
-                        Icons.request_page,
-                        'Purchase Requisition',
-                        () => context.go('/pr'),
-                        pendingCount,
-                      ),
-                      _buildSideMenuItem(
-                        context,
-                        Icons.shopping_cart,
-                        'Purchase Order',
-                        () => context.go('/po'),
-                      ),
-                      _buildSideMenuItemWithBadge(
-                        context,
-                        Icons.inventory,
-                        'Inventory',
-                        () => context.go('/inventory'),
-                        lowStockCount,
-                      ),
-                      _buildSideMenuItemWithBadge(
-                        context,
-                        Icons.assessment,
-                        'Asset',
-                        () => context.go('/asset'),
-                        borrowedAssetsCount,
-                        badgeColor: Colors.orange,
-                      ),
-                      _buildSideMenuItemWithBadge(
-                        context,
-                        Icons.payment,
-                        'Payment',
-                        () => context.go('/payment'),
-                        overduePaymentsCount,
-                      ),
-                      _buildSideMenuItem(
-                        context,
-                        Icons.business,
-                        'Suppliers',
-                        () => context.go('/suppliers'),
-                      ),
-                      _buildSideMenuItem(
-                        context,
-                        Icons.history,
-                        'PR History',
-                        () => context.go('/pr-history'),
-                      ),
-                      if (currentUser?.role == 'admin' ||
-                          currentUser?.role == 'purchasing')
-                        _buildSideMenuItem(
+                          context, Icons.dashboard, 'Dashboard', () {},
+                          isActive: true),
+
+                      // User Management - Admin only
+                      if (RBACHelper.canAccessMenu(currentUser?.role, 'users'))
+                        _buildSideMenuItem(context, Icons.people,
+                            'User Management', () => context.go('/users')),
+
+                      // Purchase Requisition - All roles
+                      if (RBACHelper.canAccessMenu(currentUser?.role, 'pr'))
+                        _buildSideMenuItemWithBadge(
                           context,
-                          Icons.approval,
-                          'PR Approval',
-                          () => context.go('/pr-approval'),
+                          Icons.request_page,
+                          'Purchase Requisition',
+                          () => context.go('/pr'),
+                          pendingCount,
                         ),
-                      _buildSideMenuItem(
-                        context,
-                        Icons.check_circle,
-                        'PO Approval',
-                        () => context.go('/po-approval'),
-                      ),
-                      if (currentUser?.role == 'admin' ||
-                          currentUser?.role == 'warehouse')
-                        _buildSideMenuItem(
+
+                      // Purchase Order - Admin, Purchasing
+                      if (RBACHelper.canAccessMenu(currentUser?.role, 'po'))
+                        _buildSideMenuItem(context, Icons.shopping_cart,
+                            'Purchase Order', () => context.go('/po')),
+
+                      // Inventory - Admin, Warehouse
+                      if (RBACHelper.canAccessMenu(
+                          currentUser?.role, 'inventory'))
+                        _buildSideMenuItemWithBadge(
                           context,
-                          Icons.receipt_long,
-                          'Receipt',
-                          () => context.go('/receipt'),
+                          Icons.inventory,
+                          'Inventory',
+                          () => context.go('/inventory'),
+                          lowStockCount,
                         ),
+
+                      // Asset - Admin, Warehouse
+                      if (RBACHelper.canAccessMenu(currentUser?.role, 'asset'))
+                        _buildSideMenuItemWithBadge(
+                          context,
+                          Icons.assessment,
+                          'Asset',
+                          () => context.go('/asset'),
+                          borrowedAssetsCount,
+                          badgeColor: Colors.orange,
+                        ),
+
+                      // Payment - Admin, Finance
+                      if (RBACHelper.canAccessMenu(
+                          currentUser?.role, 'payment'))
+                        _buildSideMenuItemWithBadge(
+                          context,
+                          Icons.payment,
+                          'Payment',
+                          () => context.go('/payment'),
+                          overduePaymentsCount,
+                        ),
+
+                      // Suppliers - Admin, Purchasing
+                      if (RBACHelper.canAccessMenu(
+                          currentUser?.role, 'suppliers'))
+                        _buildSideMenuItem(context, Icons.business, 'Suppliers',
+                            () => context.go('/suppliers')),
+
+                      // PR History - All rolse
+                      if (RBACHelper.canAccessMenu(
+                          currentUser?.role, 'pr_history'))
+                        _buildSideMenuItem(context, Icons.history, 'PR History',
+                            () => context.go('/pr-history')),
+
+                      // PR Approval - Admin, Purchasing, Kadiv
+                      if (RBACHelper.canAccessMenu(
+                          currentUser?.role, 'pr_approval'))
+                        _buildSideMenuItem(context, Icons.approval,
+                            'PR Approval', () => context.go('/pr-approval')),
+
+                      // PO Approval - Admin, Purchasing, Kadiv
+                      if (RBACHelper.canAccessMenu(
+                          currentUser?.role, 'p0_approval'))
+                        _buildSideMenuItem(context, Icons.approval,
+                            'PO Approval', () => context.go('/po-approval')),
+
+                      // Receipt - Admin, Warehouse, Purchasing
+                      if (RBACHelper.canAccessMenu(
+                          currentUser?.role, 'receipt'))
+                        _buildSideMenuItem(context, Icons.receipt_long,
+                            'Receipt', () => context.go('/receipt')),
                     ],
                   ),
-                ),
+                )
               ],
             ),
           ),
-          // Main Content
+
+          // Main Content Area
           Expanded(
             child: Column(
               children: [
@@ -214,381 +207,124 @@ class DashboardScreen2 extends ConsumerWidget {
                   padding: const EdgeInsets.symmetric(horizontal: 24),
                   child: Row(
                     children: [
-                      const SizedBox(width: 16),
-                      const Text(
-                        'ERP System',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
+                      const Text('ERP System',
+                          style: TextStyle(
+                              fontSize: 16, fontWeight: FontWeight.w500)),
                       const Spacer(),
                       IconButton(
                         icon: const Icon(Icons.logout),
                         onPressed: () async {
                           await ref.read(authStateProvider.notifier).signOut();
                         },
-                      ),
+                      )
                     ],
                   ),
                 ),
-                // Dashboard Content
+
+                // Dashboard Content per Role
                 Expanded(
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.all(24),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Welcome Text
-                        Text(
-                          'Welcome, ${currentUser?.fullName ?? 'User'}!',
-                          style: const TextStyle(
-                            fontSize: 28,
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFF2196F3),
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          "Here's what's happening with your ERP system today",
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: Colors.grey[600],
-                          ),
-                        ),
-                        const SizedBox(height: 24),
-                        // Stats Cards Row 1 - 4 cards
-                        Row(
-                          children: [
-                            Expanded(
-                              child: _buildStatCard(
-                                'Total PR',
-                                '24',
-                                Icons.description,
-                                const Color(0xFF2196F3),
-                              ),
-                            ),
-                            const SizedBox(width: 16),
-                            Expanded(
-                              child: _buildStatCard(
-                                'Total PO',
-                                '18',
-                                Icons.shopping_cart,
-                                const Color(0xFF4CAF50),
-                              ),
-                            ),
-                            const SizedBox(width: 16),
-                            Expanded(
-                              child: _buildStatCard(
-                                'Inventory Items',
-                                '342',
-                                Icons.inventory_2,
-                                const Color(0xFF9C27B0),
-                              ),
-                            ),
-                            const SizedBox(width: 16),
-                            Expanded(
-                              child: _buildStatCard(
-                                'Active Users',
-                                '15',
-                                Icons.people,
-                                const Color(0xFF2196F3),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 16),
-                        // Stats Cards Row 2 - 3 cards
-                        Row(
-                          children: [
-                            Expanded(
-                              child: _buildMoneyCard(
-                                'Monthly Spending',
-                                '\$45,231',
-                                '+13.2% from last month',
-                                const Color(0xFF2196F3),
-                              ),
-                            ),
-                            const SizedBox(width: 16),
-                            Expanded(
-                              child: _buildAlertCard(
-                                'Pending Approvals',
-                                '8',
-                                'Requires attention',
-                                Colors.orange,
-                              ),
-                            ),
-                            const SizedBox(width: 16),
-                            Expanded(
-                              child: _buildSuccessCard(
-                                'Completed Today',
-                                '12',
-                                'Great progress!',
-                                Colors.green,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 24),
-                        // Bottom Section - 2 columns
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            // Recent Activity
-                            Expanded(
-                              flex: 5,
-                              child: _buildRecentActivity(),
-                            ),
-                            const SizedBox(width: 16),
-                            // Pending Approvals
-                            Expanded(
-                              flex: 4,
-                              child: _buildPendingApprovals(),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
+                  child: _buiildDashboardContent(currentUser),
+                )
               ],
             ),
-          ),
+          )
         ],
       ),
     );
   }
 
-  // Mobile Layout
-  Widget _buildMobileLayout(
-    BuildContext context,
-    WidgetRef ref,
-    dynamic currentUser,
-    int pendingCount,
-    int lowStockCount,
-    int borrowedAssetsCount,
-    int overduePaymentsCount,
-  ) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FA),
-      appBar: AppBar(
-        title: const Text('Dashboard'),
-        backgroundColor: const Color(0xFF1ABC9C),
-        foregroundColor: Colors.white,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.notifications_outlined),
-            onPressed: () {},
-          ),
-          IconButton(
-            icon: const Icon(Icons.logout),
-            onPressed: () async {
-              await ref.read(authStateProvider.notifier).signOut();
-            },
-          ),
-        ],
-      ),
-      drawer: _buildDrawer(
-        context,
-        ref,
-        currentUser,
-        pendingCount,
-        lowStockCount,
-        borrowedAssetsCount,
-        overduePaymentsCount,
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Welcome Back, ${currentUser?.fullName ?? 'System Admin'}!',
-              style: const TextStyle(
-                fontSize: 24,
+  // Dashboard content router based on role
+  Widget _buiildDashboardContent(dynamic currentUser) {
+    final userRole = currentUser?.role?.toLowerCase() ?? 'user';
+
+    switch (userRole) {
+      case 'admin':
+        return _buildAdminDashboard(currentUser);
+      case 'purchasing':
+        return const PurchasingDashboardContent();
+      case 'warehouse':
+        return const WarehouseDashboardContent();
+      case 'finance':
+        return const FinanceDashboardContent();
+      case 'kadiv':
+        return const KadivDashboardContent();
+      case 'user':
+      default:
+        return UserDashboardContent(userId: currentUser?.id ?? '');
+    }
+  }
+
+  // Admin Dashboard - Keep original stats
+  Widget _buildAdminDashboard(dynamic currentUser) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Welcome, ${currentUser?.fullname ?? 'Admin'}!',
+            style: const TextStyle(
+                fontSize: 28,
                 fontWeight: FontWeight.bold,
-                color: Color(0xFF2196F3),
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              "Here's what's happening with your ERP system today",
-              style: TextStyle(
-                fontSize: 13,
-                color: Colors.grey[600],
-              ),
-            ),
-            const SizedBox(height: 20),
-            // Mobile grid
-            _buildStatCard(
-                'Total PR', '24', Icons.description, const Color(0xFF2196F3)),
-            const SizedBox(height: 12),
-            _buildStatCard(
-                'Total PO', '18', Icons.shopping_cart, const Color(0xFF4CAF50)),
-            const SizedBox(height: 12),
-            _buildStatCard('Inventory Items', '342', Icons.inventory_2,
-                const Color(0xFF9C27B0)),
-            const SizedBox(height: 12),
-            _buildStatCard(
-                'Active Users', '15', Icons.people, const Color(0xFF2196F3)),
-            const SizedBox(height: 16),
-            _buildMoneyCard('Monthly Spending', '\$45,231',
-                '+13.2% from last month', const Color(0xFF2196F3)),
-            const SizedBox(height: 12),
-            _buildAlertCard(
-                'Pending Approvals', '8', 'Requires attention', Colors.orange),
-            const SizedBox(height: 12),
-            _buildSuccessCard(
-                'Completed Today', '12', 'Great progress!', Colors.green),
-            const SizedBox(height: 20),
-            _buildRecentActivity(),
-            const SizedBox(height: 16),
-            _buildPendingApprovals(),
-          ],
-        ),
-      ),
-    );
-  }
+                color: Color(0xFF2196F3)),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            "ERP system",
+            style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+          ),
+          const SizedBox(height: 24),
 
-  Widget _buildDrawer(
-    BuildContext context,
-    WidgetRef ref,
-    dynamic currentUser,
-    int pendingCount,
-    int lowStockCount,
-    int borrowedAssetsCount,
-    int overduePaymentsCount,
-  ) {
-    return Drawer(
-      child: Container(
-        color: const Color(0xFF1ABC9C),
-        child: ListView(
-          padding: EdgeInsets.zero,
-          children: [
-            DrawerHeader(
-              decoration: BoxDecoration(
-                color: const Color(0xFF1ABC9C).withOpacity(0.8),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  CircleAvatar(
-                    backgroundColor: Colors.white.withOpacity(0.3),
-                    radius: 30,
-                    child: Text(
-                      currentUser?.username.substring(0, 1).toUpperCase() ??
-                          'A',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 24,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    currentUser?.fullName ?? 'System Admin',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
-                    ),
-                  ),
-                  Text(
-                    currentUser?.email ?? 'admin@example.com',
-                    style: const TextStyle(
-                      color: Colors.white70,
-                      fontSize: 12,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            _buildDrawerMenuItem(context, Icons.dashboard, 'Dashboard', () {
-              Navigator.pop(context);
-            }),
-            _buildDrawerMenuItem(context, Icons.people, 'User Management', () {
-              Navigator.pop(context);
-              context.go('/users');
-            }),
-            _buildDrawerMenuItemWithBadge(
-              context,
-              Icons.request_page,
-              'Purchase Requisition',
-              () {
-                Navigator.pop(context);
-                context.go('/pr');
-              },
-              pendingCount,
-            ),
-            _buildDrawerMenuItem(context, Icons.shopping_cart, 'Purchase Order',
-                () {
-              Navigator.pop(context);
-              context.go('/po');
-            }),
-            _buildDrawerMenuItemWithBadge(
-              context,
-              Icons.inventory,
-              'Inventory',
-              () {
-                Navigator.pop(context);
-                context.go('/inventory');
-              },
-              lowStockCount,
-            ),
-            _buildDrawerMenuItemWithBadge(
-              context,
-              Icons.assessment,
-              'Asset',
-              () {
-                Navigator.pop(context);
-                context.go('/asset');
-              },
-              borrowedAssetsCount,
-              badgeColor: Colors.orange,
-            ),
-            _buildDrawerMenuItemWithBadge(
-              context,
-              Icons.payment,
-              'Payment',
-              () {
-                Navigator.pop(context);
-                context.go('/payment');
-              },
-              overduePaymentsCount,
-            ),
-            _buildDrawerMenuItem(context, Icons.business, 'Suppliers', () {
-              Navigator.pop(context);
-              context.go('/suppliers');
-            }),
-            _buildDrawerMenuItem(context, Icons.history, 'PR History', () {
-              Navigator.pop(context);
-              context.go('/pr-history');
-            }),
-            if (currentUser?.role == 'admin' ||
-                currentUser?.role == 'purchasing')
-              _buildDrawerMenuItem(context, Icons.approval, 'PR Approval', () {
-                Navigator.pop(context);
-                context.go('/pr-approval');
-              }),
-            _buildDrawerMenuItem(context, Icons.check_circle, 'PO Approval',
-                () {
-              Navigator.pop(context);
-              context.go('/po-approval');
-            }),
-            if (currentUser?.role == 'admin' ||
-                currentUser?.role == 'warehouse')
-              _buildDrawerMenuItem(context, Icons.receipt_long, 'Receipt', () {
-                Navigator.pop(context);
-                context.go('/receipt');
-              }),
-            const Divider(color: Colors.white24),
-            _buildDrawerMenuItem(context, Icons.logout, 'Logout', () async {
-              await ref.read(authStateProvider.notifier).signOut();
-            }),
-          ],
-        ),
+          // Stats Row 1
+          Row(
+            children: [
+              Expanded(
+                  child: _buildStatCard('Total PR', '24', Icons.description,
+                      const Color(0xFF2196F3))),
+              SizedBox(width: 16),
+              Expanded(
+                  child: _buildStatCard('Total PO', '18', Icons.shopping_cart,
+                      const Color(0xFF4CAF50))),
+              SizedBox(height: 16),
+              Expanded(
+                  child: _buildStatCard('Inventory Items', '342',
+                      Icons.inventory_2, const Color(0xFF9C27B0))),
+              SizedBox(width: 16),
+              Expanded(
+                  child: _buildStatCard('Total PO', '18', Icons.shopping_cart,
+                      const Color(0xFF2196F3))),
+            ],
+          ),
+          const SizedBox(height: 16),
+
+          // Stats Row 2
+          Row(
+            children: [
+              Expanded(
+                  child: _buildMoneyCard('Monthly Spending', '\$45,231',
+                      '+13.2% from last month', const Color(0xFF2196F3))),
+              const SizedBox(width: 16),
+              Expanded(
+                  child: _buildAlertCard('Pending Approvals', '8',
+                      'Requires attetention', Colors.orange)),
+              const SizedBox(width: 16),
+              Expanded(
+                  child: _buildSuccessCard('Completed Today', '12',
+                      'Great progress!', Colors.green)),
+            ],
+          ),
+          const SizedBox(height: 24),
+
+          // Bottom Section
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(flex: 5, child: _buildRecentActivity()),
+              const SizedBox(width: 16),
+              Expanded(flex: 4, child: _buildPendingApprovals()),
+            ],
+          )
+        ],
       ),
     );
   }
@@ -617,14 +353,9 @@ class DashboardScreen2 extends ConsumerWidget {
               Icon(icon, color: Colors.white, size: 20),
               const SizedBox(width: 12),
               Expanded(
-                child: Text(
-                  title,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 14,
-                  ),
-                ),
-              ),
+                child: Text(title,
+                    style: const TextStyle(color: Colors.white, fontSize: 14)),
+              )
             ],
           ),
         ),
@@ -632,14 +363,9 @@ class DashboardScreen2 extends ConsumerWidget {
     );
   }
 
-  Widget _buildSideMenuItemWithBadge(
-    BuildContext context,
-    IconData icon,
-    String title,
-    VoidCallback onTap,
-    int count, {
-    Color badgeColor = Colors.red,
-  }) {
+  Widget _buildSideMenuItemWithBadge(BuildContext context, IconData icon,
+      String title, VoidCallback onTap, int count,
+      {Color badgeColor = Colors.red}) {
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -663,33 +389,25 @@ class DashboardScreen2 extends ConsumerWidget {
                           color: badgeColor,
                           borderRadius: BorderRadius.circular(10),
                         ),
-                        constraints: const BoxConstraints(
-                          minWidth: 16,
-                          minHeight: 16,
-                        ),
+                        constraints:
+                            const BoxConstraints(minWidth: 16, minHeight: 16),
                         child: Text(
                           count.toString(),
                           style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 9,
-                            fontWeight: FontWeight.bold,
-                          ),
+                              color: Colors.white,
+                              fontSize: 9,
+                              fontWeight: FontWeight.bold),
                           textAlign: TextAlign.center,
                         ),
                       ),
-                    ),
+                    )
                 ],
               ),
               const SizedBox(width: 12),
               Expanded(
-                child: Text(
-                  title,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 14,
-                  ),
-                ),
-              ),
+                  child: Text(title,
+                      style:
+                          const TextStyle(color: Colors.white, fontSize: 14))),
             ],
           ),
         ),
@@ -697,71 +415,9 @@ class DashboardScreen2 extends ConsumerWidget {
     );
   }
 
-  Widget _buildDrawerMenuItem(
-    BuildContext context,
-    IconData icon,
-    String title,
-    VoidCallback onTap,
-  ) {
-    return ListTile(
-      leading: Icon(icon, color: Colors.white),
-      title: Text(title, style: const TextStyle(color: Colors.white)),
-      onTap: onTap,
-    );
-  }
-
-  Widget _buildDrawerMenuItemWithBadge(
-    BuildContext context,
-    IconData icon,
-    String title,
-    VoidCallback onTap,
-    int count, {
-    Color badgeColor = Colors.red,
-  }) {
-    return ListTile(
-      leading: Stack(
-        clipBehavior: Clip.none,
-        children: [
-          Icon(icon, color: Colors.white),
-          if (count > 0)
-            Positioned(
-              right: -8,
-              top: -4,
-              child: Container(
-                padding: const EdgeInsets.all(4),
-                decoration: BoxDecoration(
-                  color: badgeColor,
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                constraints: const BoxConstraints(
-                  minWidth: 16,
-                  minHeight: 16,
-                ),
-                child: Text(
-                  count.toString(),
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 10,
-                    fontWeight: FontWeight.bold,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-              ),
-            ),
-        ],
-      ),
-      title: Text(title, style: const TextStyle(color: Colors.white)),
-      onTap: onTap,
-    );
-  }
-
   // Stat Card
   Widget _buildStatCard(
-    String label,
-    String value,
-    IconData icon,
-    Color color,
-  ) {
+      String label, String value, IconData icon, Color color) {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -772,7 +428,7 @@ class DashboardScreen2 extends ConsumerWidget {
             color: Colors.black.withOpacity(0.05),
             blurRadius: 10,
             offset: const Offset(0, 2),
-          ),
+          )
         ],
       ),
       child: Column(
@@ -780,33 +436,18 @@ class DashboardScreen2 extends ConsumerWidget {
         children: [
           Icon(icon, color: color.withOpacity(0.7), size: 32),
           const SizedBox(height: 12),
-          Text(
-            label,
-            style: TextStyle(
-              color: Colors.grey[600],
-              fontSize: 13,
-            ),
-          ),
+          Text(label, style: TextStyle(color: Colors.grey[600], fontSize: 13)),
           const SizedBox(height: 4),
-          Text(
-            value,
-            style: const TextStyle(
-              fontSize: 28,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
+          Text(value,
+              style:
+                  const TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
         ],
       ),
     );
   }
 
-  // Money Card with trend
   Widget _buildMoneyCard(
-    String label,
-    String value,
-    String subtitle,
-    Color color,
-  ) {
+      String label, String value, String subtitle, Color color) {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -814,70 +455,42 @@ class DashboardScreen2 extends ConsumerWidget {
         borderRadius: BorderRadius.circular(8),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 10,
+              offset: const Offset(0, 2))
         ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            label,
-            style: TextStyle(
-              color: Colors.grey[600],
-              fontSize: 13,
-            ),
-          ),
+          Text(label, style: TextStyle(color: Colors.grey[600], fontSize: 13)),
           const SizedBox(height: 8),
           Row(
             children: [
-              Text(
-                value,
-                style: const TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
+              Text(value,
+                  style: const TextStyle(
+                      fontSize: 24, fontWeight: FontWeight.bold)),
               const SizedBox(width: 12),
-              Icon(
-                Icons.monetization_on,
-                color: color.withOpacity(0.5),
-                size: 32,
-              ),
+              Icon(Icons.monetization_on,
+                  color: color.withOpacity(0.5), size: 32),
             ],
           ),
           const SizedBox(height: 8),
           Row(
             children: [
-              const Icon(
-                Icons.arrow_upward,
-                color: Colors.green,
-                size: 14,
-              ),
+              const Icon(Icons.arrow_upward, color: Colors.green, size: 14),
               const SizedBox(width: 4),
-              Text(
-                subtitle,
-                style: const TextStyle(
-                  color: Colors.green,
-                  fontSize: 12,
-                ),
-              ),
+              Text(subtitle,
+                  style: const TextStyle(color: Colors.green, fontSize: 12)),
             ],
-          ),
+          )
         ],
       ),
     );
   }
 
-  // Alert Card
   Widget _buildAlertCard(
-    String label,
-    String value,
-    String subtitle,
-    Color color,
-  ) {
+      String label, String value, String subtitle, Color color) {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -885,70 +498,40 @@ class DashboardScreen2 extends ConsumerWidget {
         borderRadius: BorderRadius.circular(8),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 10,
+              offset: const Offset(0, 2))
         ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            label,
-            style: TextStyle(
-              color: Colors.grey[600],
-              fontSize: 13,
-            ),
-          ),
+          Text(label, style: TextStyle(color: Colors.grey[600], fontSize: 13)),
           const SizedBox(height: 8),
           Row(
             children: [
-              Text(
-                value,
-                style: const TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
+              Text(value,
+                  style: const TextStyle(
+                      fontSize: 24, fontWeight: FontWeight.bold)),
               const SizedBox(width: 12),
-              Icon(
-                Icons.access_time,
-                color: color.withOpacity(0.5),
-                size: 32,
-              ),
+              Icon(Icons.check_circle, color: color.withOpacity(0.5), size: 32),
             ],
           ),
           const SizedBox(height: 8),
           Row(
             children: [
-              Icon(
-                Icons.warning,
-                color: color,
-                size: 14,
-              ),
+              Icon(Icons.check, color: color, size: 14),
               const SizedBox(width: 4),
-              Text(
-                subtitle,
-                style: TextStyle(
-                  color: color,
-                  fontSize: 12,
-                ),
-              ),
+              Text(subtitle, style: TextStyle(color: color, fontSize: 12)),
             ],
-          ),
+          )
         ],
       ),
     );
   }
 
-  // Success Card
   Widget _buildSuccessCard(
-    String label,
-    String value,
-    String subtitle,
-    Color color,
-  ) {
+      String label, String value, String subtitle, Color color) {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -956,64 +539,39 @@ class DashboardScreen2 extends ConsumerWidget {
         borderRadius: BorderRadius.circular(8),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 10,
+              offset: const Offset(0, 2))
         ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            label,
-            style: TextStyle(
-              color: Colors.grey[600],
-              fontSize: 13,
-            ),
-          ),
+          Text(label, style: TextStyle(color: Colors.grey[600], fontSize: 13)),
           const SizedBox(height: 8),
           Row(
             children: [
-              Text(
-                value,
-                style: const TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
+              Text(value,
+                  style: const TextStyle(
+                      fontSize: 24, fontWeight: FontWeight.bold)),
               const SizedBox(width: 12),
-              Icon(
-                Icons.check_circle,
-                color: color.withOpacity(0.5),
-                size: 32,
-              ),
+              Icon(Icons.check_circle, color: color.withOpacity(0.5), size: 32),
             ],
           ),
           const SizedBox(height: 8),
           Row(
             children: [
-              Icon(
-                Icons.check,
-                color: color,
-                size: 14,
-              ),
+              Icon(Icons.check, color: color, size: 14),
               const SizedBox(width: 4),
-              Text(
-                subtitle,
-                style: TextStyle(
-                  color: color,
-                  fontSize: 12,
-                ),
-              ),
+              Text(subtitle, style: TextStyle(color: color, fontSize: 12)),
             ],
-          ),
+          )
         ],
       ),
     );
   }
 
-  // Recent Activity Widget
+  // Recent Activity widget
   Widget _buildRecentActivity() {
     return Container(
       decoration: BoxDecoration(
@@ -1021,10 +579,9 @@ class DashboardScreen2 extends ConsumerWidget {
         borderRadius: BorderRadius.circular(8),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 10,
+              offset: const Offset(0, 2))
         ],
       ),
       padding: const EdgeInsets.all(20),
@@ -1033,65 +590,32 @@ class DashboardScreen2 extends ConsumerWidget {
         children: [
           Row(
             children: [
-              Icon(
-                Icons.access_time,
-                size: 18,
-                color: Colors.blue[700],
-              ),
+              Icon(Icons.access_time, size: 18, color: Colors.blue[700]),
               const SizedBox(width: 8),
-              const Text(
-                'Recent Activity',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
+              const Text('Recent Activity',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
             ],
           ),
           const SizedBox(height: 16),
-          _buildActivityItem(
-            Icons.check_circle,
-            Colors.green,
-            'Purchase Order #PO-2024-001 approved',
-            '2 hours ago',
-          ),
-          _buildActivityItem(
-            Icons.description,
-            Colors.blue,
-            'New Purchase Requisition #PR-2024-045',
-            '4 hours ago',
-          ),
-          _buildActivityItem(
-            Icons.inventory,
-            Colors.blue,
-            'Inventory updated for Item #ITM-890',
-            '6 hours ago',
-          ),
-          _buildActivityItem(
-            Icons.check_circle,
-            Colors.green,
-            'Payment processed for Supplier XYZ',
-            '1 day ago',
-          ),
-          _buildActivityItem(
-            Icons.warning,
-            Colors.red,
-            'Pending approval for PR-2024-044',
-            '1 day ago',
-            isLast: true,
-          ),
+          _buildActivityItem(Icons.check_circle, Colors.green,
+              'Purchase Order #PO-2024-001 approved', '2 hours ago'),
+          _buildActivityItem(Icons.description, Colors.blue,
+              'New Purchase Requisition #PR-2024-045', '4 hours ago'),
+          _buildActivityItem(Icons.inventory, Colors.blue,
+              'Inventory updated for Item #ITM-890', '6 hours ago'),
+          _buildActivityItem(Icons.check_circle, Colors.green,
+              'Payment processed for Supplier XYZ', '1 day ago'),
+          _buildActivityItem(Icons.warning, Colors.red,
+              'Pending approval for PR-2024-044', '1 day ago',
+              isLast: true),
         ],
       ),
     );
   }
 
   Widget _buildActivityItem(
-    IconData icon,
-    Color color,
-    String title,
-    String time, {
-    bool isLast = false,
-  }) {
+      IconData icon, Color color, String time, String title,
+      {bool isLast = false}) {
     return Column(
       children: [
         Row(
@@ -1099,9 +623,8 @@ class DashboardScreen2 extends ConsumerWidget {
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: color.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(8),
-              ),
+                  color: color.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8)),
               child: Icon(icon, color: color, size: 16),
             ),
             const SizedBox(width: 12),
@@ -1109,20 +632,11 @@ class DashboardScreen2 extends ConsumerWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    title,
-                    style: const TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                  Text(
-                    time,
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: Colors.grey[500],
-                    ),
-                  ),
+                  Text(title,
+                      style: const TextStyle(
+                          fontSize: 13, fontWeight: FontWeight.w500)),
+                  Text(time,
+                      style: TextStyle(fontSize: 11, color: Colors.grey[500])),
                 ],
               ),
             ),
@@ -1132,7 +646,7 @@ class DashboardScreen2 extends ConsumerWidget {
           const SizedBox(height: 12),
           const Divider(height: 1),
           const SizedBox(height: 12),
-        ],
+        ]
       ],
     );
   }
@@ -1145,10 +659,9 @@ class DashboardScreen2 extends ConsumerWidget {
         borderRadius: BorderRadius.circular(8),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 10,
+              offset: const Offset(0, 2))
         ],
       ),
       padding: const EdgeInsets.all(20),
@@ -1157,59 +670,30 @@ class DashboardScreen2 extends ConsumerWidget {
         children: [
           Row(
             children: [
-              Icon(
-                Icons.error_outline,
-                size: 18,
-                color: Colors.red[700],
-              ),
+              Icon(Icons.error_outline, size: 18, color: Colors.red[700]),
               const SizedBox(width: 8),
-              const Text(
-                'Pending Approvals',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
+              const Text('Pending Approvals',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
             ],
           ),
           const SizedBox(height: 16),
           _buildApprovalItem(
-            'PR-2024-044',
-            'IT Department',
-            '\$12,500',
-            'High',
-            Colors.red,
-          ),
+              'PR-2024-044', 'IT Department', '\$12,500', 'High', Colors.red),
           const SizedBox(height: 12),
           _buildApprovalItem(
-            'PO-2024-023',
-            'Operations',
-            '\$8,200',
-            'Medium',
-            Colors.orange,
-          ),
+              'PO-2024-023', 'Operations', '\$8,200', 'Medium', Colors.orange),
           const SizedBox(height: 12),
           _buildApprovalItem(
-            'PR-2024-043',
-            'Marketing',
-            '\$5,400',
-            'Low',
-            Colors.grey,
-            isLast: true,
-          ),
+              'PR-2024-043', 'Marketing', '\$5,400', 'Low', Colors.grey,
+              isLast: true),
         ],
       ),
     );
   }
 
-  Widget _buildApprovalItem(
-    String id,
-    String department,
-    String amount,
-    String priority,
-    Color priorityColor, {
-    bool isLast = false,
-  }) {
+  Widget _buildApprovalItem(String id, String department, String amount,
+      String priority, Color priorityColor,
+      {bool isLast = false}) {
     return Column(
       children: [
         Row(
@@ -1222,13 +706,9 @@ class DashboardScreen2 extends ConsumerWidget {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(
-                        id,
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 14,
-                        ),
-                      ),
+                      Text(id,
+                          style: const TextStyle(
+                              fontWeight: FontWeight.bold, fontSize: 14)),
                       Container(
                         padding: const EdgeInsets.symmetric(
                             horizontal: 8, vertical: 4),
@@ -1236,36 +716,24 @@ class DashboardScreen2 extends ConsumerWidget {
                           color: priorityColor.withOpacity(0.1),
                           borderRadius: BorderRadius.circular(4),
                         ),
-                        child: Text(
-                          priority,
-                          style: TextStyle(
-                            color: priorityColor,
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
+                        child: Text(priority,
+                            style: TextStyle(
+                                color: priorityColor,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600)),
                       ),
                     ],
                   ),
                   const SizedBox(height: 4),
-                  Text(
-                    department,
-                    style: TextStyle(
-                      color: Colors.grey[600],
-                      fontSize: 12,
-                    ),
-                  ),
+                  Text(department,
+                      style: TextStyle(color: Colors.grey[600], fontSize: 12)),
                   const SizedBox(height: 4),
-                  Text(
-                    amount,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 13,
-                    ),
-                  ),
+                  Text(amount,
+                      style: const TextStyle(
+                          fontWeight: FontWeight.bold, fontSize: 13)),
                   const SizedBox(height: 8),
                   Align(
-                    alignment: Alignment.centerRight,
+                    alignment: AlignmentGeometry.centerRight,
                     child: TextButton(
                       onPressed: () {},
                       style: TextButton.styleFrom(
@@ -1277,24 +745,21 @@ class DashboardScreen2 extends ConsumerWidget {
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Text(
-                            'Review',
-                            style: TextStyle(
-                                fontSize: 12, color: Colors.blue[700]),
-                          ),
+                          Text('Review',
+                              style: TextStyle(
+                                  fontSize: 12, color: Colors.blue[700])),
                           const SizedBox(width: 4),
                           Icon(Icons.arrow_forward,
                               size: 14, color: Colors.blue[700]),
                         ],
                       ),
                     ),
-                  ),
+                  )
                 ],
               ),
-            ),
+            )
           ],
-        ),
-        if (!isLast) const Divider(height: 1),
+        )
       ],
     );
   }
