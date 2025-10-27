@@ -262,7 +262,7 @@ class DashboardScreen2 extends ConsumerWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Welcome, ${currentUser?.fullname ?? 'Admin'}!',
+            'Welcome, ${currentUser?.fullName ?? 'Admin'}!',
             style: const TextStyle(
                 fontSize: 28,
                 fontWeight: FontWeight.bold,

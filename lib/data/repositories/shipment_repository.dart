@@ -121,11 +121,11 @@ class ShipmentRepository {
           .count(CountOption.exact);
 
       final count = res.count;
-      return 'SPH-${now.year}${now.month.toString().padLeft(2, '0')}-${(count + 1).toString().padLeft(4, '0')}';
+      return 'SHP-${now.year}${now.month.toString().padLeft(2, '0')}-${(count + 1).toString().padLeft(4, '0')}';
     }
   }
 
-  // Create shipment (dari supplier portal)
+  // 🔥 FIXED: Create shipment dengan QR generation yang benar
   Future<ShipmentModel> createShipment({
     required String poId,
     required String supplierId,
@@ -138,15 +138,14 @@ class ShipmentRepository {
       // Generate shipment number
       final shipmentNumber = await generateShipmentNumber();
 
-      // Generate QR code data
-      final qrData = await _generateQRData(
-        poId: poId,
-        shipmentNumber: shipmentNumber,
-        deliveryNoteNumber: deliveryNoteNumber,
-        items: items,
-      );
+      // Get PO number untuk QR
+      final poResponse = await _supabase
+          .from('purchase_order')
+          .select('po_number')
+          .eq('id', poId)
+          .single();
 
-      // Insert shipment
+      // Insert shipment TANPA QR dulu (QR perlu shipmentId)
       final shipmentResponse = await _supabase
           .from('shipment')
           .insert({
@@ -156,7 +155,7 @@ class ShipmentRepository {
             'delivery_note_number': deliveryNoteNumber,
             'shipment_date': (shipmentDate ?? DateTime.now()).toIso8601String(),
             'notes': notes,
-            'qr_code_data': qrData,
+            'qr_code_data': null, // Temporary null
             'status': 'pending',
           })
           .select()
@@ -178,31 +177,9 @@ class ShipmentRepository {
 
       await _supabase.from('shipment_item').insert(itemsData);
 
-      // Get complet shipment
-      final shipment = await getShipmentById(shipmentId);
-      return shipment!;
-    } catch (e) {
-      throw Exception('Failed to create shipment: $e');
-    }
-  }
-
-  // Generate QR code data
-  Future<String> _generateQRData({
-    required String poId,
-    required String shipmentNumber,
-    required String deliveryNoteNumber,
-    required List<Map<String, dynamic>> items,
-  }) async {
-    try {
-      // Get PO number
-      final poResponse = await _supabase
-          .from('purchase_order')
-          .select('po_number')
-          .eq('id', poId)
-          .single();
-
+      // 🔥 NOW generate QR dengan shipmentId yang sudah ada
       final qrData = ShipmentQRData(
-        shipmentId: '',
+        shipmentId: shipmentId, // ✅ FIXED: Ada shipmentId
         shipmentNumber: shipmentNumber,
         poId: poId,
         poNumber: poResponse['po_number'],
@@ -217,9 +194,18 @@ class ShipmentRepository {
         }).toList(),
       );
 
-      return jsonEncode(qrData.toJson());
+      final qrString = jsonEncode(qrData.toJson());
+
+      // Update shipment dengan QR data
+      await _supabase
+          .from('shipment')
+          .update({'qr_code_data': qrString}).eq('id', shipmentId);
+
+      // Get complete shipment
+      final shipment = await getShipmentById(shipmentId);
+      return shipment!;
     } catch (e) {
-      throw Exception('Failed to generate QR data: $e');
+      throw Exception('Failed to create shipment: $e');
     }
   }
 
@@ -229,7 +215,7 @@ class ShipmentRepository {
       final decoded = jsonDecode(qrString);
       return ShipmentQRData.fromJson(decoded);
     } catch (e) {
-      throw Exception('Invalid QR code $e');
+      throw Exception('Invalid QR code: $e');
     }
   }
 
@@ -245,7 +231,7 @@ class ShipmentRepository {
     }
   }
 
-  // Get shipment by deivery note number (untuk validasi)
+  // Get shipment by delivery note number (untuk validasi)
   Future<ShipmentModel?> getShipmentByDeliveryNote(
       String deliveryNoteNumber) async {
     try {

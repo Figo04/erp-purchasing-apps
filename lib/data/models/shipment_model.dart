@@ -1,4 +1,5 @@
 import 'package:equatable/equatable.dart';
+import 'dart:convert';
 
 class ShipmentModel extends Equatable {
   final String id;
@@ -13,7 +14,7 @@ class ShipmentModel extends Equatable {
   final DateTime createdAt;
   final DateTime updatedAt;
   final List<ShipmentItemModel>? items;
-  
+
   // Additional fields for display
   final String? poNumber;
   final String? supplierName;
@@ -184,12 +185,12 @@ class ShipmentQRData {
   // From JSON dari scan QR
   factory ShipmentQRData.fromJson(Map<String, dynamic> json) {
     return ShipmentQRData(
-      shipmentId: json['sid'],
-      shipmentNumber: json['sn'],
-      poId: json['pid'],
-      poNumber: json['pn'],
-      deliveryNoteNumber: json['dn'],
-      items: (json['items'] as List)
+      shipmentId: json['sid'] ?? '',
+      shipmentNumber: json['sn'] ?? '',
+      poId: json['pid'] ?? '',
+      poNumber: json['pn'] ?? '',
+      deliveryNoteNumber: json['dn'] ?? '',
+      items: (json['items'] as List? ?? [])
           .map((i) => ShipmentQRItem.fromJson(i))
           .toList(),
     );
@@ -197,9 +198,11 @@ class ShipmentQRData {
 
   // Encode ke string untuk QR
   String toQRString() {
-    return Uri.encodeComponent(
-      '${toJson()}'.replaceAll(' ', ''),
-    );
+    // ✅ ubah Map jadi JSON valid
+    final jsonString = jsonEncode(toJson());
+
+    // ✅ encode agar aman dipakai di QR (URL-safe)
+    return Uri.encodeComponent(jsonString);
   }
 }
 

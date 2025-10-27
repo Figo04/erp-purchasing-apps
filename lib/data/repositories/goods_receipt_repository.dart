@@ -123,18 +123,13 @@ class GoodsReceiptRepository {
   // Generate receipt number
   Future<String> generateReceiptNumber() async {
     try {
-      final response = await _supabase.rpc('generate_recipt_number');
+      final response = await _supabase.rpc('generate_receipt_number');
       return response as String;
     } catch (e) {
-      // Fallback
+      // Fallback pakai timestamp - pasti unique
       final now = DateTime.now();
-      final res = await _supabase
-          .from('goods_receipt')
-          .select('id')
-          .count(CountOption.exact);
-
-      final count = res.count;
-      return 'LPB-${now.year}${now.month.toString().padLeft(2, '0')}-${(count + 1).toString().padLeft(4, '0')}';
+      final timestamp = now.millisecondsSinceEpoch.toString().substring(7);
+      return 'LPB-${now.year}${now.month.toString().padLeft(2, '0')}-$timestamp';
     }
   }
 

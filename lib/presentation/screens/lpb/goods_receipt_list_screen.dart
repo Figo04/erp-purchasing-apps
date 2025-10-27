@@ -1,3 +1,4 @@
+import 'package:erp_purchasing_apps/presentation/screens/lpb/goods_receipt_scanner_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -260,15 +261,26 @@ class _GoodsReceiptListScreenState
                     )
                   ],
                 ),
-              ),  
+              ),
             ),
           ),
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _showPOSelector(),
-        icon: const Icon(Icons.add),
-        label: const Text('Create LPB'),
+        onPressed: () {
+          // Navigasi ke scanner screen
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const GoodsReceiptScannerScreen(),
+            ),
+          ).then((_) {
+            // Refresh list setelah scan
+            ref.invalidate(goodsReceiptStreamProvider);
+          });
+        },
+        icon: const Icon(Icons.qr_code_scanner), // ✅ Icon scanner
+        label: const Text('Scan QR'),
       ),
     );
   }

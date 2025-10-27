@@ -13,13 +13,15 @@ class GoodsReceiptFromQRScreen extends ConsumerStatefulWidget {
   const GoodsReceiptFromQRScreen({super.key, required this.qrData});
 
   @override
-  ConsumerState<GoodsReceiptFromQRScreen> createState() => _GoodsReceiptFromQRScreenState();
+  ConsumerState<GoodsReceiptFromQRScreen> createState() =>
+      _GoodsReceiptFromQRScreenState();
 }
 
-class _GoodsReceiptFromQRScreenState extends ConsumerState<GoodsReceiptFromQRScreen> {
+class _GoodsReceiptFromQRScreenState
+    extends ConsumerState<GoodsReceiptFromQRScreen> {
   final _formKey = GlobalKey<FormState>();
   final _notesController = TextEditingController();
-  
+
   DateTime _receiptDate = DateTime.now();
   bool _isLoading = false;
   List<ReceiveItemForm> _items = [];
@@ -36,7 +38,8 @@ class _GoodsReceiptFromQRScreenState extends ConsumerState<GoodsReceiptFromQRScr
         poItemId: item.poItemId,
         itemName: item.name,
         quantityShipped: item.qty,
-        quantityReceivedController: TextEditingController(text: item.qty.toString()),
+        quantityReceivedController:
+            TextEditingController(text: item.qty.toString()),
         unit: item.unit,
         notesController: TextEditingController(),
       );
@@ -45,6 +48,12 @@ class _GoodsReceiptFromQRScreenState extends ConsumerState<GoodsReceiptFromQRScr
 
   Future<void> _handleSubmit() async {
     if (!_formKey.currentState!.validate()) return;
+
+    print('🔍 QR Data Debug:');
+    print('   Shipment ID: "${widget.qrData.shipmentId}"');
+    print('   Shipment ID Length: ${widget.qrData.shipmentId.length}');
+    print('   PO ID: "${widget.qrData.poId}"');
+    print('   Shipment Number: "${widget.qrData.shipmentNumber}"');
 
     setState(() => _isLoading = true);
 
@@ -88,7 +97,8 @@ class _GoodsReceiptFromQRScreenState extends ConsumerState<GoodsReceiptFromQRScr
       // Check if all items match (fully received)
       bool isFullyReceived = true;
       for (var item in _items) {
-        if (int.parse(item.quantityReceivedController.text) != item.quantityShipped) {
+        if (int.parse(item.quantityReceivedController.text) !=
+            item.quantityShipped) {
           isFullyReceived = false;
           break;
         }
@@ -169,7 +179,8 @@ class _GoodsReceiptFromQRScreenState extends ConsumerState<GoodsReceiptFromQRScr
                           children: [
                             Row(
                               children: [
-                                Icon(Icons.check_circle, color: Colors.green.shade700),
+                                Icon(Icons.check_circle,
+                                    color: Colors.green.shade700),
                                 const SizedBox(width: 12),
                                 const Text(
                                   'QR Scanned Successfully',
@@ -181,9 +192,11 @@ class _GoodsReceiptFromQRScreenState extends ConsumerState<GoodsReceiptFromQRScr
                               ],
                             ),
                             const Divider(height: 24),
-                            _buildInfoRow('Shipment', widget.qrData.shipmentNumber),
+                            _buildInfoRow(
+                                'Shipment', widget.qrData.shipmentNumber),
                             _buildInfoRow('PO Number', widget.qrData.poNumber),
-                            _buildInfoRow('Delivery Note', widget.qrData.deliveryNoteNumber),
+                            _buildInfoRow('Delivery Note',
+                                widget.qrData.deliveryNoteNumber),
                           ],
                         ),
                       ),
@@ -204,7 +217,8 @@ class _GoodsReceiptFromQRScreenState extends ConsumerState<GoodsReceiptFromQRScr
                           final date = await showDatePicker(
                             context: context,
                             initialDate: _receiptDate,
-                            firstDate: DateTime.now().subtract(const Duration(days: 7)),
+                            firstDate: DateTime.now()
+                                .subtract(const Duration(days: 7)),
                             lastDate: DateTime.now(),
                           );
                           if (date != null) {
@@ -309,7 +323,8 @@ class _GoodsReceiptFromQRScreenState extends ConsumerState<GoodsReceiptFromQRScr
                         ),
                         child: Row(
                           children: [
-                            Icon(Icons.warning_amber, color: Colors.orange.shade700),
+                            Icon(Icons.warning_amber,
+                                color: Colors.orange.shade700),
                             const SizedBox(width: 12),
                             Expanded(
                               child: Text(
@@ -418,7 +433,8 @@ class _GoodsReceiptFromQRScreenState extends ConsumerState<GoodsReceiptFromQRScr
                 ),
                 if (hasDifference)
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
                       color: Colors.orange,
                       borderRadius: BorderRadius.circular(12),
@@ -484,10 +500,14 @@ class _GoodsReceiptFromQRScreenState extends ConsumerState<GoodsReceiptFromQRScr
                   child: Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: hasDifference ? Colors.orange.shade100 : Colors.green.shade50,
+                      color: hasDifference
+                          ? Colors.orange.shade100
+                          : Colors.green.shade50,
                       borderRadius: BorderRadius.circular(8),
                       border: Border.all(
-                        color: hasDifference ? Colors.orange.shade300 : Colors.green.shade200,
+                        color: hasDifference
+                            ? Colors.orange.shade300
+                            : Colors.green.shade200,
                       ),
                     ),
                     child: Column(
@@ -498,18 +518,24 @@ class _GoodsReceiptFromQRScreenState extends ConsumerState<GoodsReceiptFromQRScr
                           style: TextStyle(
                             fontSize: 10,
                             fontWeight: FontWeight.bold,
-                            color: hasDifference ? Colors.orange.shade700 : Colors.green.shade700,
+                            color: hasDifference
+                                ? Colors.orange.shade700
+                                : Colors.green.shade700,
                           ),
                         ),
                         const SizedBox(height: 4),
                         TextFormField(
                           controller: item.quantityReceivedController,
                           keyboardType: TextInputType.number,
-                          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                          inputFormatters: [
+                            FilteringTextInputFormatter.digitsOnly
+                          ],
                           style: TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
-                            color: hasDifference ? Colors.orange.shade700 : Colors.green.shade700,
+                            color: hasDifference
+                                ? Colors.orange.shade700
+                                : Colors.green.shade700,
                           ),
                           decoration: InputDecoration(
                             isDense: true,
@@ -547,7 +573,8 @@ class _GoodsReceiptFromQRScreenState extends ConsumerState<GoodsReceiptFromQRScr
                 ),
                 child: Row(
                   children: [
-                    Icon(Icons.info_outline, size: 16, color: Colors.orange.shade700),
+                    Icon(Icons.info_outline,
+                        size: 16, color: Colors.orange.shade700),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
@@ -586,7 +613,8 @@ class _GoodsReceiptFromQRScreenState extends ConsumerState<GoodsReceiptFromQRScr
 
   bool _hasDiscrepancy() {
     for (var item in _items) {
-      final qtyReceived = int.tryParse(item.quantityReceivedController.text) ?? 0;
+      final qtyReceived =
+          int.tryParse(item.quantityReceivedController.text) ?? 0;
       if (qtyReceived != item.quantityShipped) {
         return true;
       }

@@ -15,7 +15,9 @@ class PrintQRHelper {
   ) async {
     try {
       // Generate QR image
-      final qrImageData = await _generateQRImage(shipment.qrCodeData ?? '');
+      final qrDataRaw = shipment.qrCodeData ?? '{}';
+      final qrSafeString = qrDataRaw.replaceAll('"', '@');
+      final qrImageData = await _generateQRImage(qrSafeString);
 
       // Create PDF
       final pdf = pw.Document();
@@ -60,14 +62,17 @@ class PrintQRHelper {
                     child: pw.Column(
                       crossAxisAlignment: pw.CrossAxisAlignment.start,
                       children: [
-                        _buildDetailRow('Shipment Number', shipment.shipmentNumber),
+                        _buildDetailRow(
+                            'Shipment Number', shipment.shipmentNumber),
                         _buildDetailRow('PO Number', shipment.poNumber ?? '-'),
-                        _buildDetailRow('Delivery Note', shipment.deliveryNoteNumber),
+                        _buildDetailRow(
+                            'Delivery Note', shipment.deliveryNoteNumber),
                         _buildDetailRow(
                           'Shipment Date',
                           '${shipment.shipmentDate.day}/${shipment.shipmentDate.month}/${shipment.shipmentDate.year}',
                         ),
-                        if (shipment.notes != null && shipment.notes!.isNotEmpty)
+                        if (shipment.notes != null &&
+                            shipment.notes!.isNotEmpty)
                           _buildDetailRow('Notes', shipment.notes!),
                       ],
                     ),
