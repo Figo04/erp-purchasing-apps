@@ -186,7 +186,7 @@ class _AssetFormScreenState extends ConsumerState<AssetFormScreen> {
 
                     // Category Selection
                     DropdownButtonFormField<String>(
-                      value: _selectedCategory,
+                      initialValue: _selectedCategory,
                       decoration: const InputDecoration(
                         labelText: 'Category *',
                         border: OutlineInputBorder(),

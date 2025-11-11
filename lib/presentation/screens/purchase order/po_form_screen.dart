@@ -270,7 +270,7 @@ class _POFormScreenState extends ConsumerState<POFormScreen> {
                         }
 
                         return DropdownButtonFormField<String>(
-                          value: _selectedSupplierId,
+                          initialValue: _selectedSupplierId,
                           decoration: const InputDecoration(
                             labelText: 'Select Supplier *',
                             border: OutlineInputBorder(),

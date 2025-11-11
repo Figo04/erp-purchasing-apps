@@ -1,147 +1,161 @@
-import 'package:supabase_flutter/supabase_flutter.dart';
-import '../models/user_model.dart';
+import 'package:erp_purchasing_apps/core/service/api_service.dart';
+import 'package:erp_purchasing_apps/data/models/auth_model.dart';
+import 'package:erp_purchasing_apps/core/constants/api_constants.dart';
+import 'package:erp_purchasing_apps/data/models/user_model.dart';
+import 'package:http/http.dart';
 
+/// Auth Repository
+/// Handles authentication operations via Golang backend API
+/// Replaces Supabase authentication
 class AuthRepository {
-  final SupabaseClient _supabase = Supabase.instance.client;
+  final ApiService _apiService;
 
-  // Sign In
-  Future<UserModel?> signIn({
+  AuthRepository({ApiService? apiService})
+      : _apiService = apiService ?? ApiService();
+
+  // Sign In / Login
+  // Returns LoginResponse containing token and user data
+  Future<LoginResponse> signIn({
     required String email,
     required String password,
   }) async {
     try {
-      final authResponse = await _supabase.auth.signInWithPassword(
+      print('AuthRepository: Attemping login for $email');
+
+      final loginRequest = LoginRequest(
         email: email,
         password: password,
       );
 
-      if (authResponse.user != null) {
-        // Get user data from users table
-        final response = await _supabase
-            .from('users')
-            .select()
-            .eq('auth_id', authResponse.user!.id)
-            .maybeSingle();
-
-        if (response == null) {
-          throw Exception('User tidak ditemukan di tabel users');
-        }
-
-        return UserModel.fromJson(response);
-      }
-      return null;
-    } catch (e) {
-      throw Exception('Login failed: $e');
-    }
-  }
-
-  // Sign Out
-  Future<void> signOut() async {
-    try {
-      await _supabase.auth.signOut();
-    } catch (e) {
-      throw Exception('Logout failed: $e');
-    }
-  }
-
-  // Get Current User
-  Future<UserModel?> getCurrentUser() async {
-    try {
-      final user = _supabase.auth.currentUser;
-      if (user == null) return null;
-
-      final response = await _supabase
-          .from('users')
-          .select()
-          .eq('auth_id', user.id)
-          .maybeSingle(); // ✅ aman
-
-      if (response == null) return null;
-      return UserModel.fromJson(response);
-    } catch (e) {
-      return null;
-    }
-  }
-
-  // Admin creates user (with auto-generated password)
-  Future<UserModel?> adminCreateUser({
-    required String email,
-    required String username,
-    required String fullName,
-    required String role,
-    required String password, // Admin set password
-  }) async {
-    try {
-      // 1. Create auth user via Admin API
-      final authResponse = await _supabase.auth.admin.createUser(
-        AdminUserAttributes(
-          email: email,
-          password: password,
-          emailConfirm: true, // Skip email verification
-        ),
+      final response = await _apiService.post<LoginResponse>(
+        ApiEndpoints.login,
+        body: loginRequest.toJson(),
+        requiresAuth: false,
+        fromJson: (json) => LoginResponse.fromJson(json),
       );
 
-      if (authResponse.user != null) {
-        // 2. Insert to users table
-        final userData = {
-          'auth_id': authResponse.user!.id,
-          'username': username,
-          'email': email,
-          'full_name': fullName,
-          'role': role,
-          'is_active': true,
-        };
-
-        final response =
-            await _supabase.from('users').insert(userData).select().single();
-
-        return UserModel.fromJson(response);
+      if (!response.isSuccess || response.data == null) {
+        throw Exception(response.errorMessage);
       }
-      return null;
+
+      // Save token to secure strage
+      await _apiService.saveToken(response.data!.token);
+
+      print('✅ AuthRepository: Login successful');
+      print('👤 User: ${response.data!.user.email}');
+      print('🔑 Role: ${response.data!.user.role}');
+
+      return response.data!;
     } catch (e) {
-      throw Exception('Failed to create user: $e');
+      print('AuthRepository: Login failed - $e');
+      rethrow;
     }
   }
 
-  // Sign Up / Register
-  // Future<UserModel?> signUp({
-  //   required String email,
-  //   required String password,
-  //   required String username,
-  //   required String fullName,
-  //   required String role,
-  // }) async {
-  //   try {
-  //     // 1. Create auth user
-  //     final authResponse = await _supabase.auth.signUp(
-  //       email: email,
-  //       password: password,
-  //     );
+  // Sign Out / Logout
+  // Removes stored token
+  Future<void> signOut() async {
+    try {
+      print('🔵 AuthRepository: Logging out...');
+      await _apiService.removeToken();
+      print('✅ AuthRepository: Logout successful');
+    } catch (e) {
+      print('❌ AuthRepository: Logout failed - $e');
+      rethrow;
+    }
+  }
 
-  //     if (authResponse.user != null) {
-  //       // 2. Create user record in users table
-  //       final userData = {
-  //         'auth_id': authResponse.user!.id,
-  //         'username': username,
-  //         'email': email,
-  //         'full_name': fullName,
-  //         'role': role,
-  //         'is_active': true,
-  //       };
+  // Get Current User Profile
+  // Fetches user data using stored token
+  Future<UserModel> getCurrentUser() async {
+    try {
+      print('🔵 AuthRepository: Fetching current user profile');
 
-  //       final response =
-  //           await _supabase.from('users').insert(userData).select().single();
+      final response = await _apiService.get<UserModel>(
+        ApiEndpoints.profile,
+        requiresAuth: true,
+        fromJson: (json) => UserModel.fromJson(json),
+      );
 
-  //       return UserModel.fromJson(response);
-  //     }
-  //     return null;
-  //   } catch (e) {
-  //     throw Exception('Registration failed: $e');
-  //   }
-  // }
+      if (!response.isSuccess || response.data == null) {
+        throw Exception(response.errorMessage);
+      }
+
+      print('✅ AuthRepository: Profile fetched');
+      print('👤 User: ${response.data!.email}');
+
+      return response.data!;
+    } catch (e) {
+      print('❌ AuthRepository: Failed to fetch profile - $e');
+      rethrow;
+    }
+  }
 
   // Check if user is logged in
-  bool isLoggedIn() {
-    return _supabase.auth.currentUser != null;
+  // Returns true if valid token exists
+  Future<bool> isLoggedIn() async {
+    return await _apiService.hasToken();
+  }
+
+  // Register new user (admin only)
+  // For future implementation when register end point is available
+  Future<LoginResponse> register({
+    required String username,
+    required String email,
+    required String password,
+    String? fullName,
+    required String role,
+    String? divisionId,
+  }) async {
+    try {
+      print('AuthRepository: Registering user $email');
+
+      final registerRequest = RegisterRequest(
+        username: username,
+        email: email,
+        password: password,
+        fullName: fullName,
+        role: role,
+        divisionId: divisionId,
+      );
+
+      final response = await _apiService.post<LoginResponse>(
+        ApiEndpoints.register,
+        body: registerRequest.toJson(),
+        requiresAuth: false,
+        fromJson: (json) => LoginResponse.fromJson(json),
+      );
+
+      if (!response.isSuccess || response.data == null) {
+        throw Exception(response.errorMessage);
+      }
+
+      // Save token to secure storage
+      await _apiService.saveToken(response.data!.token);
+
+      print('AuthRepository: Registration successful');
+
+      return response.data!;
+    } catch (e) {
+      print('AuthRepository: Registration failed - $e');
+      rethrow;
+    }
+  }
+
+  // Validate current session
+  // Checks if stored token is still valid by fetching profile
+  Future<bool> validateSession() async {
+    try {
+      if (!await isLoggedIn()) {
+        return false;
+      }
+
+      await getCurrentUser();
+      return true;
+    } catch (e) {
+      print('❌ AuthRepository: Session invalid - $e');
+      await _apiService.removeToken();
+      return false;
+    }
   }
 }

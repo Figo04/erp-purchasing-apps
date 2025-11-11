@@ -1,4 +1,3 @@
-import 'package:erp_purchasing_apps/presentation/screens/lpb/goods_receipt_scanner_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -76,22 +75,6 @@ class _InventoryListScreenState extends ConsumerState<InventoryListScreen> {
               ),
             ),
 
-          // Button scanner
-          IconButton(
-            icon: const Icon(Icons.qr_code_scanner),
-            tooltip: 'Scan Delivery QR',
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const GoodsReceiptScannerScreen(),
-                ),
-              ).then((_) {
-                // Refresh inventory setelah scan
-                ref.invalidate(inventoryStreamProvider);
-              });
-            },
-          ),
 
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 8),

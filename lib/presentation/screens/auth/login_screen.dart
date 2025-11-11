@@ -1,7 +1,8 @@
 import 'package:erp_purchasing_apps/data/providers/auth_providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-//import 'package:go_router/go_router.dart';
+import 'package:go_router/go_router.dart';
+import 'package:erp_purchasing_apps/core/service/api_exception.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -24,11 +25,52 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 
   Future<void> _handleLogin() async {
-    if (_formKey.currentState!.validate()) {
-      await ref.read(authStateProvider.notifier).signIn(
-            _emailController.text.trim(),
-            _passwordController.text,
-          );
+    print('🔵 Login button clicked');
+
+    if (!_formKey.currentState!.validate()) {
+      print('Form validation failed');
+      return;
+    }
+
+    print('Form valid, starting login...');
+    print('Email: ${_emailController.text.trim()}');
+
+    try {
+      // ✅ Simpan notifier dulu sebelum async operation
+      final authNotifier = ref.read(authStateProvider.notifier);
+
+      await authNotifier.signIn(
+        _emailController.text.trim(),
+        _passwordController.text,
+      );
+
+      print('✅ Login successful');
+
+      // ✅ Check mounted before navigate
+      if (mounted) {
+        print('Navigating to dashboard...');
+        context.go('/dashboard');
+      }
+    } catch (e) {
+      print('Login failed: $e');
+      // Error handling sudah di listener
+    }
+  }
+
+  // Get user-frendly error message
+  String _getErrorMessage(dynamic error) {
+    if (error is UnauthorizedException) {
+      return 'Invalid email or password';
+    } else if (error is NetworkException) {
+      return 'No internet connection. Please check your network.';
+    } else if (error is TimeoutException) {
+      return 'Request timeout. Please try again.';
+    } else if (error is ServerException) {
+      return 'Server error. Please try again.';
+    } else if (error is ApiException) {
+      return error.message;
+    } else {
+      return 'Login failed: ${error.toString()}';
     }
   }
 
@@ -36,15 +78,31 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   Widget build(BuildContext context) {
     final authState = ref.watch(authStateProvider);
 
-    // Show error if any
+    // ✅ Listen for auth state changes and errors
     ref.listen<AsyncValue<dynamic>>(authStateProvider, (previous, next) {
       if (next.hasError) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Login failed: ${next.error}'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        final errorMessage = _getErrorMessage(next.error);
+        print('Auth error: $errorMessage');
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Row(
+                children: [
+                  const Icon(Icons.error_outline, color: Colors.white),
+                  const SizedBox(width: 12),
+                  Expanded(child: Text(errorMessage)),
+                ],
+              ),
+              backgroundColor: Colors.red.shade700,
+              duration: const Duration(seconds: 4),
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+          );
+        }
       }
     });
 
@@ -53,9 +111,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24.0),
           child: ConstrainedBox(
-            constraints: BoxConstraints(
-              maxWidth: 400, // Batas maksimal lebar di desktop
-            ),
+            constraints: const BoxConstraints(maxWidth: 400),
             child: Form(
               key: _formKey,
               child: Column(
@@ -70,7 +126,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   ),
                   const SizedBox(height: 24),
                   Text(
-                    'ERP System',
+                    'ERP Purchasing System',
                     style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                           fontWeight: FontWeight.bold,
                         ),
@@ -90,6 +146,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   TextFormField(
                     controller: _emailController,
                     keyboardType: TextInputType.emailAddress,
+                    enabled: !authState.isLoading,
                     decoration: const InputDecoration(
                       labelText: 'Email',
                       prefixIcon: Icon(Icons.email),
@@ -111,8 +168,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   TextFormField(
                     controller: _passwordController,
                     obscureText: !_isPasswordVisible,
+                    enabled: !authState.isLoading,
                     decoration: InputDecoration(
-                      contentPadding: EdgeInsets.symmetric(),
                       labelText: 'Password',
                       prefixIcon: const Icon(Icons.lock),
                       border: const OutlineInputBorder(),
@@ -137,6 +194,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         return 'Password must be at least 6 characters';
                       }
                       return null;
+                    },
+                    onFieldSubmitted: (_) {
+                      if (!authState.isLoading) {
+                        _handleLogin();
+                      }
                     },
                   ),
                   const SizedBox(height: 24),
@@ -171,22 +233,24 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             ),
                     ),
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 24),
 
-                  // Row(
-                  //   mainAxisAlignment: MainAxisAlignment.center,
-                  //   children: [
-                  //     const Text('Don\'t have an account?'),
-                  //     TextButton(
-                  //       onPressed: () {
-                  //         debugPrint('Register button clicked!');
-                  //         context.go('/register');
-                  //       },
-                  //       child: const Text('Register here'),
-                  //     ),
-                  //   ],
-                  // ),
-                  // const SizedBox(height: 8),
+                  // Debug info (remove in production)
+                  if (authState.isLoading)
+                    const Center(
+                      child: Padding(
+                        padding: EdgeInsets.all(8.0),
+                        child: Text(
+                          'Authenticating...',
+                          style: TextStyle(
+                            color: Colors.grey,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ),
+                    ),
+
+                  const SizedBox(height: 16),
 
                   // Version
                   Text(

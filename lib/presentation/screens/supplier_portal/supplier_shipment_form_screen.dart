@@ -33,7 +33,7 @@ class _SupplierShipmentFormScreenState
   bool _isLoading = false;
   String? _supplierId;
 
-  List<ShipmentItemForm> _items = [];
+  final List<ShipmentItemForm> _items = [];
   ShipmentModel? _createdShipment;
 
   @override

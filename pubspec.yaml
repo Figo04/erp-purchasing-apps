@@ -70,12 +70,16 @@ dependencies:
   # Platform detection
   universal_io: ^2.2.2
   
-  # PDF (untuk print surat jalan)
+  # PDF 
   printing: ^5.13.2
 
   # Design
   google_fonts: ^6.1.0  
   fl_chart: ^0.68.0 
+
+  # API
+  http: ^1.2.0
+  flutter_secure_storage: ^9.0.0
 
 dev_dependencies:
   flutter_test:

@@ -792,7 +792,7 @@ class _AssetDetailScreenState extends ConsumerState<AssetDetailScreen> {
               Text('Current Status: ${asset.status.toUpperCase()}'),
               const SizedBox(height: 16),
               DropdownButtonFormField<String>(
-                value: selectedStatus,
+                initialValue: selectedStatus,
                 decoration: const InputDecoration(
                   labelText: 'New Status',
                   border: OutlineInputBorder(),

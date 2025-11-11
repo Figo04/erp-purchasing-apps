@@ -227,7 +227,7 @@ class _PaymentFormScreenState extends ConsumerState<PaymentFormScreen> {
 
                     // 🔄 MODIFIED: Select Goods Receipt instead of PO
                     DropdownButtonFormField<String>(
-                      value: _selectedReceiptId,
+                      initialValue: _selectedReceiptId,
                       decoration: const InputDecoration(
                         labelText: 'Select Goods Receipt (LPB) *',
                         border: OutlineInputBorder(),

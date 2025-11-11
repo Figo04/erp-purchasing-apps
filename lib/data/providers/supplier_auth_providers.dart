@@ -21,29 +21,27 @@ final supplierAuthStateProvider =
 class SupplierAuthNotifier extends StateNotifier<AsyncValue<SupplierModel?>> {
   final Ref ref;
 
-  SupplierAuthNotifier(this.ref) : super(const AsyncValue.data(null)) {
-    _checkCurrentSession(); // ✅ Auto-check session saat init
-  }
+  SupplierAuthNotifier(this.ref) : super(const AsyncValue.data(null));
 
-  // ✅ Check session aktif untuk auto-login
-  Future<void> _checkCurrentSession() async {
-    try {
-      print('🔍 Checking for active session...');
-      final repo = ref.read(supplierAuthRepositoryProvider);
-      final supplier = await repo.getCurrentSupplier();
+  // // ✅ Check session aktif untuk auto-login
+  // Future<void> _checkCurrentSession() async {
+  //   try {
+  //     print('🔍 Checking for active session...');
+  //     final repo = ref.read(supplierAuthRepositoryProvider);
+  //     final supplier = await repo.getCurrentSupplier();
 
-      if (supplier != null) {
-        print('✅ Found active session: ${supplier.name}');
-        ref.read(currentSupplierProvider.notifier).state = supplier;
-        state = AsyncValue.data(supplier);
-      } else {
-        print('ℹ️ No active session');
-      }
-    } catch (e) {
-      print('⚠️ Session check failed: $e');
-      // Don't set error state, just continue
-    }
-  }
+  //     if (supplier != null) {
+  //       print('✅ Found active session: ${supplier.name}');
+  //       ref.read(currentSupplierProvider.notifier).state = supplier;
+  //       state = AsyncValue.data(supplier);
+  //     } else {
+  //       print('ℹ️ No active session');
+  //     }
+  //   } catch (e) {
+  //     print('⚠️ Session check failed: $e');
+  //     // Don't set error state, just continue
+  //   }
+  // }
 
   Future<void> signIn(String email, String password) async {
     try {

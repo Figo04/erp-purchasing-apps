@@ -27,9 +27,8 @@ final routerProvider = Provider<GoRouter>((ref) {
       final isLoggedIn = authState.value != null;
       final currentPath = state.matchedLocation;
 
-      // Allow access to login and register pages when not logged in
-      if (!isLoggedIn &&
-          (currentPath == '/login' || currentPath == '/register')) {
+      // Allow access to login
+      if (!isLoggedIn && (currentPath == '/login')) {
         return null; // Allow access
       }
 
@@ -38,9 +37,8 @@ final routerProvider = Provider<GoRouter>((ref) {
         return '/login';
       }
 
-      // Redirect to dashboard if logged in and on login/register page
-      if (isLoggedIn &&
-          (currentPath == '/login' || currentPath == '/register')) {
+      // Redirect to dashboard if logged in
+      if (isLoggedIn && (currentPath == '/login')) {
         return '/dashboard';
       }
 

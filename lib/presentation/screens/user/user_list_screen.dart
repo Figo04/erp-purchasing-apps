@@ -46,6 +46,8 @@ class _UserListScreenState extends ConsumerState<UserListScreen> {
         return Colors.green;
       case AppConstants.roleFinance:
         return Colors.orange;
+      case AppConstants.roleKadiv:
+        return Colors.purple;
       default:
         return Colors.grey;
     }

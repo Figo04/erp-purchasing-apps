@@ -38,7 +38,7 @@ class _UserFormScreenState extends ConsumerState<UserFormScreen> {
       final repo = ref.read(userRepositoryProvider);
       final user = await repo.getUserById(widget.userId!);
 
-      if (user != null && mounted) {
+      if (mounted) {
         setState(() {
           _usernameController.text = user.username;
           _emailController.text = user.email;
@@ -65,7 +65,7 @@ class _UserFormScreenState extends ConsumerState<UserFormScreen> {
     try {
       if (widget.userId == null) {
         // ✅ Admin membuat user baru
-        await repo.adminCreateUser(
+        await repo.createUser(
           email: _emailController.text.trim(),
           username: _usernameController.text.trim(),
           password: _passwordController.text.trim(),
@@ -232,7 +232,7 @@ class _UserFormScreenState extends ConsumerState<UserFormScreen> {
 
               // Role
               DropdownButtonFormField<String>(
-                value: _selectedRole,
+                initialValue: _selectedRole,
                 decoration: const InputDecoration(
                   labelText: 'Role',
                   border: OutlineInputBorder(),
@@ -253,6 +253,10 @@ class _UserFormScreenState extends ConsumerState<UserFormScreen> {
                   DropdownMenuItem(
                     value: AppConstants.roleFinance,
                     child: Text('Finance'),
+                  ),
+                  DropdownMenuItem(
+                    value: AppConstants.roleKadiv,
+                    child: Text('Kadiv'),
                   ),
                 ],
                 onChanged: (value) {

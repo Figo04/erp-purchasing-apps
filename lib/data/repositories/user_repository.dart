@@ -1,170 +1,157 @@
-import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:erp_purchasing_apps/data/models/user_model.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../models/user_model.dart';
+import 'package:erp_purchasing_apps/core/service/api_service.dart';
+import '../../core/constants/api_constants.dart';
 
-final userRepositoryProvider = Provider<UserRepository>((ref) {
-  return UserRepository();
-});
-
+/// User Repository
+/// Handles user management operations (admin only)
+/// Different from AuthRepository (login/logout)
 class UserRepository {
-  final SupabaseClient _supabase = Supabase.instance.client;
+  final ApiService _apiService;
 
-  // ✅ Ambil semua user
-  Future<List<UserModel>> getAllUsers() async {
+  UserRepository({ApiService? apiService})
+      : _apiService = apiService ?? ApiService();
+
+  /// Get all users (admin only)
+  Future<List<UserModel>> getAllUsers({
+    String? role,
+    String? divisionId,
+    String? search,
+    bool? isActive,
+  }) async {
     try {
-      final response = await _supabase
-          .from('users')
-          .select()
-          .order('created_at', ascending: false);
+      final queryParams = <String, dynamic>{};
+      if (role != null) queryParams['role'] = role;
+      if (divisionId != null) queryParams['division_id'] = divisionId;
+      if (search != null) queryParams['search'] = search;
+      if (isActive != null) queryParams['is_active'] = isActive.toString();
 
-      return (response as List)
-          .map((json) => UserModel.fromJson(json))
-          .toList();
+      final response = await _apiService.get(
+        ApiEndpoints.users,
+        queryParameters: queryParams,
+        fromJson: (json) {
+          if (json is List) {
+            return json.map((item) => UserModel.fromJson(item)).toList();
+          }
+          return <UserModel>[];
+        },
+      );
+
+      if (!response.isSuccess || response.data == null) {
+        throw Exception(response.errorMessage);
+      }
+
+      return response.data as List<UserModel>;
     } catch (e) {
       throw Exception('Failed to load users: $e');
     }
   }
 
-  // ✅ Ambil user berdasarkan ID
-  Future<UserModel?> getUserById(String id) async {
+  /// Get user by ID
+  Future<UserModel> getUserById(String id) async {
     try {
-      final response =
-          await _supabase.from('users').select().eq('id', id).maybeSingle();
+      final response = await _apiService.get<UserModel>(
+        ApiEndpoints.userById(id),
+        fromJson: (json) => UserModel.fromJson(json),
+      );
 
-      if (response == null) return null;
-      return UserModel.fromJson(response);
+      if (!response.isSuccess || response.data == null) {
+        throw Exception(response.errorMessage);
+      }
+
+      return response.data!;
     } catch (e) {
       throw Exception('Failed to load user: $e');
     }
   }
 
-  // 🔥 UPDATED: Admin membuat user via Edge Function
-  Future<UserModel> adminCreateUser({
-    required String email,
+  /// Create new user (admin only)
+  Future<UserModel> createUser({
     required String username,
+    required String email,
     required String password,
     String? fullName,
     required String role,
+    String? divisionId,
   }) async {
     try {
-      print('🔵 Calling Edge Function: create-user');
-      print('📧 Email: $email | Username: $username | Role: $role');
+      final body = {
+        'username': username,
+        'email': email,
+        'password': password,
+        'full_name': fullName,
+        'role': role,
+        'division_id': divisionId,
+      };
 
-      // Panggil Edge Function
-      final response = await _supabase.functions.invoke(
-        'create-user',
-        body: {
-          'email': email,
-          'password': password,
-          'username': username,
-          'fullName': fullName,
-          'role': role,
-        },
+      final response = await _apiService.post<UserModel>(
+        ApiEndpoints.users,
+        body: body,
+        fromJson: (json) => UserModel.fromJson(json),
       );
 
-      print('📊 Response Status: ${response.status}');
-      print('📦 Response Data: ${response.data}');
-
-      // Cek response
-      if (response.status != 200) {
-        final errorMessage = response.data is Map
-            ? (response.data['error'] ?? 'Unknown error')
-            : 'Failed to create user';
-        throw Exception(errorMessage);
+      if (!response.isSuccess || response.data == null) {
+        throw Exception(response.errorMessage);
       }
 
-      // Parse response
-      final data = response.data;
-      if (data is! Map || data['data'] == null) {
-        throw Exception('Invalid response format from Edge Function');
-      }
-
-      print('✅ User created successfully');
-      return UserModel.fromJson(data['data']);
-    } on FunctionException catch (e) {
-      print('❌ FunctionException: ${e.status} | ${e.details}');
-
-      // Parse error message dari details
-      String errorMsg = 'Failed to create user';
-      if (e.details is Map && e.details['error'] != null) {
-        errorMsg = e.details['error'];
-      }
-
-      throw Exception(errorMsg);
+      return response.data!;
     } catch (e) {
-      print('❌ Error: $e');
       throw Exception('Failed to create user: $e');
     }
   }
 
-  // ✅ Update data user
+  /// Update user
   Future<UserModel> updateUser({
     required String id,
     required String username,
     required String email,
     String? fullName,
     required String role,
+    String? divisionId,
     required bool isActive,
   }) async {
     try {
-      final data = {
-        'username': username,
-        'email': email,
+      final body = {
         'full_name': fullName,
         'role': role,
+        'division_id': divisionId,
         'is_active': isActive,
-        'updated_at': DateTime.now().toIso8601String(),
       };
 
-      final response = await _supabase
-          .from('users')
-          .update(data)
-          .eq('id', id)
-          .select()
-          .single();
+      final response = await _apiService.put<UserModel>(
+        ApiEndpoints.userById(id),
+        body: body,
+        fromJson: (json) => UserModel.fromJson(json),
+      );
 
-      return UserModel.fromJson(response);
+      if (!response.isSuccess || response.data == null) {
+        throw Exception(response.errorMessage);
+      }
+
+      return response.data!;
     } catch (e) {
       throw Exception('Failed to update user: $e');
     }
   }
 
-  // ✅ Update password
-  Future<void> updateUserPassword({
-    required String authId,
-    required String newPassword,
-  }) async {
-    try {
-      await _supabase.auth.admin.updateUserById(
-        authId,
-        attributes: AdminUserAttributes(password: newPassword),
-      );
-    } catch (e) {
-      throw Exception('Failed to update password: $e');
-    }
-  }
-
-  // ✅ Soft delete user
+  /// Delete user (soft delete)
   Future<void> deleteUser(String id) async {
     try {
-      await _supabase.from('users').update({'is_active': false}).eq('id', id);
+      final response = await _apiService.delete(
+        ApiEndpoints.userById(id),
+      );
+
+      if (!response.isSuccess) {
+        throw Exception(response.errorMessage);
+      }
     } catch (e) {
       throw Exception('Failed to delete user: $e');
     }
   }
 
-  // ✅ Search users
+  /// Search users
   Future<List<UserModel>> searchUsers(String query) async {
     try {
-      final response = await _supabase
-          .from('users')
-          .select()
-          .or('username.ilike.%$query%,email.ilike.%$query%,full_name.ilike.%$query%')
-          .order('username', ascending: true);
-
-      return (response as List)
-          .map((json) => UserModel.fromJson(json))
-          .toList();
+      return await getAllUsers(search: query);
     } catch (e) {
       throw Exception('Failed to search users: $e');
     }

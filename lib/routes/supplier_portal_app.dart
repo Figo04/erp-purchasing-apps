@@ -40,17 +40,16 @@ class _SupplierPortalAppState extends ConsumerState<SupplierPortalApp> {
         print('   - isLoggedIn: $isLoggedIn');
         print('   - current location: ${state.matchedLocation}');
 
-        // Jika belum login dan bukan di halaman login -> redirect ke login
+        // ✅ HANYA protect halaman yang butuh auth
+        // Jika belum login dan mencoba akses halaman protected -> redirect ke login
         if (!isLoggedIn && !isLoggingIn) {
           print('   ➡️ Redirecting to login (not authenticated)');
           return '/supplier/login';
         }
 
-        // Jika sudah login dan masih di halaman login -> redirect ke dashboard
-        if (isLoggedIn && isLoggingIn) {
-          print('   ➡️ Redirecting to dashboard (already authenticated)');
-          return '/supplier/dashboard';
-        }
+        // ❌ HAPUS auto redirect ke dashboard
+        // Biarkan user tetap di login screen meskipun sudah ada session
+        // User harus klik tombol login manual
 
         print('   ✅ No redirect needed');
         return null;
@@ -87,7 +86,7 @@ class _SupplierPortalAppState extends ConsumerState<SupplierPortalApp> {
   Widget build(BuildContext context) {
     // ✅ Listen ke perubahan supplier auth dan refresh router
     ref.listen(currentSupplierProvider, (previous, next) {
-      print(' Supplier auth state changed:');
+      print('🔔 Supplier auth state changed:');
       print('   - Previous: ${previous?.name}');
       print('   - Next: ${next?.name}');
       print('   - Refreshing router...');

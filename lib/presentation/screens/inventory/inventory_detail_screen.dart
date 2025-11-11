@@ -282,7 +282,7 @@ class _InventoryDetailScreenState extends ConsumerState<InventoryDetailScreen> {
 
                   if (_isEditing)
                     DropdownButtonFormField<String>(
-                      value: _selectedStatus,
+                      initialValue: _selectedStatus,
                       decoration: const InputDecoration(
                         labelText: 'Status',
                         border: OutlineInputBorder(),
@@ -767,7 +767,7 @@ class _InventoryDetailScreenState extends ConsumerState<InventoryDetailScreen> {
               Text('Current Status: ${item.status.toUpperCase()}'),
               const SizedBox(height: 16),
               DropdownButtonFormField<String>(
-                value: selectedStatus,
+                initialValue: selectedStatus,
                 decoration: const InputDecoration(
                   labelText: 'New Status',
                   border: OutlineInputBorder(),

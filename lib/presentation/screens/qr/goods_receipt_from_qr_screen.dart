@@ -29,21 +29,39 @@ class _GoodsReceiptFromQRScreenState
   @override
   void initState() {
     super.initState();
+
+    // 🔥 DEBUG: Print saat screen pertama kali load
+    print('🎉 QR Screen Loaded!');
+    print('🔍 QR Data Debug:');
+    print('   Shipment ID: "${widget.qrData.shipmentId}"');
+    print('   Shipment ID Length: ${widget.qrData.shipmentId.length}');
+    print('   PO ID: "${widget.qrData.poId}"');
+    print('   Shipment Number: "${widget.qrData.shipmentNumber}"');
+    print('   PO Number: "${widget.qrData.poNumber}"');
+    print('   Delivery Note: "${widget.qrData.deliveryNoteNumber}"');
+    print('   Items Count: ${widget.qrData.items.length}');
+
     _initializeItems();
   }
 
   void _initializeItems() {
+    print('📦 Initializing items from QR...');
+
     _items = widget.qrData.items.map((item) {
+      print('   - ${item.name}: ${item.qty} ${item.unit}');
+
       return ReceiveItemForm(
         poItemId: item.poItemId,
         itemName: item.name,
         quantityShipped: item.qty,
         quantityReceivedController:
-            TextEditingController(text: item.qty.toString()),
+            TextEditingController(text: item.qty.toString()), // ✅ Auto-fill
         unit: item.unit,
         notesController: TextEditingController(),
       );
     }).toList();
+
+    print('✅ ${_items.length} items initialized!');
   }
 
   Future<void> _handleSubmit() async {

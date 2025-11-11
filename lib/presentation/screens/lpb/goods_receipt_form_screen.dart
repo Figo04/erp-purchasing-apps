@@ -28,8 +28,8 @@ class _GoodsReceiptFormScreenState
   DateTime _receiptDate = DateTime.now();
   bool _isLoading = false;
 
-  List<ReceiptItemForm> _items = [];
-  Map<String, POItemReceiptSummary> _summaryMap = {};
+  final List<ReceiptItemForm> _items = [];
+  final Map<String, POItemReceiptSummary> _summaryMap = {};
 
   @override
   void initState() {
@@ -193,6 +193,7 @@ class _GoodsReceiptFormScreenState
     super.dispose();
   }
 
+  @override
   Widget build(BuildContext build) {
     final poStream = ref.watch(poStreamProvider);
 

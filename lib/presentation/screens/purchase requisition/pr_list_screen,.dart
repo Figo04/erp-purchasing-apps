@@ -74,186 +74,240 @@ class _PRListScreenState extends ConsumerState<PRListScreen> {
               ),
             ),
           ),
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: () {
-              ref.read(refreshTriggerProvider.notifier).state++;
-              setState(() {});
+          Consumer(
+            builder: (context, ref, child) {
+              final isRefreshing = ref.watch(isRefreshingProvider);
+
+              return IconButton(
+                icon: isRefreshing
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.refresh),
+                onPressed: isRefreshing
+                    ? null
+                    : () {
+                        ref.read(refreshTriggerProvider.notifier).state++;
+                        ref.invalidate(prStreamProvider);
+                      },
+              );
             },
           )
         ],
       ),
-      body: Column(
+      body: Stack(
         children: [
-          // Filter Tabs with Count Badges
-          Container(
-            padding: const EdgeInsets.all(8),
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: prAsyncValue.when(
-                data: (prs) {
-                  final draftCount =
-                      prs.where((pr) => pr.status == 'draft').length;
-                  final pendingCount =
-                      prs.where((pr) => pr.status == 'pending').length;
-                  final approvedCount =
-                      prs.where((pr) => pr.status == 'approved').length;
-                  final rejectedCount =
-                      prs.where((pr) => pr.status == 'rejected').length;
+          Column(
+            children: [
+              // Filter Tabs with Count Badges
+              Container(
+                padding: const EdgeInsets.all(8),
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: prAsyncValue.when(
+                    data: (prs) {
+                      final draftCount =
+                          prs.where((pr) => pr.status == 'draft').length;
+                      final pendingCount =
+                          prs.where((pr) => pr.status == 'pending').length;
+                      final approvedCount =
+                          prs.where((pr) => pr.status == 'approved').length;
+                      final rejectedCount =
+                          prs.where((pr) => pr.status == 'rejected').length;
 
-                  return Row(
-                    children: [
-                      _buildFilterChip('all', 'All', prs.length),
-                      const SizedBox(width: 8),
-                      _buildFilterChip('draft', 'Draft', draftCount),
-                      const SizedBox(width: 8),
-                      _buildFilterChip('pending', 'Pending', pendingCount),
-                      const SizedBox(width: 8),
-                      _buildFilterChip('approved', 'Approved', approvedCount),
-                      const SizedBox(width: 8),
-                      _buildFilterChip('rejected', 'Rejected', rejectedCount),
-                    ],
-                  );
-                },
-                loading: () => Row(
-                  children: [
-                    _buildFilterChip('all', 'All', 0),
-                    const SizedBox(width: 8),
-                    _buildFilterChip('draft', 'Draft', 0),
-                    const SizedBox(width: 8),
-                    _buildFilterChip('pending', 'Pending', 0),
-                    const SizedBox(width: 8),
-                    _buildFilterChip('approved', 'Approved', 0),
-                    const SizedBox(width: 8),
-                    _buildFilterChip('rejected', 'Rejected', 0),
-                  ],
-                ),
-                error: (_, __) => const SizedBox.shrink(),
-              ),
-            ),
-          ),
-
-          // PR List
-          Expanded(
-            child: prAsyncValue.when(
-              data: (prs) {
-                // Filter By Status
-                final filteredPRs = _filterStatus == 'all'
-                    ? prs
-                    : prs.where((pr) => pr.status == _filterStatus).toList();
-
-                if (filteredPRs.isEmpty) {
-                  return Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: const [
-                        Icon(Icons.request_page, size: 64, color: Colors.grey),
-                        SizedBox(height: 16),
-                        Text(
-                          'No PRs found',
-                          style: TextStyle(fontSize: 16, color: Colors.grey),
-                        )
+                      return Row(
+                        children: [
+                          _buildFilterChip('all', 'All', prs.length),
+                          const SizedBox(width: 8),
+                          _buildFilterChip('draft', 'Draft', draftCount),
+                          const SizedBox(width: 8),
+                          _buildFilterChip('pending', 'Pending', pendingCount),
+                          const SizedBox(width: 8),
+                          _buildFilterChip(
+                              'approved', 'Approved', approvedCount),
+                          const SizedBox(width: 8),
+                          _buildFilterChip(
+                              'rejected', 'Rejected', rejectedCount),
+                        ],
+                      );
+                    },
+                    loading: () => Row(
+                      children: [
+                        _buildFilterChip('all', 'All', 0),
+                        const SizedBox(width: 8),
+                        _buildFilterChip('draft', 'Draft', 0),
+                        const SizedBox(width: 8),
+                        _buildFilterChip('pending', 'Pending', 0),
+                        const SizedBox(width: 8),
+                        _buildFilterChip('approved', 'Approved', 0),
+                        const SizedBox(width: 8),
+                        _buildFilterChip('rejected', 'Rejected', 0),
                       ],
                     ),
-                  );
-                }
-
-                return ListView.builder(
-                  key: ValueKey('pr-list-${prs.length}'), // Key untuk tracking
-                  itemCount: filteredPRs.length,
-                  padding: const EdgeInsets.all(16),
-                  itemBuilder: (context, index) {
-                    final pr = filteredPRs[index];
-                    final itemCount = pr.items?.length ?? 0;
-                    final canEdit = pr.status == 'draft' &&
-                        pr.requesterId == currentUser?.id;
-                    final canDelete = isAdmin ||
-                        (pr.status == 'draft' &&
-                            pr.requesterId == currentUser?.id);
-
-                    return Card(
-                      key: ValueKey(pr.id), // Key unik per item
-                      margin: const EdgeInsets.only(bottom: 8),
-                      child: ListTile(
-                        leading: CircleAvatar(
-                          backgroundColor: _getStatusColor(pr.status),
-                          child: Text(
-                            pr.prNumber.split('_').last.substring(0, 2),
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 12,
-                            ),
-                          ),
-                        ),
-                        title: Text(
-                          pr.prNumber,
-                          style: const TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                        subtitle: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text('Items: $itemCount'),
-                            Text(
-                                'Total: Rp ${NumberFormat('#,###').format(pr.totalEstimated)}'),
-                            Text(
-                                'Created: ${DateFormat('dd MMM yyyy').format(pr.createdAt)}'),
-                          ],
-                        ),
-                        trailing: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Chip(
-                              label: Text(
-                                pr.status.toUpperCase(),
-                                style: const TextStyle(fontSize: 10),
-                              ),
-                              backgroundColor:
-                                  _getStatusColor(pr.status).withOpacity(0.2),
-                            ),
-                            if (canDelete) ...[
-                              const SizedBox(width: 8),
-                              IconButton(
-                                icon:
-                                    const Icon(Icons.delete, color: Colors.red),
-                                onPressed: () =>
-                                    _confirmDelete(pr.id, pr.prNumber),
-                                tooltip: isAdmin ? 'Delete (Admin)' : 'Delete',
-                              ),
-                            ],
-                          ],
-                        ),
-                        onTap: () {
-                          if (canEdit) {
-                            _navigateToForm(prId: pr.id);
-                          } else {
-                            _showPRDetail(pr);
-                          }
-                        },
-                      ),
-                    );
-                  },
-                );
-              },
-              loading: () => const Center(child: CircularProgressIndicator()),
-              error: (error, stack) => Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(Icons.error, size: 64, color: Colors.red),
-                    const SizedBox(height: 16),
-                    Text('Error: $error'),
-                    const SizedBox(height: 16),
-                    ElevatedButton(
-                      onPressed: () {
-                        ref.invalidate(prStreamProvider);
-                        setState(() {});
-                      },
-                      child: const Text('Retry'),
-                    ),
-                  ],
+                    error: (_, __) => const SizedBox.shrink(),
+                  ),
                 ),
               ),
-            ),
+
+              // PR List
+              Expanded(
+                child: prAsyncValue.when(
+                  data: (prs) {
+                    // Filter By Status
+                    final filteredPRs = _filterStatus == 'all'
+                        ? prs
+                        : prs
+                            .where((pr) => pr.status == _filterStatus)
+                            .toList();
+
+                    if (filteredPRs.isEmpty) {
+                      return Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: const [
+                            Icon(Icons.request_page,
+                                size: 64, color: Colors.grey),
+                            SizedBox(height: 16),
+                            Text(
+                              'No PRs found',
+                              style:
+                                  TextStyle(fontSize: 16, color: Colors.grey),
+                            )
+                          ],
+                        ),
+                      );
+                    }
+
+                    return ListView.builder(
+                      key: ValueKey(
+                          'pr-list-${prs.length}'), // Key untuk tracking
+                      itemCount: filteredPRs.length,
+                      padding: const EdgeInsets.all(16),
+                      itemBuilder: (context, index) {
+                        final pr = filteredPRs[index];
+                        final itemCount = pr.items?.length ?? 0;
+                        final canEdit = pr.status == 'draft' &&
+                            pr.requesterId == currentUser?.id;
+                        final canDelete = isAdmin ||
+                            (pr.status == 'draft' &&
+                                pr.requesterId == currentUser?.id);
+
+                        return Card(
+                          key: ValueKey(pr.id), // Key unik per item
+                          margin: const EdgeInsets.only(bottom: 8),
+                          child: ListTile(
+                            leading: CircleAvatar(
+                              backgroundColor: _getStatusColor(pr.status),
+                              child: Text(
+                                pr.prNumber.split('_').last.substring(0, 2),
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ),
+                            title: Text(
+                              pr.prNumber,
+                              style:
+                                  const TextStyle(fontWeight: FontWeight.bold),
+                            ),
+                            subtitle: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text('Items: $itemCount'),
+                                Text(
+                                    'Total: Rp ${NumberFormat('#,###').format(pr.totalEstimated)}'),
+                                Text(
+                                    'Created: ${DateFormat('dd MMM yyyy').format(pr.createdAt)}'),
+                              ],
+                            ),
+                            trailing: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Chip(
+                                  label: Text(
+                                    pr.status.toUpperCase(),
+                                    style: const TextStyle(fontSize: 10),
+                                  ),
+                                  backgroundColor: _getStatusColor(pr.status)
+                                      .withOpacity(0.2),
+                                ),
+                                if (canDelete) ...[
+                                  const SizedBox(width: 8),
+                                  IconButton(
+                                    icon: const Icon(Icons.delete,
+                                        color: Colors.red),
+                                    onPressed: () =>
+                                        _confirmDelete(pr.id, pr.prNumber),
+                                    tooltip:
+                                        isAdmin ? 'Delete (Admin)' : 'Delete',
+                                  ),
+                                ],
+                              ],
+                            ),
+                            onTap: () {
+                              if (canEdit) {
+                                _navigateToForm(prId: pr.id);
+                              } else {
+                                _showPRDetail(pr);
+                              }
+                            },
+                          ),
+                        );
+                      },
+                    );
+                  },
+                  loading: () =>
+                      const Center(child: CircularProgressIndicator()),
+                  error: (error, stack) => Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.error, size: 64, color: Colors.red),
+                        const SizedBox(height: 16),
+                        Text('Error: $error'),
+                        const SizedBox(height: 16),
+                        ElevatedButton(
+                          onPressed: () {
+                            ref.invalidate(prStreamProvider);
+                            setState(() {});
+                          },
+                          child: const Text('Retry'),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          Consumer(
+            builder: (context, ref, child) {
+              final isRefreshing = ref.watch(isRefreshingProvider);
+
+              if (!isRefreshing) return const SizedBox.shrink();
+
+              return Container(
+                color: Colors.black26,
+                child: const Center(
+                  child: Card(
+                    child: Padding(
+                      padding: EdgeInsets.all(20),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          CircularProgressIndicator(),
+                          SizedBox(height: 16),
+                          Text('Refreshing...'),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            },
           ),
         ],
       ),

@@ -11,6 +11,7 @@ final prRepositoryProvider = Provider<PRRepository>((ref) {
 
 final refreshTriggerProvider = StateProvider<int>((ref) => 0);
 
+final isRefreshingProvider = StateProvider<bool>((ref) => false);
 
 final prManualProvider =
     FutureProvider.autoDispose<List<PurchaseRequisitionModel>>((ref) async {
@@ -22,6 +23,8 @@ final prManualProvider =
       '🔵 Fetching PRs manually (trigger: ${ref.read(refreshTriggerProvider)})');
 
   try {
+    ref.read(isRefreshingProvider.notifier).state = true;
+
     final response = await supabase
         .from('purchase_requisition')
         .select('*, purchase_requisition_item(*)')
@@ -33,9 +36,12 @@ final prManualProvider =
 
     print('✅ Fetched ${prs.length} PRs');
 
+    ref.read(isRefreshingProvider.notifier).state = false;
+
     return prs;
   } catch (e) {
     print('❌ Error fetching PRs: $e');
+    ref.read(isRefreshingProvider.notifier).state = false;
     rethrow;
   }
 });

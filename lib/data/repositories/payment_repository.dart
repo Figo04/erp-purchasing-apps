@@ -354,8 +354,9 @@ class PaymentRepository {
       if (invoiceNumber != null) data['invoice_number'] = invoiceNumber;
       if (amount != null) data['amount'] = amount;
       if (dueDate != null) data['due_date'] = dueDate.toIso8601String();
-      if (notes != null || changes.isNotEmpty)
+      if (notes != null || changes.isNotEmpty) {
         data['notes'] = notes ?? updatedNotes;
+      }
 
       final response = await _supabase
           .from('payment')

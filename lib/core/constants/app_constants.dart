@@ -2,13 +2,15 @@ class AppConstants {
   // App Info
   static const String appName = 'ERP System';
   static const String appVersion = '1.0.0';
-  
+
   // Roles
   static const String roleAdmin = 'admin';
   static const String rolePurchasing = 'purchasing';
   static const String roleWarehouse = 'warehouse';
   static const String roleFinance = 'finance';
-  
+  static const String roleKadiv = 'kadiv';
+  static const String roleUser = 'user';
+
   // Status
   static const String statusDraft = 'draft';
   static const String statusPending = 'pending';
@@ -18,7 +20,7 @@ class AppConstants {
   static const String statusCancelled = 'cancelled';
   static const String statusPaid = 'paid';
   static const String statusFailed = 'failed';
-  
+
   // Routes
   static const String routeLogin = '/login';
   static const String routeDashboard = '/dashboard';

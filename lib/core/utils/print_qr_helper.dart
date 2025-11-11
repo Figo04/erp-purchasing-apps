@@ -112,7 +112,7 @@ class PrintQRHelper {
                               _buildTableCell(item.unit),
                             ],
                           );
-                        }).toList(),
+                        }),
                       ],
                     ),
                   ],
