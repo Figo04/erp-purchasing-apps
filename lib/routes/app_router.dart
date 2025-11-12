@@ -2,6 +2,7 @@ import 'package:erp_purchasing_apps/presentation/screens/asset/asset_list_screen
 import 'package:erp_purchasing_apps/presentation/screens/dashboard/dashboard2_screen.dart';
 import 'package:erp_purchasing_apps/presentation/screens/inventory/inventory_list_screen.dart';
 import 'package:erp_purchasing_apps/presentation/screens/lpb/goods_receipt_list_screen.dart';
+import 'package:erp_purchasing_apps/presentation/screens/master%20data/product/product_list_screen.dart';
 import 'package:erp_purchasing_apps/presentation/screens/payment/payment_list_screen.dart';
 //import 'package:erp_purchasing_apps/presentation/screens/purchase%20order/goods_receiving_screen.dart';
 import 'package:erp_purchasing_apps/presentation/screens/purchase%20order/po_approval_screen.dart';
@@ -47,7 +48,7 @@ final routerProvider = Provider<GoRouter>((ref) {
     routes: [
       GoRoute(
         path: '/login',
-        builder: (context, state) => const LoginScreen(),
+        builder: (context, state) => const ProductListScreen(),
       ),
       // GoRoute(
       //   path: '/register',
