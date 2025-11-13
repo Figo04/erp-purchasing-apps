@@ -1,110 +1,119 @@
-import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:erp_purchasing_apps/data/models/supplier_model.dart';
+import 'package:erp_purchasing_apps/core/service/api_service.dart';
+import 'package:erp_purchasing_apps/core/constants/api_constants.dart';
 
 class SupplierRepository {
-  final SupabaseClient _supabase = Supabase.instance.client;
+  final ApiService _apiService;
 
-  // Mendapatkan semua suppliers
-  Future<List<SupplierModel>> getAllSuppliers() async {
+  SupplierRepository({ApiService? apiService})
+      : _apiService = apiService ?? ApiService();
+
+  // Get all suppliers
+  Future<List<SupplierModel>> getAllSuppliers({
+    String? search,
+    bool? isActive,
+  }) async {
     try {
-      final response = await _supabase
-          .from('suppliers')
-          .select()
-          .order('created_at', ascending: false);
+      final queryParams = <String, dynamic>{};
+      if (search != null && search.isNotEmpty) {
+        queryParams['search'] = search;
+      }
+      if (isActive != null) {
+        queryParams['is_active'] = isActive.toString();
+      }
 
-      return (response as List)
-          .map((json) => SupplierModel.fromJson(json))
-          .toList();
+      final response = await _apiService.get(
+        ApiEndpoints.suppliers,
+        queryParameters: queryParams.isNotEmpty ? queryParams : null,
+        fromJson: (json) {
+          if (json is List) {
+            return json.map((item) => SupplierModel.fromJson(item)).toList();
+          }
+          return <SupplierModel>[];
+        },
+      );
+
+      if (!response.isSuccess || response.data == null) {
+        throw Exception(response.errorMessage);
+      }
+
+      return response.data as List<SupplierModel>;
     } catch (e) {
       throw Exception('Failed to load suppliers : $e');
     }
   }
 
-  // Mendapatkan hanya suppliers aktif
-  Future<List<SupplierModel>> getActiveSuppliers() async {
-    try {
-      final response = await _supabase
-          .from('suppliers')
-          .select()
-          .eq('is_active', true)
-          .order('name', ascending: true);
+  // // Mendapatkan hanya suppliers aktif
+  // Future<List<SupplierModel>> getActiveSuppliers() async {
+  //   try {
+  //     final response = await _supabase
+  //         .from('suppliers')
+  //         .select()
+  //         .eq('is_active', true)
+  //         .order('name', ascending: true);
 
-      return (response as List)
-          .map((json) => SupplierModel.fromJson(json))
-          .toList();
-    } catch (e) {
-      throw Exception('Failed to load active suppliers: $e');
-    }
-  }
+  //     return (response as List)
+  //         .map((json) => SupplierModel.fromJson(json))
+  //         .toList();
+  //   } catch (e) {
+  //     throw Exception('Failed to load active suppliers: $e');
+  //   }
+  // }
 
   // mendapatkan supplier by ID
   Future<SupplierModel?> getSupplierById(String id) async {
     try {
-      final response =
-          await _supabase.from('suppliers').select().eq('id', id).maybeSingle();
+      final response = await _apiService.get<SupplierModel>(
+        ApiEndpoints.supplierById(id),
+        fromJson: (json) => SupplierModel.fromJson(json),
+      );
 
-      if (response == null) return null;
-      return SupplierModel.fromJson(response);
+      if (!response.isSuccess || response.data == null) {
+        throw Exception(response.errorMessage);
+      }
+
+      return response.data!;
     } catch (e) {
       throw Exception('Failed to load supplier: $e');
     }
   }
 
-  // Membuat supplier
-  Future<SupplierModel> createSupplier({
-    required String name,
-    String? contactName,
-    String? phone,
-    String? email,
-    String? address,
-  }) async {
+  /// Create new supplier
+  Future<SupplierModel> createSupplier(CreateSupplierRequest request) async {
     try {
-      final data = {
-        'name': name,
-        'contact_name': contactName,
-        'phone': phone,
-        'email': email,
-        'address': address,
-        'is_active': true,
-      };
+      final response = await _apiService.post<SupplierModel>(
+        ApiEndpoints.suppliers,
+        body: request.toJson(),
+        fromJson: (json) => SupplierModel.fromJson(json),
+      );
 
-      final response =
-          await _supabase.from('suppliers').insert(data).select().single();
+      if (!response.isSuccess || response.data == null) {
+        throw Exception(response.errorMessage);
+      }
 
-      return SupplierModel.fromJson(response);
+      return response.data!;
     } catch (e) {
       throw Exception('Failed to create supplier: $e');
     }
   }
 
   // Update supplier
-  Future<SupplierModel> updateSupplier({
-    required String id,
-    required String name,
-    String? contactName,
-    String? phone,
-    String? email,
-    String? address,
-    required bool isActive,
-  }) async {
+  Future<SupplierModel> updatedSupplier(
+    String id,
+    UpdateSupplierRequest request,
+  ) async {
     try {
-      final data = {
-        'name': name,
-        'contact_name': contactName,
-        'phone': phone,
-        'email': email,
-        'address': address,
-        'is_active': isActive,
-      };
+      final response = await _apiService.put<SupplierModel>(
+        ApiEndpoints.supplierById(id),
+        body: request.toJson(),
+        fromJson: (json) => SupplierModel.fromJson(json),
+      );
 
-      final response = await _supabase
-          .from('suppliers')
-          .update(data)
-          .eq('id', id)
-          .select()
-          .single();
+      if (!response.isSuccess || response.data == null) {
+        throw Exception(response.errorMessage);
+      }
 
-      return SupplierModel.fromJson(response);
+      return response.data!;
     } catch (e) {
       throw Exception('Failed to update supplier: $e');
     }
@@ -113,26 +122,22 @@ class SupplierRepository {
   // menghapus supplier (soft delet - set inactive)
   Future<void> deleteSupplier(String id) async {
     try {
-      await _supabase
-          .from('suppliers')
-          .update({'is_active': false}).eq('id', id);
+      final response = await _apiService.delete(
+        ApiEndpoints.supplierById(id),
+      );
+
+      if (!response.isSuccess) {
+        throw Exception(response.errorMessage);
+      }
     } catch (e) {
       throw Exception('Failed to delete supplier: $e');
     }
   }
 
-  // Mencari suppliers
+  // Search suppliers
   Future<List<SupplierModel>> searchSuppliers(String query) async {
     try {
-      final response = await _supabase
-          .from('suppliers')
-          .select()
-          .or('name.ilike.%$query%,contact_name.ilike.%$query%')
-          .order('name', ascending: true);
-
-      return (response as List)
-          .map((json) => SupplierModel.fromJson(json))
-          .toList();
+      return await getAllSuppliers(search: query, isActive: true);
     } catch (e) {
       throw Exception('Failed to search suppliers: $e');
     }
