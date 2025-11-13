@@ -1,20 +1,43 @@
-import 'package:supabase_flutter/supabase_flutter.dart';
-import '../models/purchase_requisition_model.dart';
+import 'package:erp_purchasing_apps/data/models/purchase_requisition_model.dart';
+import 'package:erp_purchasing_apps/core/service/api_service.dart';
+import 'package:erp_purchasing_apps/core/constants/api_constants.dart';
 
 class PRRepository {
-  final SupabaseClient _supabase = Supabase.instance.client;
+  final ApiService _apiService;
+
+  PRRepository({ApiService? apiService})
+      : _apiService = apiService ?? ApiService();
 
   // Get all PRs
-  Future<List<PurchaseRequisitionModel>> getAllPRs() async {
+  Future<List<PurchaseRequisitionModel>> getAllPRs({
+    String? status,
+    String? divisionId,
+    int? year,
+  }) async {
     try {
-      final response = await _supabase
-          .from('purchase_requisition')
-          .select('*, purchase_requisition_item(*)')
-          .order('created_at', ascending: false);
+      final queryParams = <String, dynamic>{};
+      if (status != null) queryParams['status'] = status;
+      if (divisionId != null) queryParams['division_id'] = divisionId;
+      if (year != null) queryParams['year'] = year.toString();
 
-      return (response as List)
-          .map((json) => PurchaseRequisitionModel.fromJson(json))
-          .toList();
+      final response = await _apiService.get(
+        ApiEndpoints.purchaseRequisitions,
+        queryParameters: queryParams.isNotEmpty ? queryParams : null,
+        fromJson: (json) {
+          if (json is List) {
+            return json
+                .map((item) => PurchaseRequisitionModel.fromJson(item))
+                .toList();
+          }
+          return <PurchaseRequisitionModel>[];
+        },
+      );
+
+      if (!response.isSuccess || response.data == null) {
+        throw Exception(response.errorMessage);
+      }
+
+      return response.data as List<PurchaseRequisitionModel>;
     } catch (e) {
       throw Exception('Failed to load PRs: $e');
     }
@@ -23,15 +46,8 @@ class PRRepository {
   // Get PRs by user
   Future<List<PurchaseRequisitionModel>> getPRsByUser(String userId) async {
     try {
-      final response = await _supabase
-          .from('purchase_requisition')
-          .select('*, purchase_requisition_item(*)')
-          .eq('requester_id', userId)
-          .order('created_at', ascending: false);
-
-      return (response as List)
-          .map((json) => PurchaseRequisitionModel.fromJson(json))
-          .toList();
+      final allPRs = await getAllPRs();
+      return allPRs.where((pr) => pr.requesterId == userId).toList();
     } catch (e) {
       throw Exception('Failed to load user PRs: $e');
     }
@@ -40,213 +56,132 @@ class PRRepository {
   // Get PR by ID
   Future<PurchaseRequisitionModel?> getPRById(String id) async {
     try {
-      final response = await _supabase
-          .from('purchase_requisition')
-          .select('*, purchase_requisition_item(*)')
-          .eq('id', id)
-          .maybeSingle();
+      final response = await _apiService.get<PurchaseRequisitionModel>(
+        ApiEndpoints.prById(id),
+        fromJson: (json) => PurchaseRequisitionModel.fromJson(json),
+      );
 
-      if (response == null) return null;
-      return PurchaseRequisitionModel.fromJson(response);
+      if (!response.isSuccess || response.data == null) {
+        throw Exception(response.errorMessage);
+      }
+
+      return response.data!;
     } catch (e) {
       throw Exception('Failed to load PR: $e');
     }
   }
 
-  // Generate PR Number
-  Future<String> generatePRNumber() async {
-    try {
-      final response = await _supabase.rpc('generate_pr_number');
-      return response as String;
-    } catch (e) {
-      // Fallback if function not available
-      final now = DateTime.now();
-      final countResponse =
-          await _supabase.from('purchase_requisition').select().count();
-
-      final count = countResponse.count; // Ambil count dari response
-      return 'PR-${now.year}${now.month.toString().padLeft(2, '0')}-${(count + 1).toString().padLeft(4, '0')}';
-    }
-  }
-
   // Create PR with items
-  Future<PurchaseRequisitionModel> createPR({
-    required String requesterId,
-    required List<Map<String, dynamic>> items,
-    String? notes,
-  }) async {
+  Future<PurchaseRequisitionModel> createPR(CreatePRRequest request) async {
     try {
-      // Generate PR number
-      final prNumber = await generatePRNumber();
+      final response = await _apiService.post<PurchaseRequisitionModel>(
+        ApiEndpoints.purchaseRequisitions,
+        body: request.toJson(),
+        fromJson: (json) => PurchaseRequisitionModel.fromJson(json),
+      );
 
-      // Insert PR
-      final prResponse = await _supabase
-          .from('purchase_requisition')
-          .insert({
-            'pr_number': prNumber,
-            'requester_id': requesterId,
-            'status': 'draft',
-            'notes': notes,
-          })
-          .select()
-          .single();
-
-      final prId = prResponse['id'];
-
-      // Insert PR Items
-      final itemsData = items.map((item) {
-        return {
-          'pr_id': prId,
-          'item_name': item['item_name'],
-          'quantity': item['quantity'],
-          'unit': item['unit'] ?? 'pcs',
-          'estimated_price': item['estimated_price'],
-          'notes': item['notes'],
-        };
-      }).toList();
-
-      await _supabase.from('purchase_requisition_item').insert(itemsData);
-
-      // Get complete PR with items
-      final createdPR = await getPRById(prId);
-      if (createdPR == null) {
-        throw Exception('Failed to retrieve created PR');
+      if (!response.isSuccess || response.data == null) {
+        throw Exception(response.errorMessage);
       }
-      return createdPR;
+
+      return response.data!;
     } catch (e) {
       throw Exception('Failed to create PR: $e');
     }
   }
 
   // Update PR (only draft)
-  Future<PurchaseRequisitionModel> updatePR({
-    required String id,
-    required List<Map<String, dynamic>> items,
-    String? notes,
-  }) async {
+  Future<PurchaseRequisitionModel> updatePR(
+    String id,
+    UpdatePRRequest request,
+  ) async {
     try {
-      // Update PR
-      await _supabase
-          .from('purchase_requisition')
-          .update({'notes': notes}).eq('id', id);
+      final response = await _apiService.put<PurchaseRequisitionModel>(
+        ApiEndpoints.prById(id),
+        body: request.toJson(),
+        fromJson: (json) => PurchaseRequisitionModel.fromJson(json),
+      );
 
-      // Delete old items
-      await _supabase
-          .from('purchase_requisition_item')
-          .delete()
-          .eq('pr_id', id);
-
-      // Insert new items
-      final itemsData = items.map((item) {
-        return {
-          'pr_id': id,
-          'item_name': item['item_name'],
-          'quantity': item['quantity'],
-          'unit': item['unit'] ?? 'pcs',
-          'estimated_price': item['estimated_price'],
-          'notes': item['notes'],
-        };
-      }).toList();
-
-      await _supabase.from('purchase_requisition_item').insert(itemsData);
-
-      // Get updated PR
-
-      final createdPR = await getPRById(id);
-      if (createdPR == null) {
-        throw Exception('Failed to retrieve created PR');
+      if (!response.isSuccess || response.data == null) {
+        throw Exception(response.errorMessage);
       }
-      return createdPR;
+
+      return response.data!;
     } catch (e) {
       throw Exception('Failed to update PR: $e');
     }
   }
 
-  // Submit PR (change status to pending)
-  Future<void> submitPR(String id) async {
+  // Delete PR
+  Future<void> deletePR(String id) async {
     try {
-      await _supabase
-          .from('purchase_requisition')
-          .update({'status': 'pending'}).eq('id', id);
+      final response = await _apiService.delete(
+        ApiEndpoints.prById(id),
+      );
+
+      if (!response.isSuccess) {
+        throw Exception(response.errorMessage);
+      }
     } catch (e) {
-      throw Exception('Failed to submit PR: $e');
+      throw Exception('Failed to delete PR: $e');
     }
   }
 
-  // Approve PR
-  Future<void> approvePR(String id, String approvedBy) async {
+  // Approve PR (kadiv/admin)
+  Future<PurchaseRequisitionModel> approvePR(String id) async {
     try {
-      await _supabase.from('purchase_requisition').update({
-        'status': 'approved',
-        'approved_by': approvedBy,
-        'approved_at': DateTime.now().toIso8601String(),
-      }).eq('id', id);
+      final response = await _apiService.post<PurchaseRequisitionModel>(
+        ApiEndpoints.approvePR(id),
+        fromJson: (json) => PurchaseRequisitionModel.fromJson(json),
+      );
+
+      if (!response.isSuccess || response.data == null) {
+        throw Exception(response.errorMessage);
+      }
+
+      return response.data!;
     } catch (e) {
       throw Exception('Failed to approve PR: $e');
     }
   }
 
-  // Reject PR
-  Future<void> rejectPR(String id, String approvedBy, String reason) async {
+  // Reject PR (kadiv/admin)
+  Future<PurchaseRequisitionModel> rejectPR(
+    String id,
+    String reason,
+  ) async {
     try {
-      await _supabase.from('purchase_requisition').update({
-        'status': 'rejected',
-        'approved_by': approvedBy,
-        'approved_at': DateTime.now().toIso8601String(),
-        'rejection_reason': reason,
-      }).eq('id', id);
+      final response = await _apiService.post<PurchaseRequisitionModel>(
+        ApiEndpoints.rejectPR(id),
+        body: {'reason': reason},
+        fromJson: (json) => PurchaseRequisitionModel.fromJson(json),
+      );
+
+      if (!response.isSuccess || response.data == null) {
+        throw Exception(response.errorMessage);
+      }
+
+      return response.data!;
     } catch (e) {
       throw Exception('Failed to reject PR: $e');
     }
   }
 
-// Delete PR
-  Future<void> deletePR(String id) async {
-  try {
-    print('Starting delete for PR id: $id');
-    
-    // Verifikasi PR ada
-    final prCheck = await _supabase
-        .from('purchase_requisition')
-        .select('id, pr_number, status')
-        .eq('id', id)
-        .maybeSingle();
-    
-    if (prCheck == null) {
-      throw Exception('PR not found');
+  // Close PR (after PO created)
+  Future<PurchaseRequisitionModel> closePR(String id) async {
+    try {
+      final response = await _apiService.post<PurchaseRequisitionModel>(
+        ApiEndpoints.closePR(id),
+        fromJson: (json) => PurchaseRequisitionModel.fromJson(json),
+      );
+
+      if (!response.isSuccess || response.data == null) {
+        throw Exception(response.errorMessage);
+      }
+
+      return response.data!;
+    } catch (e) {
+      throw Exception('Failed to close PR: $e');
     }
-    
-    print('Deleting PR: ${prCheck['pr_number']} (${prCheck['status']})');
-    
-    // Delete items first
-    await _supabase
-        .from('purchase_requisition_item')
-        .delete()
-        .eq('pr_id', id);
-    
-    print('✅ Items deleted');
-    
-    // Delete PR
-    await _supabase
-        .from('purchase_requisition')
-        .delete()
-        .eq('id', id);
-    
-    print('✅ PR deleted successfully');
-    
-  } on PostgrestException catch (e) {
-    print('Postgrest Error: ${e.message}');
-    print('   Code: ${e.code}');
-    
-    // Jika permission denied, beri pesan yang jelas
-    if (e.code == '42501' || e.message.contains('permission')) {
-      throw Exception('Permission denied: Only admins can delete approved/rejected PRs');
-    }
-    
-    throw Exception('Database error: ${e.message}');
-  } catch (e) {
-    print('Error: $e');
-    rethrow;
   }
-}
 }
