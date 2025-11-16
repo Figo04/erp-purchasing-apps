@@ -1,18 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../data/providers/po_provider.dart';
-import '../../../data/providers/pr_provider.dart';
-import '../../../data/providers/supplier_provider.dart';
-import '../../../data/providers/auth_providers.dart';
-// import '../../../data/models/supplier_model.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import 'package:erp_purchasing_apps/data/providers/po_provider.dart';
+import '../../../data/providers/supplier_provider.dart';
+import '../../../data/models/purchase_order_model.dart';
+import '../../../data/models/supplier_model.dart';
 
+/// PO Form Screen - Create PO from PR Groupings
 class POFormScreen extends ConsumerStatefulWidget {
-  final String? poId;
-  final String? prId; // If creating from approved PR
-
-  const POFormScreen({super.key, this.poId, this.prId});
+  const POFormScreen({super.key});
 
   @override
   ConsumerState<POFormScreen> createState() => _POFormScreenState();
@@ -21,113 +19,40 @@ class POFormScreen extends ConsumerStatefulWidget {
 class _POFormScreenState extends ConsumerState<POFormScreen> {
   final _formKey = GlobalKey<FormState>();
   final _notesController = TextEditingController();
-  final List<POItemForm> _items = [];
-  String? _selectedSupplierId;
   DateTime? _expectedDeliveryDate;
+  PRGrouping? _selectedGrouping;
+  List<POItemForm> _items = [];
   bool _isLoading = false;
 
   @override
-  void initState() {
-    super.initState();
-    if (widget.poId != null) {
-      _loadPO();
-    } else if (widget.prId != null) {
-      _loadPRAndPopulate();
-    } else {
-      _addItem();
+  void dispose() {
+    _notesController.dispose();
+    for (var item in _items) {
+      item.dispose();
     }
+    super.dispose();
   }
 
-  Future<void> _loadPO() async {
-    try {
-      final repo = ref.read(poRepositoryProvider);
-      final po = await repo.getPOById(widget.poId!);
-
-      if (po != null && mounted) {
-        setState(() {
-          _selectedSupplierId = po.supplierId;
-          _expectedDeliveryDate = po.expectedDeliveryDate;
-          _notesController.text = po.notes ?? '';
-          _items.clear();
-          if (po.items != null && po.items!.isNotEmpty) {
-            for (var item in po.items!) {
-              _items.add(POItemForm(
-                itemNameController: TextEditingController(text: item.itemName),
-                quantityController:
-                    TextEditingController(text: item.quantity.toString()),
-                unitController: TextEditingController(text: item.unit),
-                priceController:
-                    TextEditingController(text: item.unitPrice.toString()),
-              ));
-            }
-          } else {
-            _addItem();
-          }
-        });
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error loading PO: $e')),
-        );
-      }
-    }
-  }
-
-  Future<void> _loadPRAndPopulate() async {
-    try {
-      final repo = ref.read(prRepositoryProvider);
-      final pr = await repo.getPRById(widget.prId!);
-
-      if (pr != null && mounted) {
-        setState(() {
-          _notesController.text =
-              'Created from ${pr.prNumber}${pr.notes != null ? '\n${pr.notes}' : ''}';
-          _items.clear();
-          if (pr.items != null && pr.items!.isNotEmpty) {
-            for (var item in pr.items!) {
-              _items.add(POItemForm(
-                itemNameController: TextEditingController(text: item.itemName),
-                quantityController:
-                    TextEditingController(text: item.quantity.toString()),
-                unitController: TextEditingController(text: item.unit),
-                priceController: TextEditingController(
-                  text: item.estimatedPrice?.toString() ?? '',
-                ),
-              ));
-            }
-          } else {
-            _addItem();
-          }
-        });
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error loading PR: $e')),
-        );
-      }
-    }
-  }
-
-  void _addItem() {
+  void _selectGrouping(PRGrouping grouping) {
     setState(() {
-      _items.add(POItemForm(
-        itemNameController: TextEditingController(),
-        quantityController: TextEditingController(text: '1'),
-        unitController: TextEditingController(text: 'pcs'),
-        priceController: TextEditingController(),
-      ));
+      _selectedGrouping = grouping;
+      _items.clear();
+      
+      // Populate items from PR grouping
+      for (var item in grouping.items) {
+        _items.add(POItemForm(
+          productId: item.productId,
+          itemNameController: TextEditingController(text: item.itemName),
+          quantityController: TextEditingController(
+            text: item.totalQuantity.toString(),
+          ),
+          unitController: TextEditingController(text: item.unit),
+          priceController: TextEditingController(
+            text: item.estimatedPrice?.toStringAsFixed(0) ?? '',
+          ),
+        ));
+      }
     });
-  }
-
-  void _removeItem(int index) {
-    if (_items.length > 1) {
-      setState(() {
-        _items[index].dispose();
-        _items.removeAt(index);
-      });
-    }
   }
 
   double _calculateTotal() {
@@ -140,14 +65,26 @@ class _POFormScreenState extends ConsumerState<POFormScreen> {
     return total;
   }
 
+  Future<void> _selectDeliveryDate() async {
+    final date = await showDatePicker(
+      context: context,
+      initialDate: DateTime.now().add(const Duration(days: 7)),
+      firstDate: DateTime.now(),
+      lastDate: DateTime.now().add(const Duration(days: 365)),
+    );
+    if (date != null) {
+      setState(() => _expectedDeliveryDate = date);
+    }
+  }
+
   Future<void> _handleSubmit() async {
     if (!_formKey.currentState!.validate()) return;
-
-    if (_selectedSupplierId == null) {
+    
+    if (_selectedGrouping == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Please select a supplier'),
-          backgroundColor: Colors.red,
+          content: Text('Please select supplier and PRs'),
+          backgroundColor: Colors.orange,
         ),
       );
       return;
@@ -156,66 +93,42 @@ class _POFormScreenState extends ConsumerState<POFormScreen> {
     setState(() => _isLoading = true);
 
     try {
-      final repo = ref.read(poRepositoryProvider);
-      final currentUser = ref.read(currentUserProvider);
-
-      if (currentUser == null) {
-        throw Exception('User not logged in');
-      }
-
-      // Prepare items data
-      final itemsData = _items.map((item) {
-        return {
-          'item_name': item.itemNameController.text.trim(),
-          'quantity': int.parse(item.quantityController.text),
-          'unit': item.unitController.text.trim(),
-          'unit_price': double.parse(item.priceController.text),
-        };
+      final items = _items.map((item) {
+        return CreatePOItemRequest(
+          productId: item.productId,
+          itemName: item.itemNameController.text.trim(),
+          quantity: int.parse(item.quantityController.text),
+          unit: item.unitController.text.trim(),
+          unitPrice: double.parse(item.priceController.text),
+        );
       }).toList();
 
-      if (widget.poId == null) {
-        // Create new PO
-        await repo.createPO(
-          createdBy: currentUser.id,
-          prId: widget.prId,
-          supplierId: _selectedSupplierId!,
-          items: itemsData,
-          expectedDeliveryDate: _expectedDeliveryDate,
-          notes: _notesController.text.trim().isNotEmpty
-              ? _notesController.text.trim()
-              : null,
-        );
+      final request = CreatePORequest(
+        supplierId: _selectedGrouping!.supplierId,
+        expectedDeliveryDate: _expectedDeliveryDate,
+        prIds: _selectedGrouping!.prIds,
+        items: items,
+        notes: _notesController.text.trim().isEmpty
+            ? null
+            : _notesController.text.trim(),
+      );
 
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('PO created successfully')),
-          );
-          Navigator.pop(context);
-        }
-      } else {
-        // Update existing PO
-        await repo.updatePO(
-          id: widget.poId!,
-          supplierId: _selectedSupplierId!,
-          items: itemsData,
-          expectedDeliveryDate: _expectedDeliveryDate,
-          notes: _notesController.text.trim().isNotEmpty
-              ? _notesController.text.trim()
-              : null,
-        );
+      await ref.read(poNotifierProvider.notifier).createPO(request);
 
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('PO updated successfully')),
-          );
-          Navigator.pop(context);
-        }
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('PO created successfully'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        context.go('/po');
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error: $e'),
+            content: Text('Failed to create PO: $e'),
             backgroundColor: Colors.red,
           ),
         );
@@ -228,21 +141,22 @@ class _POFormScreenState extends ConsumerState<POFormScreen> {
   }
 
   @override
-  void dispose() {
-    _notesController.dispose();
-    for (var item in _items) {
-      item.dispose();
-    }
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
-    final supplierList = ref.watch(activeSupplierListProvider);
+    final prGroupingsAsync = ref.watch(prGroupingsProvider);
 
     return Scaffold(
+      backgroundColor: const Color(0xFFF5F7FA),
       appBar: AppBar(
-        title: Text(widget.poId == null ? 'Create PO' : 'Edit PO'),
+        backgroundColor: Colors.white,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.black87),
+          onPressed: () => Navigator.pop(context),
+        ),
+        title: const Text(
+          'Create Purchase Order',
+          style: TextStyle(color: Colors.black87, fontWeight: FontWeight.bold),
+        ),
       ),
       body: Form(
         key: _formKey,
@@ -254,186 +168,377 @@ class _POFormScreenState extends ConsumerState<POFormScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    // Supplier Dropdown
-                    supplierList.when(
-                      data: (suppliers) {
-                        if (suppliers.isEmpty) {
-                          return const Card(
-                            child: Padding(
-                              padding: EdgeInsets.all(16),
-                              child: Text(
-                                'No active suppliers. Please add suppliers first.',
-                                style: TextStyle(color: Colors.red),
-                              ),
-                            ),
-                          );
-                        }
-
-                        return DropdownButtonFormField<String>(
-                          initialValue: _selectedSupplierId,
-                          decoration: const InputDecoration(
-                            labelText: 'Select Supplier *',
-                            border: OutlineInputBorder(),
-                            prefixIcon: Icon(Icons.business),
-                          ),
-                          items: suppliers.map((supplier) {
-                            return DropdownMenuItem(
-                              value: supplier.id,
-                              child: FittedBox(
-                                alignment: Alignment.centerLeft,
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Text(
-                                      supplier.name,
-                                      style: const TextStyle(
-                                          fontWeight: FontWeight.bold),
-                                    ),
-                                    if (supplier.contactName != null)
-                                      Text(
-                                        supplier.contactName!,
-                                        style: const TextStyle(fontSize: 12),
-                                      ),
-                                  ],
-                                ),
-                              ),
-                            );
-                          }).toList(),
-                          onChanged: (value) {
-                            setState(() {
-                              _selectedSupplierId = value;
-                            });
-                          },
-                          validator: (value) {
-                            if (value == null) {
-                              return 'Please select a supplier';
-                            }
-                            return null;
-                          },
-                        );
-                      },
-                      loading: () =>
-                          const Center(child: CircularProgressIndicator()),
-                      error: (error, stack) =>
-                          Text('Error loading suppliers: $error'),
-                    ),
-                    const SizedBox(height: 16),
-
-                    // Expected Delivery Date
-                    ListTile(
-                      contentPadding: EdgeInsets.zero,
-                      leading: const Icon(Icons.calendar_today),
-                      title: Text(
-                        _expectedDeliveryDate == null
-                            ? 'Expected Delivery Date (Optional)'
-                            : 'Expected: ${DateFormat('dd MMM yyyy').format(_expectedDeliveryDate!)}',
-                      ),
-                      trailing: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          if (_expectedDeliveryDate != null)
-                            IconButton(
-                              icon: const Icon(Icons.clear),
-                              onPressed: () {
-                                setState(() {
-                                  _expectedDeliveryDate = null;
-                                });
-                              },
-                            ),
-                          IconButton(
-                            icon: const Icon(Icons.edit_calendar),
-                            onPressed: () async {
-                              final date = await showDatePicker(
-                                context: context,
-                                initialDate:
-                                    _expectedDeliveryDate ?? DateTime.now(),
-                                firstDate: DateTime.now(),
-                                lastDate: DateTime.now()
-                                    .add(const Duration(days: 365)),
-                              );
-                              if (date != null) {
-                                setState(() {
-                                  _expectedDeliveryDate = date;
-                                });
-                              }
-                            },
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-
-                    // Notes
-                    TextFormField(
-                      controller: _notesController,
-                      maxLines: 3,
-                      decoration: const InputDecoration(
-                        labelText: 'Notes (Optional)',
-                        border: OutlineInputBorder(),
-                        alignLabelWithHint: true,
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-
-                    // Items Header
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          'Items',
-                          style: Theme.of(context).textTheme.titleLarge,
-                        ),
-                        ElevatedButton.icon(
-                          onPressed: _addItem,
-                          icon: const Icon(Icons.add, size: 18),
-                          label: const Text('Add Item'),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-
-                    // Items List
-                    ..._items.asMap().entries.map((entry) {
-                      final index = entry.key;
-                      final item = entry.value;
-                      return _buildItemCard(index, item);
-                    }),
-
-                    const SizedBox(height: 16),
-
-                    // Total
+                    // Step 1: Select PR Grouping
                     Card(
-                      color: Colors.blue.shade50,
                       child: Padding(
                         padding: const EdgeInsets.all(16),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
-                              'Total Amount:',
-                              style: Theme.of(context).textTheme.titleMedium,
-                            ),
-                            Text(
-                              'Rp ${NumberFormat('#,###').format(_calculateTotal())}',
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .titleLarge
-                                  ?.copyWith(
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.blue.shade900,
+                            Row(
+                              children: [
+                                Container(
+                                  width: 32,
+                                  height: 32,
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF1ABC9C),
+                                    borderRadius: BorderRadius.circular(16),
                                   ),
+                                  child: const Center(
+                                    child: Text(
+                                      '1',
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                const Text(
+                                  'Select Supplier & PRs',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 16),
+                            
+                            prGroupingsAsync.when(
+                              data: (groupings) {
+                                if (groupings.isEmpty) {
+                                  return Container(
+                                    padding: const EdgeInsets.all(16),
+                                    decoration: BoxDecoration(
+                                      color: Colors.orange.shade50,
+                                      borderRadius: BorderRadius.circular(8),
+                                      border: Border.all(color: Colors.orange.shade200),
+                                    ),
+                                    child: const Row(
+                                      children: [
+                                        Icon(Icons.info_outline, color: Colors.orange),
+                                        SizedBox(width: 12),
+                                        Expanded(
+                                          child: Text('No approved PRs available for PO creation'),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                }
+
+                                return Column(
+                                  children: groupings.map((grouping) {
+                                    final isSelected = _selectedGrouping?.supplierId == grouping.supplierId;
+                                    
+                                    return Card(
+                                      margin: const EdgeInsets.only(bottom: 8),
+                                      color: isSelected ? const Color(0xFF1ABC9C).withOpacity(0.1) : null,
+                                      child: InkWell(
+                                        onTap: () => _selectGrouping(grouping),
+                                        child: Padding(
+                                          padding: const EdgeInsets.all(12),
+                                          child: Row(
+                                            children: [
+                                              Radio<String>(
+                                                value: grouping.supplierId,
+                                                groupValue: _selectedGrouping?.supplierId,
+                                                onChanged: (_) => _selectGrouping(grouping),
+                                              ),
+                                              Expanded(
+                                                child: Column(
+                                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                                  children: [
+                                                    Text(
+                                                      grouping.supplierName,
+                                                      style: const TextStyle(
+                                                        fontWeight: FontWeight.bold,
+                                                        fontSize: 14,
+                                                      ),
+                                                    ),
+                                                    const SizedBox(height: 4),
+                                                    Text(
+                                                      '${grouping.prIds.length} PR(s) | ${grouping.items.length} items',
+                                                      style: TextStyle(
+                                                        fontSize: 12,
+                                                        color: Colors.grey.shade600,
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                    );
+                                  }).toList(),
+                                );
+                              },
+                              loading: () => const Center(
+                                child: Padding(
+                                  padding: EdgeInsets.all(16.0),
+                                  child: CircularProgressIndicator(),
+                                ),
+                              ),
+                              error: (error, _) => Container(
+                                padding: const EdgeInsets.all(16),
+                                decoration: BoxDecoration(
+                                  color: Colors.red.shade50,
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Text('Error: $error'),
+                              ),
                             ),
                           ],
                         ),
                       ),
                     ),
+
+                    if (_selectedGrouping != null) ...[
+                      const SizedBox(height: 16),
+
+                      // Step 2: Expected Delivery Date
+                      Card(
+                        child: Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Container(
+                                    width: 32,
+                                    height: 32,
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFF1ABC9C),
+                                      borderRadius: BorderRadius.circular(16),
+                                    ),
+                                    child: const Center(
+                                      child: Text(
+                                        '2',
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  const Text(
+                                    'Delivery Information',
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 16),
+                              
+                              InkWell(
+                                onTap: _selectDeliveryDate,
+                                child: InputDecorator(
+                                  decoration: const InputDecoration(
+                                    labelText: 'Expected Delivery Date',
+                                    border: OutlineInputBorder(),
+                                    suffixIcon: Icon(Icons.calendar_today),
+                                  ),
+                                  child: Text(
+                                    _expectedDeliveryDate != null
+                                        ? DateFormat('dd MMMM yyyy').format(_expectedDeliveryDate!)
+                                        : 'Select date',
+                                    style: TextStyle(
+                                      color: _expectedDeliveryDate != null
+                                          ? Colors.black
+                                          : Colors.grey,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+
+                      const SizedBox(height: 16),
+
+                      // Step 3: Items & Pricing
+                      Card(
+                        child: Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Container(
+                                    width: 32,
+                                    height: 32,
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFF1ABC9C),
+                                      borderRadius: BorderRadius.circular(16),
+                                    ),
+                                    child: const Center(
+                                      child: Text(
+                                        '3',
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  const Text(
+                                    'Items & Pricing',
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 16),
+
+                              ..._items.asMap().entries.map((entry) {
+                                final index = entry.key;
+                                final item = entry.value;
+                                return _buildItemCard(index, item);
+                              }),
+                            ],
+                          ),
+                        ),
+                      ),
+
+                      const SizedBox(height: 16),
+
+                      // Step 4: Notes
+                      Card(
+                        child: Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Container(
+                                    width: 32,
+                                    height: 32,
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFF1ABC9C),
+                                      borderRadius: BorderRadius.circular(16),
+                                    ),
+                                    child: const Center(
+                                      child: Text(
+                                        '4',
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  const Text(
+                                    'Additional Notes',
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 16),
+                              
+                              TextFormField(
+                                controller: _notesController,
+                                maxLines: 3,
+                                decoration: const InputDecoration(
+                                  labelText: 'Notes (Optional)',
+                                  border: OutlineInputBorder(),
+                                  hintText: 'Add any special instructions...',
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+
+                      const SizedBox(height: 16),
+
+                      // Summary Card
+                      Card(
+                        color: Colors.blue.shade50,
+                        child: Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Column(
+                            children: [
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  const Text(
+                                    'Supplier:',
+                                    style: TextStyle(fontWeight: FontWeight.w600),
+                                  ),
+                                  Text(_selectedGrouping!.supplierName),
+                                ],
+                              ),
+                              const Divider(height: 16),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  const Text(
+                                    'Related PRs:',
+                                    style: TextStyle(fontWeight: FontWeight.w600),
+                                  ),
+                                  Text('${_selectedGrouping!.prIds.length} PR(s)'),
+                                ],
+                              ),
+                              const Divider(height: 16),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  const Text(
+                                    'Total Items:',
+                                    style: TextStyle(fontWeight: FontWeight.w600),
+                                  ),
+                                  Text('${_items.length}'),
+                                ],
+                              ),
+                              const Divider(height: 16),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  const Text(
+                                    'Total Amount:',
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  Text(
+                                    'Rp ${NumberFormat('#,###').format(_calculateTotal())}',
+                                    style: TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.blue.shade900,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),
             ),
 
-            // Bottom Button
+            // Bottom Submit Button
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
@@ -448,16 +553,31 @@ class _POFormScreenState extends ConsumerState<POFormScreen> {
               ),
               child: SizedBox(
                 width: double.infinity,
-                height: 48,
+                height: 50,
                 child: ElevatedButton(
-                  onPressed: _isLoading ? null : _handleSubmit,
+                  onPressed: _isLoading || _selectedGrouping == null ? null : _handleSubmit,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF1ABC9C),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
                   child: _isLoading
                       ? const SizedBox(
                           height: 20,
                           width: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2),
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                          ),
                         )
-                      : Text(widget.poId == null ? 'Create PO' : 'Update PO'),
+                      : const Text(
+                          'Create Purchase Order',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                 ),
               ),
             ),
@@ -469,45 +589,31 @@ class _POFormScreenState extends ConsumerState<POFormScreen> {
 
   Widget _buildItemCard(int index, POItemForm item) {
     return Card(
-      margin: const EdgeInsets.only(bottom: 16),
+      margin: const EdgeInsets.only(bottom: 12),
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(12),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Item ${index + 1}',
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
-                  ),
-                ),
-                if (_items.length > 1)
-                  IconButton(
-                    icon: const Icon(Icons.delete, color: Colors.red),
-                    onPressed: () => _removeItem(index),
-                  ),
-              ],
+            Text(
+              'Item ${index + 1}',
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 14,
+              ),
             ),
             const SizedBox(height: 12),
 
-            // Item Name
+            // Item Name (readonly)
             TextFormField(
               controller: item.itemNameController,
+              readOnly: true,
               decoration: const InputDecoration(
-                labelText: 'Item Name *',
+                labelText: 'Item Name',
                 border: OutlineInputBorder(),
-                isDense: true,
+                filled: true,
+                fillColor: Color(0xFFF5F7FA),
               ),
-              validator: (value) {
-                if (value == null || value.trim().isEmpty) {
-                  return 'Please enter item name';
-                }
-                return null;
-              },
             ),
             const SizedBox(height: 12),
 
@@ -523,14 +629,12 @@ class _POFormScreenState extends ConsumerState<POFormScreen> {
                     decoration: const InputDecoration(
                       labelText: 'Quantity *',
                       border: OutlineInputBorder(),
-                      isDense: true,
                     ),
                     validator: (value) {
                       if (value == null || value.isEmpty) {
                         return 'Required';
                       }
-                      if (int.tryParse(value) == null ||
-                          int.parse(value) <= 0) {
+                      if (int.tryParse(value) == null || int.parse(value) <= 0) {
                         return 'Invalid';
                       }
                       return null;
@@ -542,17 +646,13 @@ class _POFormScreenState extends ConsumerState<POFormScreen> {
                 Expanded(
                   child: TextFormField(
                     controller: item.unitController,
+                    readOnly: true,
                     decoration: const InputDecoration(
-                      labelText: 'Unit *',
+                      labelText: 'Unit',
                       border: OutlineInputBorder(),
-                      isDense: true,
+                      filled: true,
+                      fillColor: Color(0xFFF5F7FA),
                     ),
-                    validator: (value) {
-                      if (value == null || value.trim().isEmpty) {
-                        return 'Required';
-                      }
-                      return null;
-                    },
                   ),
                 ),
               ],
@@ -569,16 +669,14 @@ class _POFormScreenState extends ConsumerState<POFormScreen> {
               decoration: const InputDecoration(
                 labelText: 'Unit Price *',
                 border: OutlineInputBorder(),
-                isDense: true,
                 prefixText: 'Rp ',
               ),
               validator: (value) {
                 if (value == null || value.isEmpty) {
                   return 'Required';
                 }
-                if (double.tryParse(value) == null ||
-                    double.parse(value) <= 0) {
-                  return 'Invalid';
+                if (double.tryParse(value) == null || double.parse(value) <= 0) {
+                  return 'Invalid price';
                 }
                 return null;
               },
@@ -586,16 +684,28 @@ class _POFormScreenState extends ConsumerState<POFormScreen> {
             ),
 
             // Subtotal
-            if (item.priceController.text.isNotEmpty &&
-                item.quantityController.text.isNotEmpty)
+            if (item.priceController.text.isNotEmpty)
               Padding(
                 padding: const EdgeInsets.only(top: 8),
-                child: Text(
-                  'Subtotal: Rp ${NumberFormat('#,###').format((int.tryParse(item.quantityController.text) ?? 0) * (double.tryParse(item.priceController.text) ?? 0))}',
-                  style: TextStyle(
-                    color: Colors.blue.shade700,
-                    fontWeight: FontWeight.w600,
-                  ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    Text(
+                      'Subtotal: ',
+                      style: TextStyle(
+                        color: Colors.grey.shade700,
+                        fontSize: 13,
+                      ),
+                    ),
+                    Text(
+                      'Rp ${NumberFormat('#,###').format((int.tryParse(item.quantityController.text) ?? 0) * (double.tryParse(item.priceController.text) ?? 0))}',
+                      style: TextStyle(
+                        color: Colors.blue.shade700,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ],
                 ),
               ),
           ],
@@ -605,13 +715,16 @@ class _POFormScreenState extends ConsumerState<POFormScreen> {
   }
 }
 
+/// Helper class for PO item form
 class POItemForm {
+  final String? productId;
   final TextEditingController itemNameController;
   final TextEditingController quantityController;
   final TextEditingController unitController;
   final TextEditingController priceController;
 
   POItemForm({
+    this.productId,
     required this.itemNameController,
     required this.quantityController,
     required this.unitController,

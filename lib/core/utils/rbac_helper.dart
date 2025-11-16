@@ -35,6 +35,9 @@ class RBACHelper {
     // PO Approval - Admin, Kadiv
     'po_approval': ['admin', 'kadiv'],
 
+    // Master Product - Admin, Kadiv
+    'master_product': ['admin'],
+
     // Goods Receipt (LPB) -Admin, Warehouse, Purchasing
     'receipt': ['admin', 'warehouse', 'purchasing'],
 

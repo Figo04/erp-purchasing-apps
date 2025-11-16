@@ -3,124 +3,106 @@ import 'package:erp_purchasing_apps/data/models/product_model.dart';
 import 'package:erp_purchasing_apps/data/repositories/product_repository.dart';
 import 'package:flutter_riverpod/legacy.dart';
 
-// Product Repository Provider
+// ============================================
+// REPOSITORY PROVIDER
+// ============================================
+
 final productRepositoryProvider = Provider<ProductRepository>((ref) {
   return ProductRepository();
 });
 
-// product List Provider
-final productListProvider = FutureProvider<List<ProductModel>>((ref) async {
-  final repo = ref.watch(productRepositoryProvider);
-  return await repo.getAllProducts(isActive: true);
-});
+// ============================================
+// FILTER STATE PROVIDERS
+// ============================================
 
-// Selected Product Provider
-final selectedProductProvider = StateProvider<ProductModel?>((ref) => null);
-
-// Product Search Query Provider
+/// Product Search Query
 final productSearchQueryProvider = StateProvider<String>((ref) => '');
 
-// Selected Category Filter Provider
+/// Selected Category Filter
 final productCategoryFilterProvider = StateProvider<String?>((ref) => null);
 
-/// Filtered Products Provider
-final filteredProductsProvider =
-    FutureProvider<List<ProductModel>>((ref) async {
-  final repo = ref.watch(productRepositoryProvider);
-  final searchQuery = ref.watch(productSearchQueryProvider);
-  final categoryFilter = ref.watch(productCategoryFilterProvider);
+/// Selected Product (for detail view)
+final selectedProductProvider = StateProvider<ProductModel?>((ref) => null);
 
-  return await repo.getAllProducts(
-    search: searchQuery.isEmpty ? null : searchQuery,
-    categoryId: categoryFilter,
-    isActive: true,
-  );
-});
+// ============================================
+// MAIN PRODUCT NOTIFIER (AsyncNotifier)
+// ============================================
 
-// Product State Notifier (for CRUD operations)
-class ProductNotifier extends StateNotifier<AsyncValue<List<ProductModel>>> {
-  final ProductRepository _repository;
-  final Ref ref;
+class ProductNotifier extends AsyncNotifier<List<ProductModel>> {
+  @override
+  Future<List<ProductModel>> build() async {
+    // Watch filters - auto rebuild when changed
+    final searchQuery = ref.watch(productSearchQueryProvider);
+    final categoryFilter = ref.watch(productCategoryFilterProvider);
 
-  ProductNotifier(this.ref, this._repository)
-      : super(const AsyncValue.loading()) {
-    loadProducts();
-  }
+    // Fetch with filters applied
+    final repo = ref.read(productRepositoryProvider);
+    final products = await repo.getAllProducts(
+      search: searchQuery.isEmpty ? null : searchQuery,
+      categoryId: null,
+      isActive: true,
+    );
 
-  /// Load all products
-  Future<void> loadProducts() async {
-    try {
-      state = const AsyncValue.loading();
-      final products = await _repository.getAllProducts(isActive: true);
-      state = AsyncValue.data(products);
-    } catch (e, stackTrace) {
-      state = AsyncValue.error(e, stackTrace);
-    }
+    return products ?? [];
   }
 
   /// Create new product
   Future<void> createProduct(CreateProductRequest request) async {
-    try {
-      await _repository.createProduct(request);
-      await loadProducts(); // Reload list
-    } catch (e) {
-      rethrow;
-    }
+    final repo = ref.read(productRepositoryProvider);
+    await repo.createProduct(request);
+    ref.invalidateSelf(); // Trigger rebuild
   }
 
   /// Update product
   Future<void> updateProduct(String id, UpdateProductRequest request) async {
-    try {
-      await _repository.updateProduct(id, request);
-      await loadProducts(); // Reload list
-    } catch (e) {
-      rethrow;
-    }
+    final repo = ref.read(productRepositoryProvider);
+    await repo.updateProduct(id, request);
+    ref.invalidateSelf(); // Trigger rebuild
   }
 
-  // Delete product
+  /// Delete product
   Future<void> deleteProduct(String id) async {
-    try {
-      await _repository.deleteProduct(id);
-      await loadProducts();
-    } catch (e) {
-      rethrow;
-    }
+    final repo = ref.read(productRepositoryProvider);
+    await repo.deleteProduct(id);
+    ref.invalidateSelf(); // Trigger rebuild
   }
 
-  // Refresh products
+  /// Manual refresh
   Future<void> refresh() async {
-    await loadProducts();
-  }
-
-  // Load products by category
-
-  Future<void> loadProductsByCategory(String categoryId) async {
-    try {
-      state = const AsyncValue.loading();
-      final products = await _repository.getProductsByCategory(categoryId);
-      state = AsyncValue.data(products);
-    } catch (e, stackTrace) {
-      state = AsyncValue.error(e, stackTrace);
-    }
-  }
-
-  // Search products
-  Future<void> searchProducts(String query) async {
-    try {
-      state = const AsyncValue.loading();
-      final products = await _repository.searchProducts(query);
-      state = AsyncValue.data(products);
-    } catch (e, stackTrace) {
-      state = AsyncValue.error(e, stackTrace);
-    }
+    ref.invalidateSelf();
   }
 }
 
-// Product State Notifier Provider
+// Product Notifier Provider
 final productNotifierProvider =
-    StateNotifierProvider<ProductNotifier, AsyncValue<List<ProductModel>>>(
-        (ref) {
-  final repository = ref.watch(productRepositoryProvider);
-  return ProductNotifier(ref, repository);
+    AsyncNotifierProvider<ProductNotifier, List<ProductModel>>(() {
+  return ProductNotifier();
+});
+
+// ============================================
+// LEGACY PROVIDERS (Keep for backward compatibility)
+// ============================================
+
+/// Simple Product List (without filters)
+final productListProvider =
+    FutureProvider.autoDispose<List<ProductModel>>((ref) async {
+  final repo = ref.read(productRepositoryProvider);
+  final products = await repo.getAllProducts(isActive: true);
+  return products ?? [];
+});
+
+/// Filtered Products (alternative approach)
+final filteredProductsProvider =
+    FutureProvider.autoDispose<List<ProductModel>>((ref) async {
+  final repo = ref.read(productRepositoryProvider);
+  final searchQuery = ref.watch(productSearchQueryProvider);
+  final categoryFilter = ref.watch(productCategoryFilterProvider);
+
+  final products = await repo.getAllProducts(
+    search: searchQuery.isEmpty ? null : searchQuery,
+    categoryId: categoryFilter,
+    isActive: true,
+  );
+
+  return products ?? [];
 });

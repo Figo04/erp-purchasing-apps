@@ -5,7 +5,6 @@ import 'package:go_router/go_router.dart';
 import 'package:erp_purchasing_apps/data/providers/product_provider.dart';
 import 'package:erp_purchasing_apps/data/providers/category_provider.dart';
 import 'package:erp_purchasing_apps/data/models/product_model.dart';
-import 'package:erp_purchasing_apps/data/models/category_model.dart';
 
 // Product List Screen with Modern DataTable
 class ProductListScreen extends ConsumerStatefulWidget {
@@ -103,6 +102,8 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
   Widget build(BuildContext context) {
     final productsState = ref.watch(productNotifierProvider);
     final categoriesAsync = ref.watch(categoryListProvider);
+    final searchQuery = ref.watch(productSearchQueryProvider);
+    final categoryFilter = ref.watch(productCategoryFilterProvider);
 
     return Scaffold(
       backgroundColor: const Color(0xFFF5F7FA),
@@ -269,13 +270,36 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
           Expanded(
             child: productsState.when(
               data: (products) {
+                // Di screen, tambah listen
+
                 // Apply filters
                 var filteredProducts = products;
 
+                // Apply search
+                if (searchQuery.isNotEmpty) {
+                  filteredProducts = filteredProducts.where((p) {
+                    return p.name
+                            .toLowerCase()
+                            .contains(searchQuery.toLowerCase()) ||
+                        p.productCode
+                            .toLowerCase()
+                            .contains(searchQuery.toLowerCase());
+                  }).toList();
+                }
+
                 if (_selectedCategoryFilter != null) {
-                  filteredProducts = filteredProducts
-                      .where((p) => p.categoryId == _selectedCategoryFilter)
+                  // Get all child categories of selected category
+                  final categories = categoriesAsync.value ?? [];
+                  final childCategoryIds = categories
+                      .where((c) => c.parentId == _selectedCategoryFilter)
+                      .map((c) => c.id)
                       .toList();
+
+                  // Filter: include products from selected category OR its children
+                  filteredProducts = filteredProducts.where((p) {
+                    return p.categoryId == _selectedCategoryFilter ||
+                        childCategoryIds.contains(p.categoryId);
+                  }).toList();
                 }
 
                 if (_showInactiveOnly) {
@@ -347,6 +371,15 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
                             DataColumn(
                               label: Text(
                                 'PRODUCT NAME',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 13,
+                                ),
+                              ),
+                            ),
+                            DataColumn(
+                              label: Text(
+                                'CATEGORY',
                                 style: TextStyle(
                                   fontWeight: FontWeight.bold,
                                   fontSize: 13,
@@ -511,14 +544,6 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
                                         tooltip: 'Edit',
                                         onPressed: () =>
                                             _showEditDialog(product),
-                                      ),
-                                      IconButton(
-                                        icon: const Icon(Icons.delete_outline,
-                                            size: 20),
-                                        color: Colors.red.shade600,
-                                        tooltip: 'Delete',
-                                        onPressed: () =>
-                                            _deleteProduct(product),
                                       ),
                                       IconButton(
                                         icon: const Icon(Icons.delete_outline,

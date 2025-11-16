@@ -1,44 +1,137 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
-import '../models/purchase_order_model.dart';
-import '../repositories/po_repository.dart';
+import 'package:erp_purchasing_apps/data/models/purchase_order_model.dart';
+import 'package:erp_purchasing_apps/data/repositories/po_repository.dart';
+import 'package:flutter_riverpod/legacy.dart';
 
-final poRepositoryProvider = Provider<PoRepository>((ref) {
-  return PoRepository();
+/// PO Repository Provider
+final poRepositoryProvider = Provider<PurchaseOrderRepository>((ref) {
+  return PurchaseOrderRepository();
 });
 
-// Real-time PO Stream Provider
-final poStreamProvider = StreamProvider<List<PurchaseOrderModel>>((ref) {
-  final supabase = Supabase.instance.client;
-  
-  return supabase
-      .from('purchase_order')
-      .stream(primaryKey: ['id'])
-      .order('created_at', ascending: false)
-      .asyncMap((data) async {
-        final List<PurchaseOrderModel> pos = [];
-        
-        for (var poData in data) {
-          final itemsResponse = await supabase
-              .from('purchase_order_item')
-              .select()
-              .eq('po_id', poData['id']);
-          
-          poData['purchase_order_item'] = itemsResponse;
-          pos.add(PurchaseOrderModel.fromJson(poData));
-        }
-        
-        return pos;
-      });
+/// PO List Provider
+final poListProvider = FutureProvider<List<PurchaseOrderModel>>((ref) async {
+  final repo = ref.watch(poRepositoryProvider);
+  return await repo.getAllPOs();
 });
 
-// Pending PO Count Provider
-final pendingPOCountProvider = Provider<int>((ref) {
-  final poStream = ref.watch(poStreamProvider);
-  
-  return poStream.when(
-    data: (pos) => pos.where((po) => po.status == 'pending').length,
-    loading: () => 0,
-    error: (_, __) => 0,
+/// Selected PO Provider
+final selectedPOProvider = StateProvider<PurchaseOrderModel?>((ref) => null);
+
+/// PO Search Query Provider
+final poSearchQueryProvider = StateProvider<String>((ref) => '');
+
+/// PO Status Filter Provider
+final poStatusFilterProvider = StateProvider<String?>((ref) => null);
+
+/// PR Groupings Provider (for PO creation)
+final prGroupingsProvider = FutureProvider<List<PRGrouping>>((ref) async {
+  final repo = ref.watch(poRepositoryProvider);
+  return await repo.getPRGroupings();
+});
+
+/// Filtered POs Provider
+final filteredPOsProvider = FutureProvider<List<PurchaseOrderModel>>((ref) async {
+  final repo = ref.watch(poRepositoryProvider);
+  final searchQuery = ref.watch(poSearchQueryProvider);
+  final statusFilter = ref.watch(poStatusFilterProvider);
+
+  return await repo.getAllPOs(
+    search: searchQuery.isEmpty ? null : searchQuery,
+    status: statusFilter,
   );
+});
+
+/// PO State Notifier
+class PONotifier extends StateNotifier<AsyncValue<List<PurchaseOrderModel>>> {
+  final PurchaseOrderRepository _repository;
+  final Ref ref;
+
+  PONotifier(this.ref, this._repository)
+      : super(const AsyncValue.loading()) {
+    loadPOs();
+  }
+
+  /// Load all POs
+  Future<void> loadPOs() async {
+    try {
+      state = const AsyncValue.loading();
+      final pos = await _repository.getAllPOs();
+      state = AsyncValue.data(pos);
+    } catch (e, stackTrace) {
+      state = AsyncValue.error(e, stackTrace);
+    }
+  }
+
+  /// Create new PO
+  Future<void> createPO(CreatePORequest request) async {
+    try {
+      await _repository.createPO(request);
+      await loadPOs(); // Reload list
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  /// Update PO
+  Future<void> updatePO(String id, UpdatePORequest request) async {
+    try {
+      await _repository.updatePO(id, request);
+      await loadPOs(); // Reload list
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  /// Delete PO
+  Future<void> deletePO(String id) async {
+    try {
+      await _repository.deletePO(id);
+      await loadPOs(); // Reload list
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  /// Approve PO
+  Future<void> approvePO(String id) async {
+    try {
+      await _repository.approvePO(id);
+      await loadPOs(); // Reload list
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  /// Cancel PO
+  Future<void> cancelPO(String id) async {
+    try {
+      await _repository.cancelPO(id);
+      await loadPOs(); // Reload list
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  /// Refresh POs
+  Future<void> refresh() async {
+    await loadPOs();
+  }
+
+  /// Load POs by status
+  Future<void> loadPOsByStatus(String status) async {
+    try {
+      state = const AsyncValue.loading();
+      final pos = await _repository.getAllPOs(status: status);
+      state = AsyncValue.data(pos);
+    } catch (e, stackTrace) {
+      state = AsyncValue.error(e, stackTrace);
+    }
+  }
+}
+
+/// PO State Notifier Provider
+final poNotifierProvider =
+    StateNotifierProvider<PONotifier, AsyncValue<List<PurchaseOrderModel>>>((ref) {
+  final repository = ref.watch(poRepositoryProvider);
+  return PONotifier(ref, repository);
 });

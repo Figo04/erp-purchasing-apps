@@ -48,7 +48,7 @@ final routerProvider = Provider<GoRouter>((ref) {
     routes: [
       GoRoute(
         path: '/login',
-        builder: (context, state) => const ProductListScreen(),
+        builder: (context, state) => const LoginScreen(),
       ),
       // GoRoute(
       //   path: '/register',
@@ -57,6 +57,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/dashboard',
         builder: (context, state) => const DashboardScreen2(),
+      ),
+      GoRoute(
+        path: '/master_product',
+        builder: (context, state) => const ProductListScreen(),
       ),
       GoRoute(
         path: '/suppliers',
@@ -86,20 +90,20 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/pr-history',
         builder: (context, state) => const PRApprovalHistoryScreen(),
       ),
-      GoRoute(
-        path: '/receipt',
-        builder: (context, state) => const GoodsReceiptListScreen(),
-      ),
+      // GoRoute(
+      //   path: '/receipt',
+      //   builder: (context, state) => const GoodsReceiptListScreen(),
+      // ),
       GoRoute(
         path: '/inventory',
         builder: (context, state) => const InventoryListScreen(),
       ),
       GoRoute(
           path: '/asset', builder: (context, state) => const AssetListScreen()),
-      GoRoute(
-        path: '/payment',
-        builder: (context, state) => const PaymentListScreen(),
-      ),
+      // GoRoute(
+      //   path: '/payment',
+      //   builder: (context, state) => const PaymentListScreen(),
+      // ),
     ],
   );
 });

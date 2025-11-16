@@ -363,7 +363,7 @@ class _PRListScreenState extends ConsumerState<PRListScreen> {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (context) => POFormScreen(prId: pr.id),
+                              builder: (context) => POFormScreen(),
                             ),
                           );
                         },

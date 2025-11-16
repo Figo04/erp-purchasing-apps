@@ -11,8 +11,8 @@ void main() async {
   runApp(
     const ProviderScope(
       child: kIsWeb
-          ? MyApp() // Desktop = ERP App
-          :  SupplierPortalApp(), // Web = Portal Supplier
+          ? SupplierPortalApp() // Web = Portal Supplier
+          : MyApp(), // Desktop = ERP App
     ),
   );
 }

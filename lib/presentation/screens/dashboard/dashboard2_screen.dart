@@ -112,6 +112,11 @@ class DashboardScreen2 extends ConsumerWidget {
                         _buildSideMenuItem(context, Icons.people,
                             'User Management', () => context.go('/users')),
 
+                      if (RBACHelper.canAccessMenu(
+                          currentUser?.role, 'master_product'))
+                        _buildSideMenuItem(context, Icons.dataset,
+                            'Master data', () => context.go('/master_product')),
+
                       // Purchase Requisition - All roles
                       if (RBACHelper.canAccessMenu(currentUser?.role, 'pr'))
                         _buildSideMenuItemWithBadge(
@@ -180,7 +185,7 @@ class DashboardScreen2 extends ConsumerWidget {
 
                       // PO Approval - Admin, Purchasing, Kadiv
                       if (RBACHelper.canAccessMenu(
-                          currentUser?.role, 'p0_approval'))
+                          currentUser?.role, 'po_approval'))
                         _buildSideMenuItem(context, Icons.approval,
                             'PO Approval', () => context.go('/po-approval')),
 
@@ -207,9 +212,11 @@ class DashboardScreen2 extends ConsumerWidget {
                   padding: const EdgeInsets.symmetric(horizontal: 24),
                   child: Row(
                     children: [
-                      const Text('ERP System',
-                          style: TextStyle(
-                              fontSize: 16, fontWeight: FontWeight.w500)),
+                      const Text(
+                        'ERP System',
+                        style: TextStyle(
+                            fontSize: 16, fontWeight: FontWeight.w500),
+                      ),
                       const Spacer(),
                       IconButton(
                         icon: const Icon(Icons.logout),

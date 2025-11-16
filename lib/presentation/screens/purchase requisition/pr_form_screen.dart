@@ -1,9 +1,11 @@
+import 'package:erp_purchasing_apps/data/models/division_model.dart';
+import 'package:erp_purchasing_apps/data/providers/division_provider.dart';
+import 'package:erp_purchasing_apps/data/providers/product_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:erp_purchasing_apps/data/providers/pr_provider.dart';
-import 'package:erp_purchasing_apps/data/providers/auth_providers.dart';
 import 'package:erp_purchasing_apps/data/models/purchase_requisition_model.dart';
 
 class PRFormScreen extends ConsumerStatefulWidget {
@@ -24,29 +26,12 @@ class _PRFormScreenState extends ConsumerState<PRFormScreen> {
   String _selectedProcessingType = 'material';
   bool _isLoading = false;
 
-  // Hardcoded divisions (sesuai database)
-  final List<Map<String, String>> _divisions = [
-    {'id': '100', 'name': 'Motor'},
-    {'id': '200', 'name': 'Injection'},
-    {'id': '210', 'name': 'Injection Assy'},
-    {'id': '300', 'name': 'Stamping'},
-    {'id': '500', 'name': 'PD'},
-    {'id': '600', 'name': 'Tooling'},
-    {'id': '700', 'name': 'Machining'},
-    {'id': '800', 'name': 'Lumina'},
-    {'id': '810', 'name': 'LED'},
-    {'id': '820', 'name': 'Vibration'},
-    {'id': '900', 'name': 'Sales & Exim'},
-    {'id': '910', 'name': 'Administration'},
-  ];
-
   @override
   void initState() {
     super.initState();
     if (widget.prId != null) {
       _loadPR();
     } else {
-      // Add one empty item by default
       _addItem();
     }
   }
@@ -67,6 +52,7 @@ class _PRFormScreenState extends ConsumerState<PRFormScreen> {
             for (var item in pr.items!) {
               _items.add(PRItemForm(
                 productId: item.productId,
+                productName: item.itemName,
                 itemNameController: TextEditingController(text: item.itemName),
                 quantityController:
                     TextEditingController(text: item.quantity.toString()),
@@ -142,7 +128,7 @@ class _PRFormScreenState extends ConsumerState<PRFormScreen> {
 
       final items = _items.map((item) {
         return CreatePRItemRequest(
-          productId: item.productId,
+          productId: item.productId!,
           itemName: item.itemNameController.text.trim(),
           quantity: int.parse(item.quantityController.text),
           unit: item.unitController.text.trim(),
@@ -156,7 +142,6 @@ class _PRFormScreenState extends ConsumerState<PRFormScreen> {
       }).toList();
 
       if (widget.prId == null) {
-        // Create new PR
         final request = CreatePRRequest(
           divisionId: _selectedDivisionId!,
           processingType: _selectedProcessingType,
@@ -168,7 +153,6 @@ class _PRFormScreenState extends ConsumerState<PRFormScreen> {
 
         await notifier.createPR(request);
       } else {
-        // Update existing PR
         final request = UpdatePRRequest(
           items: items
               .map((item) => UpdatePRItemRequest(
@@ -228,6 +212,8 @@ class _PRFormScreenState extends ConsumerState<PRFormScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final divisionsAsync = ref.watch(activeDivisionListProvider);
+
     return Scaffold(
       backgroundColor: const Color(0xFFF5F7FA),
       appBar: AppBar(
@@ -245,225 +231,277 @@ class _PRFormScreenState extends ConsumerState<PRFormScreen> {
           ),
         ),
       ),
-      body: Form(
-        key: _formKey,
-        child: Column(
-          children: [
-            Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    // Division & Processing Type
-                    Card(
-                      child: Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              'PR Information',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            const SizedBox(height: 16),
-
-                            // Division Dropdown
-                            DropdownButtonFormField<String>(
-                              value: _selectedDivisionId,
-                              decoration: const InputDecoration(
-                                labelText: 'Division *',
-                                border: OutlineInputBorder(),
-                                prefixIcon: Icon(Icons.business),
-                              ),
-                              items: _divisions.map((div) {
-                                return DropdownMenuItem(
-                                  value: div['id'],
-                                  child: Text('${div['id']} - ${div['name']}'),
-                                );
-                              }).toList(),
-                              onChanged: (value) {
-                                setState(() => _selectedDivisionId = value);
-                              },
-                              validator: (value) {
-                                if (value == null) {
-                                  return 'Please select division';
-                                }
-                                return null;
-                              },
-                            ),
-                            const SizedBox(height: 16),
-
-                            // Processing Type
-                            DropdownButtonFormField<String>(
-                              value: _selectedProcessingType,
-                              decoration: const InputDecoration(
-                                labelText: 'Processing Type *',
-                                border: OutlineInputBorder(),
-                                prefixIcon: Icon(Icons.category),
-                              ),
-                              items: const [
-                                DropdownMenuItem(
-                                  value: 'material',
-                                  child: Text('Material (Bahan Produksi)'),
-                                ),
-                                DropdownMenuItem(
-                                  value: 'asset',
-                                  child: Text('Aset (Fix Asset)'),
-                                ),
-                                DropdownMenuItem(
-                                  value: 'logistik',
-                                  child: Text('Logistik (Bahan Penolong)'),
-                                )
-                              ],
-                              onChanged: (value) {
-                                setState(
-                                    () => _selectedProcessingType = value!);
-                              },
-                            ),
-                            const SizedBox(height: 16),
-
-                            // Notes
-                            TextFormField(
-                              controller: _notesController,
-                              maxLines: 3,
-                              decoration: const InputDecoration(
-                                labelText: 'Notes (Optional)',
-                                border: OutlineInputBorder(),
-                                alignLabelWithHint: true,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-
-                    const SizedBox(height: 24),
-
-                    // Items Section
-                    Card(
-                      child: Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Column(
-                          children: [
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                const Text(
-                                  'Items',
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                                ElevatedButton.icon(
-                                  onPressed: _addItem,
-                                  icon: const Icon(Icons.add, size: 18),
-                                  label: const Text('Add Item'),
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: const Color(0xFF1ABC9C),
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 16),
-                            ..._items.asMap().entries.map((entry) {
-                              final index = entry.key;
-                              final item = entry.value;
-                              return _buildItemCard(index, item);
-                            })
-                          ],
-                        ),
-                      ),
-                    ),
-
-                    const SizedBox(height: 16),
-
-                    // Total
-                    Card(
-                      color: Colors.blue.shade50,
-                      child: Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              'Total Estimated:',
-                              style: Theme.of(context).textTheme.titleMedium,
-                            ),
-                            Text(
-                              'Rp ${NumberFormat('#,###').format(_calculateTotal())}',
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .titleLarge
-                                  ?.copyWith(
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.blue.shade900,
-                                  ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
+      body: divisionsAsync.when(
+        data: (divisions) => _buildFormContent(divisions),
+        loading: () => const Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              CircularProgressIndicator(),
+              SizedBox(height: 16),
+              Text('Loading divisions...'),
+            ],
+          ),
+        ),
+        error: (error, _) => Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.error_outline, size: 64, color: Colors.red),
+              const SizedBox(height: 16),
+              const Text(
+                'Error loading divisions',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
                 ),
               ),
-            ),
-
-            // Bottom Buttons
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.grey.shade300,
-                    blurRadius: 4,
-                    offset: const Offset(0, -2),
-                  ),
-                ],
+              const SizedBox(height: 8),
+              Text(
+                error.toString(),
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.grey.shade600),
               ),
-              child: SizedBox(
-                width: double.infinity,
-                height: 50,
-                child: ElevatedButton(
-                  onPressed:
-                      _isLoading ? null : () => _handleSubmit(isDraft: false),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF1ABC9C),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                  ),
-                  child: _isLoading
-                      ? const SizedBox(
-                          height: 20,
-                          width: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.white,
-                          ),
-                        )
-                      : Text(
-                          widget.prId == null ? 'Create PR' : 'Update PR',
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
+              const SizedBox(height: 24),
+              ElevatedButton.icon(
+                onPressed: () {
+                  ref.invalidate(activeDivisionListProvider);
+                },
+                icon: const Icon(Icons.refresh),
+                label: const Text('Retry'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF1ABC9C),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
   }
 
+  Widget _buildFormContent(List<DivisionModel> divisions) {
+    return Form(
+      key: _formKey,
+      child: Column(
+        children: [
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  // PR Information Card
+                  Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'PR Information',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+
+                          // Division Dropdown
+                          DropdownButtonFormField<String>(
+                            value: _selectedDivisionId,
+                            decoration: const InputDecoration(
+                              labelText: 'Division *',
+                              border: OutlineInputBorder(),
+                              prefixIcon: Icon(Icons.business),
+                            ),
+                            items: divisions.map((div) {
+                              return DropdownMenuItem(
+                                value: div.id,
+                                child: Text(div.displayName),
+                              );
+                            }).toList(),
+                            onChanged: (value) {
+                              setState(() => _selectedDivisionId = value);
+                            },
+                            validator: (value) {
+                              if (value == null) {
+                                return 'Please select division';
+                              }
+                              return null;
+                            },
+                          ),
+                          const SizedBox(height: 16),
+
+                          // Processing Type Dropdown
+                          DropdownButtonFormField<String>(
+                            value: _selectedProcessingType,
+                            decoration: const InputDecoration(
+                              labelText: 'Processing Type *',
+                              border: OutlineInputBorder(),
+                              prefixIcon: Icon(Icons.category),
+                            ),
+                            items: const [
+                              DropdownMenuItem(
+                                value: 'material',
+                                child: Text('Material (Bahan Produksi)'),
+                              ),
+                              DropdownMenuItem(
+                                value: 'aset',
+                                child: Text('Aset (Fix Asset)'),
+                              ),
+                              DropdownMenuItem(
+                                value: 'logistik',
+                                child: Text('Logistik (Bahan Penolong)'),
+                              ),
+                            ],
+                            onChanged: (value) {
+                              setState(() => _selectedProcessingType = value!);
+                            },
+                          ),
+                          const SizedBox(height: 16),
+
+                          // Notes Field
+                          TextFormField(
+                            controller: _notesController,
+                            maxLines: 3,
+                            decoration: const InputDecoration(
+                              labelText: 'Notes (Optional)',
+                              border: OutlineInputBorder(),
+                              alignLabelWithHint: true,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 24),
+
+                  // Items Section
+                  Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Text(
+                                'Items',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              ElevatedButton.icon(
+                                onPressed: _addItem,
+                                icon: const Icon(Icons.add, size: 18),
+                                label: const Text('Add Item'),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFF1ABC9C),
+                                  foregroundColor: Colors.white,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 16),
+                          ..._items.asMap().entries.map((entry) {
+                            final index = entry.key;
+                            final item = entry.value;
+                            return _buildItemCard(index, item);
+                          }),
+                        ],
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 16),
+
+                  // Total Estimated
+                  Card(
+                    color: Colors.blue.shade50,
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'Total Estimated:',
+                            style: Theme.of(context).textTheme.titleMedium,
+                          ),
+                          Text(
+                            'Rp ${NumberFormat('#,###').format(_calculateTotal())}',
+                            style: Theme.of(context)
+                                .textTheme
+                                .titleLarge
+                                ?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.blue.shade900,
+                                ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          // Bottom Submit Button
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.grey.shade300,
+                  blurRadius: 4,
+                  offset: const Offset(0, -2),
+                ),
+              ],
+            ),
+            child: SizedBox(
+              width: double.infinity,
+              height: 50,
+              child: ElevatedButton(
+                onPressed:
+                    _isLoading ? null : () => _handleSubmit(isDraft: false),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF1ABC9C),
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+                child: _isLoading
+                    ? const SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : Text(
+                        widget.prId == null ? 'Create PR' : 'Update PR',
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildItemCard(int index, PRItemForm item) {
+    final productsAsync = ref.watch(productListProvider);
+
     return Card(
       margin: const EdgeInsets.only(bottom: 16),
       child: Padding(
@@ -471,6 +509,7 @@ class _PRFormScreenState extends ConsumerState<PRFormScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Item Header
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -490,24 +529,138 @@ class _PRFormScreenState extends ConsumerState<PRFormScreen> {
             ),
             const SizedBox(height: 12),
 
-            // Item Name
-            TextFormField(
-              controller: item.itemNameController,
-              decoration: const InputDecoration(
-                labelText: 'Item Name *',
-                border: OutlineInputBorder(),
-                isDense: true,
+            // Product Picker
+            productsAsync.when(
+              data: (products) => Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  DropdownButtonFormField<String>(
+                    isExpanded: true,
+                    value: item.productId,
+                    decoration: const InputDecoration(
+                      labelText: 'Select Product *',
+                      border: OutlineInputBorder(),
+                      isDense: true,
+                      prefixIcon: Icon(Icons.inventory_2),
+                      hintText: 'Choose from product list',
+                    ),
+                    items: products.map((product) {
+                      return DropdownMenuItem(
+                        value: product.id,
+                        child: Text(
+                          '${product.name} (${product.productCode})', // ← Single line
+                          overflow: TextOverflow.ellipsis,
+                          maxLines: 1,
+                          style: const TextStyle(fontSize: 14),
+                        ),
+                      );
+                    }).toList(),
+                    onChanged: (productId) {
+                      setState(() {
+                        final selectedProduct = products.firstWhere(
+                          (p) => p.id == productId,
+                        );
+
+                        item.productId = productId;
+                        item.productName = selectedProduct.name;
+                        item.itemNameController.text = selectedProduct.name;
+
+                        if (selectedProduct.unit != true) {
+                          item.unitController.text = selectedProduct.unit;
+                        }
+                      });
+                    },
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'Please select a product';
+                      }
+                      return null;
+                    },
+                  ),
+
+                  // Selected Product Indicator
+                  if (item.productId != null)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 8),
+                      child: Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.green.shade50,
+                          borderRadius: BorderRadius.circular(4),
+                          border: Border.all(color: Colors.green.shade200),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(Icons.check_circle,
+                                size: 16, color: Colors.green.shade700),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                'Product selected: ${item.productName}',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.green.shade900,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                ],
               ),
-              validator: (value) {
-                if (value == null || value.trim().isEmpty) {
-                  return 'Please enter item name';
-                }
-                return null;
-              },
+              loading: () => const SizedBox(
+                height: 60,
+                child: Center(
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+              ),
+              error: (err, _) => Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.red.shade50,
+                  borderRadius: BorderRadius.circular(4),
+                  border: Border.all(color: Colors.red.shade200),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.error_outline, color: Colors.red.shade700),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Failed to load products: $err',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.red.shade900,
+                        ),
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: () => ref.invalidate(productListProvider),
+                      child: const Text('Retry'),
+                    ),
+                  ],
+                ),
+              ),
             ),
             const SizedBox(height: 12),
 
-            // Quantity and Unit
+            // Item Name (read-only, auto-filled)
+            TextFormField(
+              controller: item.itemNameController,
+              readOnly: true,
+              decoration: InputDecoration(
+                labelText: 'Item Name',
+                border: const OutlineInputBorder(),
+                isDense: true,
+                filled: true,
+                fillColor: Colors.grey.shade100,
+                suffixIcon: const Icon(Icons.lock_outline, size: 16),
+              ),
+            ),
+            const SizedBox(height: 12),
+
+            // Quantity and Unit Row
             Row(
               children: [
                 Expanded(
@@ -531,7 +684,7 @@ class _PRFormScreenState extends ConsumerState<PRFormScreen> {
                       }
                       return null;
                     },
-                    onChanged: (_) => setState(() {}), // Recalculate total
+                    onChanged: (_) => setState(() {}),
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -555,7 +708,7 @@ class _PRFormScreenState extends ConsumerState<PRFormScreen> {
             ),
             const SizedBox(height: 12),
 
-            // Price
+            // Estimated Price
             TextFormField(
               controller: item.priceController,
               keyboardType: TextInputType.number,
@@ -568,7 +721,7 @@ class _PRFormScreenState extends ConsumerState<PRFormScreen> {
                 isDense: true,
                 prefixText: 'Rp ',
               ),
-              onChanged: (_) => setState(() {}), // Recalculate total
+              onChanged: (_) => setState(() {}),
             ),
             const SizedBox(height: 12),
 
@@ -584,7 +737,7 @@ class _PRFormScreenState extends ConsumerState<PRFormScreen> {
               ),
             ),
 
-            // Subtotal
+            // Subtotal Display
             if (item.priceController.text.isNotEmpty)
               Padding(
                 padding: const EdgeInsets.only(top: 8),
@@ -605,7 +758,8 @@ class _PRFormScreenState extends ConsumerState<PRFormScreen> {
 
 /// Helper class to manage item form controllers
 class PRItemForm {
-  final String? productId;
+  String? productId;
+  String? productName;
   final TextEditingController itemNameController;
   final TextEditingController quantityController;
   final TextEditingController unitController;
@@ -614,6 +768,7 @@ class PRItemForm {
 
   PRItemForm({
     this.productId,
+    this.productName,
     required this.itemNameController,
     required this.quantityController,
     required this.unitController,
