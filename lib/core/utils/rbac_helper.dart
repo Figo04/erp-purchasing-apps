@@ -27,13 +27,16 @@ class RBACHelper {
     ],
 
     // PR Approval - Admin, Purchasing, Kadiv
-    'pr_approval': ['admin', 'purchasing', 'kadiv'],
+    'pr_approval': ['admin', 'kadiv'],
 
     // Purchase Order - Admin, Purchasing
     'po': ['admin', 'purchasing'],
 
     // PO Approval - Admin, Kadiv
     'po_approval': ['admin', 'kadiv'],
+
+    // Assessment Product - Admin, Kadiv
+    'assessment_product': ['admin', 'kadiv'],
 
     // Master Product - Admin, Kadiv
     'master_product': ['admin'],

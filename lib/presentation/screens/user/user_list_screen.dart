@@ -13,10 +13,10 @@ class UserListScreen extends ConsumerStatefulWidget {
   const UserListScreen({super.key});
 
   @override
-  ConsumerState<UserListScreen> createState() => _UserManagementScreenState();
+  ConsumerState<UserListScreen> createState() => _UserListScreenState();
 }
 
-class _UserManagementScreenState extends ConsumerState<UserListScreen> {
+class _UserListScreenState extends ConsumerState<UserListScreen> {
   final _searchController = TextEditingController();
   String? _selectedRoleFilter;
   bool _showInactiveOnly = false;

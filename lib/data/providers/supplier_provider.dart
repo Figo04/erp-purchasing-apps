@@ -100,7 +100,8 @@ class SupplierNotifier extends StateNotifier<AsyncValue<List<SupplierModel>>> {
 
 /// Supplier State Notifier Provider
 final supplierNotifierProvider =
-    StateNotifierProvider<SupplierNotifier, AsyncValue<List<SupplierModel>>>((ref) {
+    StateNotifierProvider<SupplierNotifier, AsyncValue<List<SupplierModel>>>(
+        (ref) {
   final repository = ref.watch(supplierRepositoryProvider);
   return SupplierNotifier(ref, repository);
 });

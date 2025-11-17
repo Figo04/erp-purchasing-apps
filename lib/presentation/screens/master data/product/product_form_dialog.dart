@@ -1,3 +1,6 @@
+import 'package:erp_purchasing_apps/data/models/product_assessment_model.dart';
+import 'package:erp_purchasing_apps/data/providers/auth_providers.dart';
+import 'package:erp_purchasing_apps/data/providers/product_assessment_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:erp_purchasing_apps/data/providers/product_provider.dart';
@@ -69,26 +72,63 @@ class _ProductFormDialogState extends ConsumerState<ProductFormDialog> {
     setState(() => _isLoading = true);
 
     try {
-      final notifier = ref.read(productNotifierProvider.notifier);
+      final currentUser = ref.read(currentUserProvider);
+      final canDirectCreate = currentUser?.role == 'admin';
 
       if (widget.product == null) {
         // Create
-        await notifier.createProduct(
-          CreateProductRequest(
-            productCode: _productCodeController.text.trim(),
-            name: _nameController.text.trim(),
-            categoryId: _selectedCategoryId!,
-            unit: _selectedUnit,
-            description: _descriptionController.text.trim().isEmpty
-                ? null
-                : _descriptionController.text.trim(),
-            specifications: _specificationsController.text.trim().isEmpty
-                ? null
-                : _specificationsController.text.trim(),
-          ),
-        );
+        if (canDirectCreate) {
+          // Admin Langsung create ke master
+          final notifier = ref.read(productNotifierProvider.notifier);
+          await notifier.createProduct(
+            CreateProductRequest(
+              productCode: _productCodeController.text.trim(),
+              name: _nameController.text.trim(),
+              categoryId: _selectedCategoryId!,
+              unit: _selectedUnit,
+              description: _descriptionController.text.trim().isEmpty
+                  ? null
+                  : _descriptionController.text.trim(),
+              specifications: _specificationsController.text.trim().isEmpty
+                  ? null
+                  : _specificationsController.text.trim(),
+            ),
+          );
+        } else {
+          // User biasa: Create assessment request
+          final assessmentNotifier =
+              ref.read(productAssessmentNotifierProvider.notifier);
+          await assessmentNotifier.createAssessment(
+            CreateProductAssessmentRequest(
+              productName: _nameController.text.trim(),
+              categoryId: _selectedCategoryId!,
+              unit: _selectedUnit,
+              description: _descriptionController.text.trim().isEmpty
+                  ? null
+                  : _descriptionController.text.trim(),
+              specifications: _specificationsController.text.trim().isEmpty
+                  ? null
+                  : _specificationsController.text.trim(),
+            ),
+          );
+        }
+
+        if (mounted) {
+          Navigator.pop(context);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                canDirectCreate
+                    ? 'Product created successfully'
+                    : 'Product assessment request submitted. Waiting for approval.',
+              ),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
       } else {
-        // Update
+        // Update (unchanged)
+        final notifier = ref.read(productNotifierProvider.notifier);
         await notifier.updateProduct(
           widget.product!.id,
           UpdateProductRequest(
@@ -105,20 +145,16 @@ class _ProductFormDialogState extends ConsumerState<ProductFormDialog> {
             isActive: _isActive,
           ),
         );
-      }
 
-      if (mounted) {
-        Navigator.pop(context);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              widget.product == null
-                  ? 'Product created successfully'
-                  : 'Product updated successfully',
+        if (mounted) {
+          Navigator.pop(context);
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Product updated successfully'),
+              backgroundColor: Colors.green,
             ),
-            backgroundColor: Colors.green,
-          ),
-        );
+          );
+        }
       }
     } catch (e) {
       if (mounted) {
@@ -286,7 +322,8 @@ class _ProductFormDialogState extends ConsumerState<ProductFormDialog> {
                     mainAxisAlignment: MainAxisAlignment.end,
                     children: [
                       TextButton(
-                        onPressed: _isLoading ? null : () => Navigator.pop(context),
+                        onPressed:
+                            _isLoading ? null : () => Navigator.pop(context),
                         child: const Text('Cancel'),
                       ),
                       const SizedBox(width: 12),

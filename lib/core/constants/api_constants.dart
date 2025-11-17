@@ -1,7 +1,3 @@
-/// API Endpoint Constants
-/// Centralized endpoint paths matching Golang backend routes
-/// Base URL: http://localhost:8080/api/v1
-
 class ApiEndpoints {
   // Private constructor to prevent instantiation
   ApiEndpoints._();

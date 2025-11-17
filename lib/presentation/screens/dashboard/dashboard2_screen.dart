@@ -189,6 +189,15 @@ class DashboardScreen2 extends ConsumerWidget {
                         _buildSideMenuItem(context, Icons.approval,
                             'PO Approval', () => context.go('/po-approval')),
 
+                      // Assessment product - Admin, Kadiv
+                      if (RBACHelper.canAccessMenu(
+                          currentUser?.role, 'assessment_product'))
+                        _buildSideMenuItem(
+                            context,
+                            Icons.approval,
+                            'Assessment Product',
+                            () => context.go('/assessment-product')),
+
                       // Receipt - Admin, Warehouse, Purchasing
                       if (RBACHelper.canAccessMenu(
                           currentUser?.role, 'receipt'))

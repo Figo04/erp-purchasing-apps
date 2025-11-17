@@ -245,420 +245,390 @@ class _SupplierListScreenState extends ConsumerState<SupplierListScreen> {
             padding: const EdgeInsets.all(16),
             child: Column(
               children: [
-                // Filter Section
-                Container(
-                  color: Colors.white,
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    children: [
-                      // Search & Add Button
-                      Row(
-                        children: [
-                          Expanded(
-                            child: TextField(
-                              controller: _searchController,
-                              decoration: InputDecoration(
-                                hintText: 'Search suppliers...',
-                                prefixIcon: const Icon(Icons.search, size: 20),
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(8),
-                                  borderSide:
-                                      BorderSide(color: Colors.grey.shade300),
-                                ),
-                                enabledBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(8),
-                                  borderSide:
-                                      BorderSide(color: Colors.grey.shade300),
-                                ),
-                                contentPadding: const EdgeInsets.symmetric(
-                                  horizontal: 16,
-                                  vertical: 12,
-                                ),
-                                suffixIcon: _searchController.text.isNotEmpty
-                                    ? IconButton(
-                                        icon: const Icon(Icons.clear, size: 20),
-                                        onPressed: () {
-                                          _searchController.clear();
-                                          ref
-                                              .read(supplierSearchQueryProvider
-                                                  .notifier)
-                                              .state = '';
-                                        },
-                                      )
-                                    : null,
-                              ),
-                              onChanged: (value) {
-                                ref
-                                    .read(supplierSearchQueryProvider.notifier)
-                                    .state = value;
-                              },
-                            ),
+                // Search & Add Button
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: _searchController,
+                        decoration: InputDecoration(
+                          hintText: 'Search suppliers...',
+                          prefixIcon: const Icon(Icons.search, size: 20),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                            borderSide: BorderSide(color: Colors.grey.shade300),
                           ),
-                          const SizedBox(width: 12),
-                          ElevatedButton.icon(
-                            onPressed: _showCreateDialog,
-                            icon: const Icon(Icons.add, size: 20),
-                            label: const Text('Add Supplier'),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF1ABC9C),
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 24,
-                                vertical: 16,
-                              ),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                            ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                            borderSide: BorderSide(color: Colors.grey.shade300),
                           ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-
-                      // Filter Chip
-                      Align(
-                        alignment: Alignment.centerLeft,
-                        child: FilterChip(
-                          label: const Text('Inactive Only'),
-                          selected: _showInactiveOnly,
-                          onSelected: (selected) {
-                            setState(() => _showInactiveOnly = selected);
-                          },
-                          avatar: Icon(
-                            _showInactiveOnly
-                                ? Icons.check_circle
-                                : Icons.circle_outlined,
-                            size: 16,
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 12,
                           ),
+                          suffixIcon: _searchController.text.isNotEmpty
+                              ? IconButton(
+                                  icon: const Icon(Icons.clear, size: 20),
+                                  onPressed: () {
+                                    _searchController.clear();
+                                    ref
+                                        .read(supplierSearchQueryProvider
+                                            .notifier)
+                                        .state = '';
+                                  },
+                                )
+                              : null,
                         ),
-                      )
-                    ],
-                  ),
-                ),
-
-                const Divider(height: 1),
-
-                // Supplier Table
-                Expanded(
-                  child: suppliersState.when(
-                    data: (suppliers) {
-                      // Apply filters
-                      var filteredSuppliers = suppliers;
-
-                      if (_showInactiveOnly) {
-                        filteredSuppliers = filteredSuppliers
-                            .where((s) => !s.isActive)
-                            .toList();
-                      }
-
-                      if (filteredSuppliers.isEmpty) {
-                        return Center(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(
-                                Icons.business_outlined,
-                                size: 64,
-                                color: Colors.grey.shade400,
-                              ),
-                              const SizedBox(height: 16),
-                              Text(
-                                'No suppliers found',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  color: Colors.grey.shade600,
-                                ),
-                              )
-                            ],
-                          ),
-                        );
-                      }
-
-                      return RefreshIndicator(
-                        onRefresh: () async {
-                          await ref
-                              .read(supplierNotifierProvider.notifier)
-                              .refresh();
+                        onChanged: (value) {
+                          ref.read(supplierSearchQueryProvider.notifier).state =
+                              value;
                         },
-                        child: SingleChildScrollView(
-                          scrollDirection: Axis.vertical,
-                          child: SingleChildScrollView(
-                            scrollDirection: Axis.horizontal,
-                            child: Container(
-                              margin: const EdgeInsets.all(16),
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(12),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withOpacity(0.05),
-                                    blurRadius: 10,
-                                    offset: const Offset(0, 2),
-                                  ),
-                                ],
-                              ),
-                              child: DataTable(
-                                headingRowHeight: 56,
-                                dataRowMaxHeight: 72,
-                                columnSpacing: 24,
-                                horizontalMargin: 24,
-                                headingRowColor: MaterialStateProperty.all(
-                                  const Color(0xFFF8F9FA),
-                                ),
-                                columns: const [
-                                  DataColumn(
-                                    label: Text(
-                                      'CODE',
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 13,
-                                      ),
-                                    ),
-                                  ),
-                                  DataColumn(
-                                    label: Text(
-                                      'SUPPLIER NAME',
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 13,
-                                      ),
-                                    ),
-                                  ),
-                                  DataColumn(
-                                    label: Text(
-                                      'CONTACT',
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 13,
-                                      ),
-                                    ),
-                                  ),
-                                  DataColumn(
-                                    label: Text(
-                                      'PHONE',
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 13,
-                                      ),
-                                    ),
-                                  ),
-                                  DataColumn(
-                                    label: Text(
-                                      'STATUS',
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 13,
-                                      ),
-                                    ),
-                                  ),
-                                  DataColumn(
-                                    label: Text(
-                                      'ACTIONS',
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 13,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                                rows: filteredSuppliers.map((supplier) {
-                                  return DataRow(cells: [
-                                    DataCell(
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 12,
-                                          vertical: 6,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          color: const Color(0xFF1ABC9C)
-                                              .withOpacity(0.1),
-                                          borderRadius:
-                                              BorderRadius.circular(6),
-                                        ),
-                                        child: Text(
-                                          supplier.supplierCode,
-                                          style: const TextStyle(
-                                            fontWeight: FontWeight.w600,
-                                            fontSize: 12,
-                                            color: Color(0xFF1ABC9C),
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                    DataCell(
-                                      InkWell(
-                                        onTap: () =>
-                                            _showDetailDialog(supplier),
-                                        child: Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          mainAxisAlignment:
-                                              MainAxisAlignment.center,
-                                          children: [
-                                            Text(
-                                              supplier.name,
-                                              style: const TextStyle(
-                                                fontWeight: FontWeight.w600,
-                                                fontSize: 14,
-                                              ),
-                                            ),
-                                            if (supplier.canLogin)
-                                              Container(
-                                                margin: const EdgeInsets.only(
-                                                    top: 4),
-                                                padding:
-                                                    const EdgeInsets.symmetric(
-                                                  horizontal: 8,
-                                                  vertical: 2,
-                                                ),
-                                                decoration: BoxDecoration(
-                                                  color: Colors.blue.shade50,
-                                                  borderRadius:
-                                                      BorderRadius.circular(4),
-                                                ),
-                                                child: Row(
-                                                  mainAxisSize:
-                                                      MainAxisSize.min,
-                                                  children: [
-                                                    Icon(
-                                                      Icons.login,
-                                                      size: 10,
-                                                      color:
-                                                          Colors.blue.shade700,
-                                                    ),
-                                                    const SizedBox(width: 4),
-                                                    Text(
-                                                      'Portal Access',
-                                                      style: TextStyle(
-                                                        fontSize: 10,
-                                                        color: Colors
-                                                            .blue.shade700,
-                                                      ),
-                                                    ),
-                                                  ],
-                                                ),
-                                              ),
-                                          ],
-                                        ),
-                                      ),
-                                    ),
-                                    DataCell(
-                                      Text(
-                                        supplier.contactName ?? '_',
-                                        style: const TextStyle(fontSize: 13),
-                                      ),
-                                    ),
-                                    DataCell(
-                                      Text(
-                                        supplier.phone ?? '_',
-                                        style: const TextStyle(fontSize: 13),
-                                      ),
-                                    ),
-                                    DataCell(
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 12,
-                                          vertical: 6,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          color: supplier.isActive
-                                              ? Colors.green.shade50
-                                              : Colors.red.shade50,
-                                          borderRadius:
-                                              BorderRadius.circular(6),
-                                        ),
-                                        child: Row(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            Icon(
-                                              supplier.isActive
-                                                  ? Icons.check_circle
-                                                  : Icons.cancel,
-                                              size: 14,
-                                              color: supplier.isActive
-                                                  ? Colors.green.shade700
-                                                  : Colors.red.shade700,
-                                            ),
-                                            const SizedBox(width: 4),
-                                            Text(
-                                              supplier.isActive
-                                                  ? 'Active'
-                                                  : 'Inactive',
-                                              style: TextStyle(
-                                                fontSize: 12,
-                                                fontWeight: FontWeight.w600,
-                                                color: supplier.isActive
-                                                    ? Colors.green.shade700
-                                                    : Colors.red.shade700,
-                                              ),
-                                            )
-                                          ],
-                                        ),
-                                      ),
-                                    ),
-                                    DataCell(Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        IconButton(
-                                          icon: const Icon(
-                                              Icons.visibility_outlined,
-                                              size: 20),
-                                          color: Colors.grey.shade600,
-                                          tooltip: 'View',
-                                          onPressed: () =>
-                                              _showDetailDialog(supplier),
-                                        ),
-                                        IconButton(
-                                          icon: const Icon(Icons.edit_outlined,
-                                              size: 20),
-                                          color: Colors.blue.shade600,
-                                          tooltip: 'Edit',
-                                          onPressed: () =>
-                                              _showEditDialog(supplier),
-                                        ),
-                                        IconButton(
-                                          icon: const Icon(
-                                              Icons.delete_outlined,
-                                              size: 20),
-                                          color: Colors.grey.shade600,
-                                          tooltip: 'Delete',
-                                          onPressed: () =>
-                                              _deleteSupplier(supplier),
-                                        ),
-                                      ],
-                                    ))
-                                  ]);
-                                }).toList(),
-                              ),
-                            ),
-                          ),
-                        ),
-                      );
-                    },
-                    loading: () => const Center(
-                      child: CircularProgressIndicator(),
-                    ),
-                    error: (error, stackTrace) => Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const Icon(Icons.error_outline,
-                              size: 64, color: Colors.red),
-                          const SizedBox(height: 16),
-                          ElevatedButton.icon(
-                            onPressed: () {
-                              ref
-                                  .read(supplierNotifierProvider.notifier)
-                                  .refresh();
-                            },
-                            icon: const Icon(Icons.refresh),
-                            label: const Text('Retry'),
-                          )
-                        ],
                       ),
+                    ),
+                    const SizedBox(width: 12),
+                    ElevatedButton.icon(
+                      onPressed: _showCreateDialog,
+                      icon: const Icon(Icons.add, size: 20),
+                      label: const Text('Add Supplier'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF1ABC9C),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 24,
+                          vertical: 16,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+
+                // Filter Chip
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: FilterChip(
+                    label: const Text('Inactive Only'),
+                    selected: _showInactiveOnly,
+                    onSelected: (selected) {
+                      setState(() => _showInactiveOnly = selected);
+                    },
+                    avatar: Icon(
+                      _showInactiveOnly
+                          ? Icons.check_circle
+                          : Icons.circle_outlined,
+                      size: 16,
                     ),
                   ),
                 )
               ],
+            ),
+          ),
+
+          const Divider(height: 1),
+
+          // Supplier Table
+          Expanded(
+            child: suppliersState.when(
+              data: (suppliers) {
+                // Apply filters
+                var filteredSuppliers = suppliers;
+
+                if (_showInactiveOnly) {
+                  filteredSuppliers =
+                      filteredSuppliers.where((s) => !s.isActive).toList();
+                }
+
+                if (filteredSuppliers.isEmpty) {
+                  return Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.business_outlined,
+                          size: 64,
+                          color: Colors.grey.shade400,
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          'No suppliers found',
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: Colors.grey.shade600,
+                          ),
+                        )
+                      ],
+                    ),
+                  );
+                }
+
+                return RefreshIndicator(
+                  onRefresh: () async {
+                    await ref.read(supplierNotifierProvider.notifier).refresh();
+                  },
+                  child: SingleChildScrollView(
+                    scrollDirection: Axis.vertical,
+                    child: SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Container(
+                        margin: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(12),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.05),
+                              blurRadius: 10,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: DataTable(
+                          headingRowHeight: 56,
+                          dataRowMaxHeight: 72,
+                          columnSpacing: 24,
+                          horizontalMargin: 24,
+                          headingRowColor: MaterialStateProperty.all(
+                            const Color(0xFFF8F9FA),
+                          ),
+                          columns: const [
+                            DataColumn(
+                              label: Text(
+                                'CODE',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 13,
+                                ),
+                              ),
+                            ),
+                            DataColumn(
+                              label: Text(
+                                'SUPPLIER NAME',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 13,
+                                ),
+                              ),
+                            ),
+                            DataColumn(
+                              label: Text(
+                                'CONTACT',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 13,
+                                ),
+                              ),
+                            ),
+                            DataColumn(
+                              label: Text(
+                                'PHONE',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 13,
+                                ),
+                              ),
+                            ),
+                            DataColumn(
+                              label: Text(
+                                'STATUS',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 13,
+                                ),
+                              ),
+                            ),
+                            DataColumn(
+                              label: Text(
+                                'ACTIONS',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 13,
+                                ),
+                              ),
+                            ),
+                          ],
+                          rows: filteredSuppliers.map((supplier) {
+                            return DataRow(cells: [
+                              DataCell(
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 6,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF1ABC9C)
+                                        .withOpacity(0.1),
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: Text(
+                                    supplier.supplierCode,
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 12,
+                                      color: Color(0xFF1ABC9C),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              DataCell(
+                                InkWell(
+                                  onTap: () => _showDetailDialog(supplier),
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Text(
+                                        supplier.name,
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.w600,
+                                          fontSize: 14,
+                                        ),
+                                      ),
+                                      if (supplier.canLogin)
+                                        Container(
+                                          margin: const EdgeInsets.only(top: 4),
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 8,
+                                            vertical: 2,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: Colors.blue.shade50,
+                                            borderRadius:
+                                                BorderRadius.circular(4),
+                                          ),
+                                          child: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Icon(
+                                                Icons.login,
+                                                size: 10,
+                                                color: Colors.blue.shade700,
+                                              ),
+                                              const SizedBox(width: 4),
+                                              Text(
+                                                'Portal Access',
+                                                style: TextStyle(
+                                                  fontSize: 10,
+                                                  color: Colors.blue.shade700,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                              DataCell(
+                                Text(
+                                  supplier.contactName ?? '_',
+                                  style: const TextStyle(fontSize: 13),
+                                ),
+                              ),
+                              DataCell(
+                                Text(
+                                  supplier.phone ?? '_',
+                                  style: const TextStyle(fontSize: 13),
+                                ),
+                              ),
+                              DataCell(
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 6,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: supplier.isActive
+                                        ? Colors.green.shade50
+                                        : Colors.red.shade50,
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(
+                                        supplier.isActive
+                                            ? Icons.check_circle
+                                            : Icons.cancel,
+                                        size: 14,
+                                        color: supplier.isActive
+                                            ? Colors.green.shade700
+                                            : Colors.red.shade700,
+                                      ),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        supplier.isActive
+                                            ? 'Active'
+                                            : 'Inactive',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w600,
+                                          color: supplier.isActive
+                                              ? Colors.green.shade700
+                                              : Colors.red.shade700,
+                                        ),
+                                      )
+                                    ],
+                                  ),
+                                ),
+                              ),
+                              DataCell(Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  IconButton(
+                                    icon: const Icon(Icons.visibility_outlined,
+                                        size: 20),
+                                    color: Colors.grey.shade600,
+                                    tooltip: 'View',
+                                    onPressed: () =>
+                                        _showDetailDialog(supplier),
+                                  ),
+                                  IconButton(
+                                    icon: const Icon(Icons.edit_outlined,
+                                        size: 20),
+                                    color: Colors.blue.shade600,
+                                    tooltip: 'Edit',
+                                    onPressed: () => _showEditDialog(supplier),
+                                  ),
+                                  IconButton(
+                                    icon: const Icon(Icons.delete_outlined,
+                                        size: 20),
+                                    color: Colors.grey.shade600,
+                                    tooltip: 'Delete',
+                                    onPressed: () => _deleteSupplier(supplier),
+                                  ),
+                                ],
+                              ))
+                            ]);
+                          }).toList(),
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              },
+              loading: () => const Center(
+                child: CircularProgressIndicator(),
+              ),
+              error: (error, stackTrace) => Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.error_outline,
+                        size: 64, color: Colors.red),
+                    const SizedBox(height: 16),
+                    ElevatedButton.icon(
+                      onPressed: () {
+                        ref.read(supplierNotifierProvider.notifier).refresh();
+                      },
+                      icon: const Icon(Icons.refresh),
+                      label: const Text('Retry'),
+                    )
+                  ],
+                ),
+              ),
             ),
           ),
         ],
