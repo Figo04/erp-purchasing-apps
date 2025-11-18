@@ -1,5 +1,4 @@
 import 'package:equatable/equatable.dart';
-import 'dart:convert';
 
 class ShipmentModel extends Equatable {
   final String id;
@@ -13,11 +12,11 @@ class ShipmentModel extends Equatable {
   final String status;
   final DateTime createdAt;
   final DateTime updatedAt;
-  final List<ShipmentItemModel>? items;
 
   // Additional fields for display
   final String? poNumber;
   final String? supplierName;
+  final List<ShipmentItemModel>? items;
 
   const ShipmentModel({
     required this.id,
@@ -36,6 +35,7 @@ class ShipmentModel extends Equatable {
     this.supplierName,
   });
 
+  // From JSON (Backend Response)
   factory ShipmentModel.fromJson(Map<String, dynamic> json) {
     return ShipmentModel(
       id: json['id'],
@@ -49,30 +49,60 @@ class ShipmentModel extends Equatable {
       status: json['status'],
       createdAt: DateTime.parse(json['created_at']),
       updatedAt: DateTime.parse(json['updated_at']),
+      poNumber: json['po_number'],
+      supplierName: json['supplier_name'],
       items: json['shipment_item'] != null
           ? (json['shipment_item'] as List)
               .map((item) => ShipmentItemModel.fromJson(item))
               .toList()
           : null,
-      poNumber: json['po_number'],
-      supplierName: json['supplier_name'],
     );
   }
 
+  // To JSON (untuk request body)
   Map<String, dynamic> toJson() {
     return {
-      'id': id,
-      'shipment_number': shipmentNumber,
       'po_id': poId,
-      'supplier_id': supplierId,
       'delivery_note_number': deliveryNoteNumber,
-      'shipment_date': shipmentDate.toIso8601String(),
       'notes': notes,
-      'qr_code_data': qrCodeData,
-      'status': status,
-      'created_at': createdAt.toIso8601String(),
-      'updated_at': updatedAt.toIso8601String(),
+      'items': items?.map((item) => item.toJson()).toList(),
     };
+  }
+
+
+  // Copy with
+  ShipmentModel copyWith({
+    String? id,
+    String? shipmentNumber,
+    String? poId,
+    String? supplierId,
+    String? deliveryNoteNumber,
+    DateTime? shipmentDate,
+    String? notes,
+    String? qrCodeData,
+    String? status,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+    String? poNumber,
+    String? supplierName,
+    List<ShipmentItemModel>? items,
+  }) {
+    return ShipmentModel(
+      id: id ?? this.id,
+      shipmentNumber: shipmentNumber ?? this.shipmentNumber,
+      poId: poId ?? this.poId,
+      supplierId: supplierId ?? this.supplierId,
+      deliveryNoteNumber: deliveryNoteNumber ?? this.deliveryNoteNumber,
+      shipmentDate: shipmentDate ?? this.shipmentDate,
+      notes: notes ?? this.notes,
+      qrCodeData: qrCodeData ?? this.qrCodeData,
+      status: status ?? this.status,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      poNumber: poNumber ?? this.poNumber,
+      supplierName: supplierName ?? this.supplierName,
+      items: items ?? this.items,
+    );
   }
 
   @override
@@ -88,53 +118,67 @@ class ShipmentModel extends Equatable {
         status,
         createdAt,
         updatedAt,
-        items,
         poNumber,
         supplierName,
+        items,
       ];
 }
-
 class ShipmentItemModel extends Equatable {
   final String id;
   final String shipmentId;
   final String poItemId;
   final String itemName;
+  final int quantityOrdered;
   final int quantityShipped;
   final String unit;
   final String? notes;
   final DateTime createdAt;
+
+  // Additional fields from backend (JOIN)
+  final String? productId;
+  final String? productCode;
+  final String? categoryId;
+  final String? categoryName;
 
   const ShipmentItemModel({
     required this.id,
     required this.shipmentId,
     required this.poItemId,
     required this.itemName,
+    required this.quantityOrdered,
     required this.quantityShipped,
     required this.unit,
     this.notes,
     required this.createdAt,
+    this.productId,
+    this.productCode,
+    this.categoryId,
+    this.categoryName,
   });
 
   factory ShipmentItemModel.fromJson(Map<String, dynamic> json) {
     return ShipmentItemModel(
-      id: json['id'],
-      shipmentId: json['shipment_id'],
-      poItemId: json['po_item_id'],
-      itemName: json['item_name'],
-      quantityShipped: json['quantity_shipped'],
-      unit: json['unit'] ?? 'pcs',
-      notes: json['notes'],
-      createdAt: DateTime.parse(json['created_at']),
+      id: json['id'] as String,
+      shipmentId: json['shipment_id'] as String,
+      poItemId: json['po_item_id'] as String,
+      itemName: json['item_name'] as String,
+      quantityOrdered: json['quantity_ordered'] as int,
+      quantityShipped: json['quantity_shipped'] as int,
+      unit: json['unit'] as String? ?? 'pcs',
+      notes: json['notes'] as String?,
+      createdAt: DateTime.parse(json['created_at'] as String),
+      productId: json['product_id'] as String?,
+      productCode: json['product_code'] as String?,
+      categoryId: json['category_id'] as String?,
+      categoryName: json['category_name'] as String?,
     );
   }
 
+  /// To JSON (untuk request body)
   Map<String, dynamic> toJson() {
     return {
-      'shipment_id': shipmentId,
       'po_item_id': poItemId,
-      'item_name': itemName,
       'quantity_shipped': quantityShipped,
-      'unit': unit,
       'notes': notes,
     };
   }
@@ -145,93 +189,37 @@ class ShipmentItemModel extends Equatable {
         shipmentId,
         poItemId,
         itemName,
+        quantityOrdered,
         quantityShipped,
         unit,
         notes,
         createdAt,
+        productId,
+        productCode,
+        categoryId,
+        categoryName,
       ];
 }
 
-// QR Code Data Model (yang di-encode ke QR)
-class ShipmentQRData {
-  final String shipmentId;
-  final String shipmentNumber;
-  final String poId;
-  final String poNumber;
-  final String deliveryNoteNumber;
-  final List<ShipmentQRItem> items;
+/// QR Code Scan Result (dari backend scan-qr endpoint)
+class QRScanResult {
+  final ShipmentModel? shipment;
+  final bool valid;
+  final String message;
 
-  ShipmentQRData({
-    required this.shipmentId,
-    required this.shipmentNumber,
-    required this.poId,
-    required this.poNumber,
-    required this.deliveryNoteNumber,
-    required this.items,
+  QRScanResult({
+    this.shipment,
+    required this.valid,
+    required this.message,
   });
 
-  // To JSON untuk QR
-  Map<String, dynamic> toJson() {
-    return {
-      'sid': shipmentId,
-      'sn': shipmentNumber,
-      'pid': poId,
-      'pn': poNumber,
-      'dn': deliveryNoteNumber,
-      'items': items.map((i) => i.toJson()).toList(),
-    };
-  }
-
-  // From JSON dari scan QR
-  factory ShipmentQRData.fromJson(Map<String, dynamic> json) {
-    return ShipmentQRData(
-      shipmentId: json['sid'] ?? '',
-      shipmentNumber: json['sn'] ?? '',
-      poId: json['pid'] ?? '',
-      poNumber: json['pn'] ?? '',
-      deliveryNoteNumber: json['dn'] ?? '',
-      items: (json['items'] as List? ?? [])
-          .map((i) => ShipmentQRItem.fromJson(i))
-          .toList(),
-    );
-  }
-
-  // Encode ke string untuk QR
-  String toQRString() {
-    // ✅ ubah Map jadi JSON valid
-    final jsonString = jsonEncode(toJson());
-
-    // ✅ encode agar aman dipakai di QR (URL-safe)
-    return Uri.encodeComponent(jsonString);
-  }
-}
-
-class ShipmentQRItem {
-  final String poItemId;
-  final String name;
-  final int qty;
-  final String unit;
-
-  ShipmentQRItem({
-    required this.poItemId,
-    required this.name,
-    required this.qty,
-    required this.unit,
-  });
-
-  Map<String, dynamic> toJson() => {
-        'id': poItemId,
-        'n': name,
-        'q': qty,
-        'u': unit,
-      };
-
-  factory ShipmentQRItem.fromJson(Map<String, dynamic> json) {
-    return ShipmentQRItem(
-      poItemId: json['id'],
-      name: json['n'],
-      qty: json['q'],
-      unit: json['u'],
+  factory QRScanResult.fromJson(Map<String, dynamic> json) {
+    return QRScanResult(
+      shipment: json['shipment'] != null
+          ? ShipmentModel.fromJson(json['shipment'] as Map<String, dynamic>)
+          : null,
+      valid: json['valid'] as bool,
+      message: json['message'] as String,
     );
   }
 }

@@ -1,90 +1,90 @@
 import 'dart:convert';
+import 'package:erp_purchasing_apps/core/api/api_response.dart';
+import 'package:erp_purchasing_apps/core/service/api_service.dart';
+import 'package:erp_purchasing_apps/core/constants/api_constants.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:erp_purchasing_apps/data/models/shipment_model.dart';
 
 class ShipmentRepository {
-  final SupabaseClient _supabase = Supabase.instance.client;
+  final ApiService _apiService = ApiService();
 
   // Get all shipments
-  Future<List<ShipmentModel>> getAllShipments() async {
+  Future<List<ShipmentModel>> getAllShipments({
+    String? poId,
+    String? supplierId,
+    String? status,
+    String? search,
+    String? fromDate,
+    String? toDate,
+  }) async {
     try {
-      final response = await _supabase.from('shipment').select('''
-            *,
-            purchase_order!shipment_po_id_fkey(po_number),
-            suppliers!shipment_supplier_id_fkey(name)
-          ''').order('created_at', ascending: false);
+      final queryParams = <String, dynamic>{};
 
-      return (response as List).map((json) {
-        final poData = json['purchase_order'];
-        final SupplierData = json['suppliers'];
+      if (poId != null) queryParams['po_id'] = poId;
+      if (supplierId != null) queryParams['supplier_id'] = supplierId;
+      if (status != null) queryParams['status'] = status;
+      if (search != null) queryParams['search'] = search;
+      if (fromDate != null) queryParams['from_date'] = fromDate;
+      if (toDate != null) queryParams['to_date'] = toDate;
 
-        final Map<String, dynamic> shipmentData = Map.from(json);
-        shipmentData.remove('purchase_order');
-        shipmentData.remove('suppliers');
+      final response = await _apiService.get<List<dynamic>>(
+        ApiEndpoints.shipments,
+        queryParameters: queryParams.isNotEmpty ? queryParams : null,
+        fromJson: (json) => json as List<dynamic>,
+      );
 
-        if (poData != null) {
-          shipmentData['po_number'] = poData['po_number'];
-        }
-        if (SupplierData != null) {
-          shipmentData['supplier_name'] = SupplierData['name'];
-        }
+      if (response.data == null) return [];
 
-        return ShipmentModel.fromJson(shipmentData);
-      }).toList();
+      return response.data!
+          .map((item) => ShipmentModel.fromJson(item as Map<String, dynamic>))
+          .toList();
     } catch (e) {
       throw Exception('Failed to load shipments: $e');
     }
   }
 
-  // Get shipments by supplier (for supplier portal)
-  Future<List<ShipmentModel>> getShipmentsBySupplier(String supplierId) async {
-    try {
-      final response = await _supabase
-          .from('shipment')
-          .select('''
-            *,
-            shipment_item(*),
-            purchase_order!shipment_po_id_fkey(po_number)
-          ''')
-          .eq('supplier_id', supplierId)
-          .order('created_at', ascending: false);
+  // // Get shipments by supplier (for supplier portal)
+  // Future<List<ShipmentModel>> getShipmentsBySupplier(String supplierId) async {
+  //   try {
+  //     final response = await _supabase
+  //         .from('shipment')
+  //         .select('''
+  //           *,
+  //           shipment_item(*),
+  //           purchase_order!shipment_po_id_fkey(po_number)
+  //         ''')
+  //         .eq('supplier_id', supplierId)
+  //         .order('created_at', ascending: false);
 
-      return (response as List).map((json) {
-        final poData = json['purchase_order'];
-        final Map<String, dynamic> shipmentData = Map.from(json);
-        shipmentData.remove('purchase_order');
+  //     return (response as List).map((json) {
+  //       final poData = json['purchase_order'];
+  //       final Map<String, dynamic> shipmentData = Map.from(json);
+  //       shipmentData.remove('purchase_order');
 
-        if (poData != null) {
-          shipmentData['po_number'] = poData['po_number'];
-        }
+  //       if (poData != null) {
+  //         shipmentData['po_number'] = poData['po_number'];
+  //       }
 
-        return ShipmentModel.fromJson(shipmentData);
-      }).toList();
-    } catch (e) {
-      throw Exception('Failed to load supplier shipments: $e');
-    }
-  }
+  //       return ShipmentModel.fromJson(shipmentData);
+  //     }).toList();
+  //   } catch (e) {
+  //     throw Exception('Failed to load supplier shipments: $e');
+  //   }
+  // }
 
   // Get shipment by ID
-  Future<ShipmentModel?> getShipmentById(String id) async {
+  Future<ShipmentModel> getShipmentById(String id) async {
     try {
-      final response = await _supabase.from('shipment').select('''
-            *,
-            shipment_item(*),
-            purchase_order!shipment_po_id_fkey(po_number)
-          ''').eq('id', id).maybeSingle();
+      final response = await _apiService.get<Map<String, dynamic>>(
+        ApiEndpoints.shipmentById(id),
+        fromJson: (json) => json as Map<String, dynamic>,
+      );
 
-      if (response == null) return null;
-
-      final poData = response['purchase_order'];
-      final Map<String, dynamic> shipmentData = Map.from(response);
-      shipmentData.remove('purchase_order');
-
-      if (poData != null) {
-        shipmentData['po_number'] = poData['po_number'];
+      if (response.data == null) {
+        throw Exception('Shipment not found');
       }
 
-      return ShipmentModel.fromJson(shipmentData);
+      return ShipmentModel.fromJson(response.data!);
     } catch (e) {
       throw Exception('Failed to load shipment: $e');
     }
@@ -93,158 +93,127 @@ class ShipmentRepository {
   // Get shipments by PO
   Future<List<ShipmentModel>> getShipmentsByPO(String poId) async {
     try {
-      final response = await _supabase
-          .from('shipment')
-          .select('*, shipment_item(*)')
-          .eq('po_id', poId)
-          .order('created_at', ascending: false);
+      final response = await _apiService.get<List<dynamic>>(
+        ApiEndpoints.shipmentsByPO(poId),
+        fromJson: (json) => json as List<dynamic>,
+      );
 
-      return (response as List)
-          .map((json) => ShipmentModel.fromJson(json))
+      if (response.data == null) return [];
+
+      return response.data!
+          .map((item) => ShipmentModel.fromJson(item as Map<String, dynamic>))
           .toList();
     } catch (e) {
       throw Exception('Failed to load PO shipments: $e');
     }
   }
 
-  // Generate shipment number
-  Future<String> generateShipmentNumber() async {
+  /// Scan QR Code (untuk warehouse)
+  /// Backend akan validate QR code integrity dan return shipment data
+  Future<ShipmentModel> scanQRCode(String qrCodeData) async {
     try {
-      final response = await _supabase.rpc('generate_shipment_number');
-      return response as String;
-    } catch (e) {
-      // Fallback
-      final now = DateTime.now();
-      final res = await _supabase
-          .from('shipment')
-          .select('id')
-          .count(CountOption.exact);
+      final response = await _apiService.post<Map<String, dynamic>>(
+        ApiEndpoints.scanQR,
+        body: {
+          'qr_code_data': qrCodeData,
+        },
+        fromJson: (json) => json as Map<String, dynamic>,
+      );
 
-      final count = res.count;
-      return 'SHP-${now.year}${now.month.toString().padLeft(2, '0')}-${(count + 1).toString().padLeft(4, '0')}';
+      if (response.data == null) {
+        throw Exception('Invalid QR code');
+      }
+
+      return ShipmentModel.fromJson(response.data!);
+    } catch (e) {
+      throw Exception('Failed to scan QR code: $e');
     }
   }
 
-  // 🔥 FIXED: Create shipment dengan QR generation yang benar
+  // Regenerate QR Code (untuk admin/purchasing)
+  Future<ShipmentModel> regenerateQRCode(String shipmentId) async {
+    try {
+      final response = await _apiService.post<Map<String, dynamic>>(
+        ApiEndpoints.regenerateQR(shipmentId),
+        fromJson: (json) => json as Map<String, dynamic>,
+      );
+
+      if (response.data == null) {
+        throw Exception('Failed to regenerate QR code');
+      }
+
+      return ShipmentModel.fromJson(response.data!);
+    } catch (e) {
+      throw Exception('Failed to regenerate QR code: $e');
+    }
+  }
+
+  /// Create shipment (untuk supplier via web portal)
+  /// Note: Ini dipanggil dari web portal, bukan dari desktop app
   Future<ShipmentModel> createShipment({
     required String poId,
-    required String supplierId,
     required String deliveryNoteNumber,
     required List<Map<String, dynamic>> items,
-    DateTime? shipmentDate,
     String? notes,
   }) async {
     try {
-      // Generate shipment number
-      final shipmentNumber = await generateShipmentNumber();
-
-      // Get PO number untuk QR
-      final poResponse = await _supabase
-          .from('purchase_order')
-          .select('po_number')
-          .eq('id', poId)
-          .single();
-
-      // Insert shipment TANPA QR dulu (QR perlu shipmentId)
-      final shipmentResponse = await _supabase
-          .from('shipment')
-          .insert({
-            'shipment_number': shipmentNumber,
-            'po_id': poId,
-            'supplier_id': supplierId,
-            'delivery_note_number': deliveryNoteNumber,
-            'shipment_date': (shipmentDate ?? DateTime.now()).toIso8601String(),
-            'notes': notes,
-            'qr_code_data': null, // Temporary null
-            'status': 'pending',
-          })
-          .select()
-          .single();
-
-      final shipmentId = shipmentResponse['id'];
-
-      // Insert shipment items
-      final itemsData = items.map((item) {
-        return {
-          'shipment_id': shipmentId,
-          'po_item_id': item['po_item_id'],
-          'item_name': item['item_name'],
-          'quantity_shipped': item['quantity_shipped'],
-          'unit': item['unit'] ?? 'pcs',
-          'notes': item['notes'],
-        };
-      }).toList();
-
-      await _supabase.from('shipment_item').insert(itemsData);
-
-      // 🔥 NOW generate QR dengan shipmentId yang sudah ada
-      final qrData = ShipmentQRData(
-        shipmentId: shipmentId, // ✅ FIXED: Ada shipmentId
-        shipmentNumber: shipmentNumber,
-        poId: poId,
-        poNumber: poResponse['po_number'],
-        deliveryNoteNumber: deliveryNoteNumber,
-        items: items.map((item) {
-          return ShipmentQRItem(
-            poItemId: item['po_item_id'],
-            name: item['item_name'],
-            qty: item['quantity_shipped'],
-            unit: item['unit'] ?? 'pcs',
-          );
-        }).toList(),
+      final response = await _apiService.post<Map<String, dynamic>>(
+        ApiEndpoints.shipments,
+        body: {
+          'po_id': poId,
+          'delivery_note_number': deliveryNoteNumber,
+          'items': items,
+          'notes': notes,
+        },
+        fromJson: (json) => json as Map<String, dynamic>,
       );
 
-      final qrString = jsonEncode(qrData.toJson());
+      if (response.data == null) {
+        throw Exception('Failed to create shipment');
+      }
 
-      // Update shipment dengan QR data
-      await _supabase
-          .from('shipment')
-          .update({'qr_code_data': qrString}).eq('id', shipmentId);
-
-      // Get complete shipment
-      final shipment = await getShipmentById(shipmentId);
-      return shipment!;
+      return ShipmentModel.fromJson(response.data!);
     } catch (e) {
       throw Exception('Failed to create shipment: $e');
     }
   }
 
-  // Decode QR data
-  ShipmentQRData decodeQRData(String qrString) {
+  // Update shipment (untuk supplier)
+  Future<ShipmentModel> updateShipment({
+    required String shipmentId,
+    required String deliveryNoteNumber,
+    required List<Map<String, dynamic>> items,
+    String? notes,
+  }) async {
     try {
-      final decoded = jsonDecode(qrString);
-      return ShipmentQRData.fromJson(decoded);
+      final response = await _apiService.put<Map<String, dynamic>>(
+        ApiEndpoints.shipmentById(shipmentId),
+        body: {
+          'delivery_note_number': deliveryNoteNumber,
+          'items': items,
+          'notes': notes,
+        },
+        fromJson: (json) => json as Map<String, dynamic>,
+      );
+
+      if (response.data == null) {
+        throw Exception('Failed to update shipment');
+      }
+
+      return ShipmentModel.fromJson(response.data!);
     } catch (e) {
-      throw Exception('Invalid QR code: $e');
+      throw Exception('Failed to update shipment: $e');
     }
   }
 
-  // Update shipment status (dari warehouse setelah scan)
-  Future<void> updateShipmentStatus(String shipmentId, String status) async {
+  // Delete shipment (untuk supplier, only pending status)
+  Future<void> deleteShipment(String shipmentId) async {
     try {
-      await _supabase.from('shipment').update({
-        'status': status,
-        'updated_at': DateTime.now().toIso8601String(),
-      }).eq('id', shipmentId);
+      await _apiService.delete(
+        ApiEndpoints.shipmentById(shipmentId),
+      );
     } catch (e) {
-      throw Exception('Failed to update shipment status: $e');
-    }
-  }
-
-  // Get shipment by delivery note number (untuk validasi)
-  Future<ShipmentModel?> getShipmentByDeliveryNote(
-      String deliveryNoteNumber) async {
-    try {
-      final response = await _supabase
-          .from('shipment')
-          .select('*, shipment_item(*)')
-          .eq('delivery_note_number', deliveryNoteNumber)
-          .maybeSingle();
-
-      if (response == null) return null;
-      return ShipmentModel.fromJson(response);
-    } catch (e) {
-      throw Exception('Failed to find shipment: $e');
+      throw Exception('Failed to delete shipment: $e');
     }
   }
 }

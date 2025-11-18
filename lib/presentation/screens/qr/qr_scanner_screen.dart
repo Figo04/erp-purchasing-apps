@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:mobile_scanner/mobile_scanner.dart';
+import 'package:erp_purchasing_apps/data/providers/shipment_provider.dart';
+import 'package:erp_purchasing_apps/presentation/screens/qr/shipment_verification_screen.dart';
 import 'package:erp_purchasing_apps/data/repositories/shipment_repository.dart';
-import 'package:erp_purchasing_apps/presentation/screens/qr/goods_receipt_from_qr_screen.dart';
 
 class QRScannerScreen extends ConsumerStatefulWidget {
   const QRScannerScreen({super.key});
@@ -12,54 +12,80 @@ class QRScannerScreen extends ConsumerStatefulWidget {
 }
 
 class _QRScannerScreenState extends ConsumerState<QRScannerScreen> {
-  MobileScannerController cameraController = MobileScannerController();
+  final TextEditingController _qrController = TextEditingController();
+  final FocusNode _qrFocusNode = FocusNode();
   bool _isProcessing = false;
+  String? _errorMessage;
+
+  @override
+  void initState() {
+    super.initState();
+    // Auto-focus ke input field
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _qrFocusNode.requestFocus();
+    });
+  }
 
   @override
   void dispose() {
-    cameraController.dispose();
+    _qrController.dispose();
+    _qrFocusNode.dispose();
     super.dispose();
   }
 
-  void _onDetect(BarcodeCapture capture) async {
-    if (_isProcessing) return;
+  // Handle QR scan from USB scanner
+  Future<void> _handleScan(String qrData) async {
+    if (_isProcessing || qrData.trim().isEmpty) return;
 
-    final List<Barcode> barcodes = capture.barcodes;
-    if (barcodes.isEmpty) return;
-
-    final String? code = barcodes.first.rawValue;
-    if (code == null || code.isEmpty) return;
-
-    setState(() => _isProcessing = true);
+    setState(() {
+      _isProcessing = true;
+      _errorMessage = null;
+    });
 
     try {
-      // Decode QR data
-      final repo = ShipmentRepository();
-      final qrData = repo.decodeQRData(code);
+      // Scan QR via backend (validates integrity)
+      final shipment =
+          await ref.read(shipmentDetailProvider.notifier).scanQR(qrData.trim());
 
-      // Navigate to receipt form with pre-filled data
+      if (shipment == null) {
+        // Error dari provider
+        final error = ref.read(shipmentDetailProvider).error;
+        setState(() {
+          _errorMessage = error ?? 'Failed to scan QR code';
+          _isProcessing = false;
+        });
+        return;
+      }
+
+      // navigate to verification screen
       if (mounted) {
         await Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => GoodsReceiptFromQRScreen(qrData: qrData),
-          ),
-        );
+            context,
+            MaterialPageRoute(
+              builder: (context) =>
+                  ShipmentVerificationScreen(shipment: shipment),
+            ));
+
+        // Clear input
+        _qrController.clear();
+        _qrFocusNode.requestFocus();
       }
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Invalid QR Code: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
+      setState(() {
+        _errorMessage = e.toString();
+      });
     } finally {
       if (mounted) {
-        setState(() => _isProcessing = false);
+        setState(() {
+          _isProcessing = false;
+        });
       }
     }
+  }
+
+  // Manual submit
+  void _handleManualSubmit() {
+    _handleScan(_qrController.text);
   }
 
   @override
@@ -67,155 +93,233 @@ class _QRScannerScreenState extends ConsumerState<QRScannerScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Scan Delivery QR Code'),
-        actions: [
-          IconButton(
-            icon: Icon(
-              cameraController.torchEnabled ? Icons.flash_on : Icons.flash_off,
-              color:
-                  cameraController.torchEnabled ? Colors.yellow : Colors.grey,
-            ),
-            onPressed: () => cameraController.toggleTorch(),
-          ),
-          IconButton(
-            icon: const Icon(Icons.cameraswitch),
-            onPressed: () => cameraController.switchCamera(),
-          ),
-        ],
+        backgroundColor: Colors.blue,
+        foregroundColor: Colors.white,
+        actions: [],
       ),
-      body: Stack(
-        children: [
-          // Camera Preview
-          MobileScanner(
-            controller: cameraController,
-            onDetect: _onDetect,
-          ),
-
-          // Overlay with scanning area
-          CustomPaint(
-            painter: ScannerOverlay(),
-            child: Container(),
-          ),
-
-          // Instructions
-          Positioned(
-            bottom: 100,
-            left: 0,
-            right: 0,
-            child: Container(
-              margin: const EdgeInsets.symmetric(horizontal: 24),
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.black.withOpacity(0.7),
-                borderRadius: BorderRadius.circular(12),
+      body: Center(
+        child: Container(
+          constraints: const BoxConstraints(maxWidth: 600),
+          padding: const EdgeInsets.all(32),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // Icon Scanner
+              Icon(
+                _isProcessing ? Icons.hourglass_bottom : Icons.qr_code_scanner,
+                size: 120,
+                color: _errorMessage != null
+                    ? Colors.red
+                    : _isProcessing
+                        ? Colors.orange
+                        : Colors.blue,
               ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    _isProcessing
-                        ? Icons.hourglass_bottom
-                        : Icons.qr_code_scanner,
-                    color: Colors.white,
-                    size: 32,
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    _isProcessing
-                        ? 'Processing...'
-                        : 'Position QR code within the frame',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 14,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                ],
-              ),
-            ),
-          ),
+              const SizedBox(height: 32),
 
-          // Loading indicator
-          if (_isProcessing)
-            Container(
-              color: Colors.black.withOpacity(0.5),
-              child: const Center(
-                child: CircularProgressIndicator(
-                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+              // Title
+              Text(
+                _isProcessing ? 'Processing...' : 'Ready to Scan Delivery Note',
+                style: const TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 16),
+
+              // Instructions
+              Text(
+                _isProcessing
+                    ? 'Please wait...'
+                    : 'Use your barcode scanner to scan the QR code on the delivery note.',
+                style: TextStyle(
+                  fontSize: 16,
+                  color: Colors.grey[600],
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 48),
+
+              // QR Input Field (auto-submit ketika scanner selesai)
+              TextField(
+                controller: _qrController,
+                focusNode: _qrFocusNode,
+                enabled: !_isProcessing,
+                autofocus: true,
+                decoration: InputDecoration(
+                  labelText: 'QR Code Data',
+                  hintText: 'Scan or paste QR code here...',
+                  border: const OutlineInputBorder(),
+                  prefixIcon: const Icon(Icons.qr_code),
+                  suffixIcon: _qrController.text.isNotEmpty && !_isProcessing
+                      ? IconButton(
+                          icon: const Icon(Icons.clear),
+                          onPressed: () {
+                            _qrController.clear();
+                            setState(() {
+                              _errorMessage = null;
+                            });
+                          },
+                        )
+                      : null,
+                ),
+                onSubmitted: (value) {
+                  _handleScan(value);
+                },
+                onChanged: (value) {
+                  if (_errorMessage != null) {
+                    setState(() {
+                      _errorMessage = null;
+                    });
+                  }
+                },
+              ),
+              const SizedBox(height: 16),
+
+              // Manual Submit Button
+              ElevatedButton.icon(
+                onPressed: _isProcessing || _qrController.text.trim().isEmpty
+                    ? null
+                    : _handleManualSubmit,
+                icon: _isProcessing
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor:
+                              AlwaysStoppedAnimation<Color>(Colors.white),
+                        ),
+                      )
+                    : const Icon(Icons.search),
+                label: Text(_isProcessing ? 'Processing...' : 'Verify QR Code'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.blue,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  textStyle: const TextStyle(
+                      fontSize: 16, fontWeight: FontWeight.bold),
                 ),
               ),
+
+              // Error Message
+              if (_errorMessage != null) ...[
+                const SizedBox(height: 24),
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.red.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.red.shade300),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.error_outline, color: Colors.red.shade700),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          _errorMessage!,
+                          style: TextStyle(
+                            color: Colors.red.shade700,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+
+              const SizedBox(height: 48),
+
+              // Divider
+              Row(
+                children: [
+                  const Expanded(child: Divider()),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Text(
+                      'Troubleshooting',
+                      style: TextStyle(
+                        color: Colors.grey[600],
+                        fontSize: 12,
+                      ),
+                    ),
+                  ),
+                  const Expanded(child: Divider()),
+                ],
+              ),
+              const SizedBox(height: 16),
+
+              // Tips
+              _buildTipCard(
+                icon: Icons.usb,
+                title: 'Scanner Not Working?',
+                description:
+                    'Make sure your USB barcode scanner is connected and this window is focused.',
+              ),
+              const SizedBox(height: 12),
+              _buildTipCard(
+                icon: Icons.content_paste,
+                title: 'Manual Entry',
+                description:
+                    'You can also paste the QR code data manually if needed.',
+              ),
+              const SizedBox(height: 12),
+              _buildTipCard(
+                icon: Icons.refresh,
+                title: 'invalid QR Code',
+                description:
+                    'Ask supplier to regenerate QR code from their portal.',
+              )
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTipCard({
+    required IconData icon,
+    required String title,
+    required String description,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.grey.shade100,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 20, color: Colors.grey[700]),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 12,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  description,
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: Colors.grey[700],
+                  ),
+                ),
+              ],
             ),
+          ),
         ],
       ),
     );
   }
-}
-
-// Custom painter for scanner overlay
-class ScannerOverlay extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final double scanAreaSize = size.width * 0.7;
-    final double left = (size.width - scanAreaSize) / 2;
-    final double top = (size.height - scanAreaSize) / 2;
-
-    // Dark overlay
-    final backgroundPaint = Paint()
-      ..color = Colors.black.withOpacity(0.5)
-      ..style = PaintingStyle.fill;
-
-    canvas.drawRect(
-        Rect.fromLTWH(0, 0, size.width, size.height), backgroundPaint);
-
-    // Clear scan area
-    final clearPaint = Paint()
-      ..color = Colors.transparent
-      ..blendMode = BlendMode.clear;
-
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(
-        Rect.fromLTWH(left, top, scanAreaSize, scanAreaSize),
-        const Radius.circular(12),
-      ),
-      clearPaint,
-    );
-
-    // Corner borders
-    final borderPaint = Paint()
-      ..color = Colors.white
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 4;
-
-    const cornerLength = 30.0;
-
-    // Top-left
-    canvas.drawLine(
-        Offset(left, top), Offset(left + cornerLength, top), borderPaint);
-    canvas.drawLine(
-        Offset(left, top), Offset(left, top + cornerLength), borderPaint);
-
-    // Top-right
-    canvas.drawLine(Offset(left + scanAreaSize, top),
-        Offset(left + scanAreaSize - cornerLength, top), borderPaint);
-    canvas.drawLine(Offset(left + scanAreaSize, top),
-        Offset(left + scanAreaSize, top + cornerLength), borderPaint);
-
-    // Bottom-left
-    canvas.drawLine(Offset(left, top + scanAreaSize),
-        Offset(left + cornerLength, top + scanAreaSize), borderPaint);
-    canvas.drawLine(Offset(left, top + scanAreaSize),
-        Offset(left, top + scanAreaSize - cornerLength), borderPaint);
-
-    // Bottom-right
-    canvas.drawLine(
-        Offset(left + scanAreaSize, top + scanAreaSize),
-        Offset(left + scanAreaSize - cornerLength, top + scanAreaSize),
-        borderPaint);
-    canvas.drawLine(
-        Offset(left + scanAreaSize, top + scanAreaSize),
-        Offset(left + scanAreaSize, top + scanAreaSize - cornerLength),
-        borderPaint);
-  }
-
-  @override
-  bool shouldRepaint(CustomPainter oldDelegate) => false;
 }
