@@ -1,19 +1,22 @@
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:erp_purchasing_apps/core/service/api_service.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:erp_purchasing_apps/data/repositories/product_assessment_repository.dart';
 import 'package:erp_purchasing_apps/data/models/product_assessment_model.dart';
 import 'package:flutter_riverpod/legacy.dart';
 
 /// Product Assessment Repository Provider
-final productAssessmentRepositoryProvider = Provider<ProductAssessmentRepository>((ref) {
+final productAssessmentRepositoryProvider =
+    Provider<ProductAssessmentRepository>((ref) {
   return ProductAssessmentRepository(ApiService());
 });
 
 /// Product Assessment Notifier
-class ProductAssessmentNotifier extends StateNotifier<AsyncValue<List<ProductAssessmentModel>>> {
+class ProductAssessmentNotifier
+    extends StateNotifier<AsyncValue<List<ProductAssessmentModel>>> {
   final ProductAssessmentRepository _repository;
 
-  ProductAssessmentNotifier(this._repository) : super(const AsyncValue.loading()) {
+  ProductAssessmentNotifier(this._repository)
+      : super(const AsyncValue.loading()) {
     loadAssessments();
   }
 
@@ -45,7 +48,8 @@ class ProductAssessmentNotifier extends StateNotifier<AsyncValue<List<ProductAss
   }
 
   /// Update product assessment
-  Future<void> updateAssessment(String id, UpdateProductAssessmentRequest request) async {
+  Future<void> updateAssessment(
+      String id, UpdateProductAssessmentRequest request) async {
     await _repository.updateProductAssessment(id, request);
     await refresh();
   }
@@ -62,9 +66,11 @@ class ProductAssessmentNotifier extends StateNotifier<AsyncValue<List<ProductAss
     await refresh();
   }
 
-  /// Approve assessment (admin)
+  /// Approve assessment (admin/kadiv)
+  /// Backend auto-generates product code
   Future<void> approveAssessment(String id, {String? notes}) async {
-    await _repository.approveProductAssessment(id, notes: notes);
+    await _repository.approveProductAssessment(id,
+        notes: notes); // ← NO PRODUCT CODE
     await refresh();
   }
 
@@ -76,8 +82,8 @@ class ProductAssessmentNotifier extends StateNotifier<AsyncValue<List<ProductAss
 }
 
 /// Product Assessment State Provider
-final productAssessmentNotifierProvider =
-    StateNotifierProvider<ProductAssessmentNotifier, AsyncValue<List<ProductAssessmentModel>>>((ref) {
+final productAssessmentNotifierProvider = StateNotifierProvider<
+    ProductAssessmentNotifier, AsyncValue<List<ProductAssessmentModel>>>((ref) {
   final repository = ref.watch(productAssessmentRepositoryProvider);
   return ProductAssessmentNotifier(repository);
 });
@@ -86,10 +92,12 @@ final productAssessmentNotifierProvider =
 final productAssessmentSearchQueryProvider = StateProvider<String>((ref) => '');
 
 /// Status Filter Provider
-final productAssessmentStatusFilterProvider = StateProvider<String?>((ref) => null);
+final productAssessmentStatusFilterProvider =
+    StateProvider<String?>((ref) => null);
 
 /// Filtered Product Assessments Provider
-final filteredProductAssessmentsProvider = Provider<AsyncValue<List<ProductAssessmentModel>>>((ref) {
+final filteredProductAssessmentsProvider =
+    Provider<AsyncValue<List<ProductAssessmentModel>>>((ref) {
   final assessmentsAsync = ref.watch(productAssessmentNotifierProvider);
   final searchQuery = ref.watch(productAssessmentSearchQueryProvider);
   final statusFilter = ref.watch(productAssessmentStatusFilterProvider);
@@ -100,14 +108,21 @@ final filteredProductAssessmentsProvider = Provider<AsyncValue<List<ProductAsses
     // Apply search filter
     if (searchQuery.isNotEmpty) {
       filtered = filtered.where((assessment) {
-        return assessment.productName.toLowerCase().contains(searchQuery.toLowerCase()) ||
-            (assessment.categoryName?.toLowerCase().contains(searchQuery.toLowerCase()) ?? false);
+        return assessment.productName
+                .toLowerCase()
+                .contains(searchQuery.toLowerCase()) ||
+            (assessment.categoryName
+                    ?.toLowerCase()
+                    .contains(searchQuery.toLowerCase()) ??
+                false);
       }).toList();
     }
 
     // Apply status filter
     if (statusFilter != null) {
-      filtered = filtered.where((assessment) => assessment.status == statusFilter).toList();
+      filtered = filtered
+          .where((assessment) => assessment.status == statusFilter)
+          .toList();
     }
 
     return filtered;

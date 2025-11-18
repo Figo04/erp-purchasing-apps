@@ -1,15 +1,15 @@
-import 'package:erp_purchasing_apps/core/service/api_service.dart';
 import 'package:erp_purchasing_apps/core/constants/api_constants.dart';
+import 'package:erp_purchasing_apps/core/service/api_service.dart';
 import 'package:erp_purchasing_apps/data/models/product_assessment_model.dart';
 
-// Product Assessment Repository
-// Handles API calls for product assessment operations
+/// Product Assessment Repository
+/// Handles API calls for product assessment operations
 class ProductAssessmentRepository {
   final ApiService _apiService;
 
   ProductAssessmentRepository(this._apiService);
 
-  // Get all product assessments
+  /// Get all product assessments
   Future<List<ProductAssessmentModel>> getAllProductAssessments({
     String? status,
     String? search,
@@ -63,7 +63,7 @@ class ProductAssessmentRepository {
     return ProductAssessmentModel.fromJson(response.data!);
   }
 
-  // Update product assessment (only requester can update)
+  /// Update product assessment (only requester can update)
   Future<ProductAssessmentModel> updateProductAssessment(
     String id,
     UpdateProductAssessmentRequest request,
@@ -81,14 +81,14 @@ class ProductAssessmentRepository {
     return ProductAssessmentModel.fromJson(response.data!);
   }
 
-  // Delete product assessment
+  /// Delete product assessment (only requester can delete)
   Future<void> deleteProductAssessment(String id) async {
     await _apiService.delete(
       ApiEndpoints.productAssessmentById(id),
     );
   }
 
-  // Verify product assessment
+  /// Verify product assessment (warehouse/logistik role)
   Future<ProductAssessmentModel> verifyProductAssessment(
     String id, {
     String? notes,
@@ -103,10 +103,19 @@ class ProductAssessmentRepository {
       throw Exception('Failed to verify product assessment');
     }
 
-    return ProductAssessmentModel.fromJson(response.data!);
+    // ✅ Same fix for consistency
+    final data = response.data!;
+
+    if (data.containsKey('assessment')) {
+      return ProductAssessmentModel.fromJson(
+          data['assessment'] as Map<String, dynamic>);
+    }
+
+    return ProductAssessmentModel.fromJson(data);
   }
 
-  // Approve product assessment (admin role)
+  /// Approve product assessment (admin/kadiv role)
+  /// Backend will auto-generate product code
   Future<ProductAssessmentModel> approveProductAssessment(
     String id, {
     String? notes,
@@ -121,10 +130,19 @@ class ProductAssessmentRepository {
       throw Exception('Failed to approve product assessment');
     }
 
-    return ProductAssessmentModel.fromJson(response.data!);
+    final data = response.data!;
+
+    if (data.containsKey('assessment')) {
+      // Nested structure from approve endpoint
+      return ProductAssessmentModel.fromJson(
+          data['assessment'] as Map<String, dynamic>);
+    }
+
+    // Fallback for direct structure (should not happen, but safe)
+    return ProductAssessmentModel.fromJson(data);
   }
 
-  // Reject product assessment 
+  /// Reject product assessment (admin or warehouse role)
   Future<ProductAssessmentModel> rejectProductAssessment(
     String id,
     String rejectionReason,

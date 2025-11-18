@@ -39,7 +39,7 @@ class RBACHelper {
     'assessment_product': ['admin', 'kadiv'],
 
     // Master Product - Admin, Kadiv
-    'master_product': ['admin'],
+    'master_product': ['admin', 'finance'],
 
     // Goods Receipt (LPB) -Admin, Warehouse, Purchasing
     'receipt': ['admin', 'warehouse', 'purchasing'],

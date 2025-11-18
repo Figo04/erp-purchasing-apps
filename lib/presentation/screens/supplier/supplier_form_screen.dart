@@ -1,3 +1,6 @@
+import 'package:erp_purchasing_apps/data/models/supplier_assessment_model.dart';
+import 'package:erp_purchasing_apps/data/providers/auth_providers.dart';
+import 'package:erp_purchasing_apps/data/providers/supplier_assessment_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -72,10 +75,14 @@ class _SupplierFormScreenState extends ConsumerState<SupplierFormScreen> {
     setState(() => _isLoading = true);
 
     try {
-      final notifier = ref.read(supplierNotifierProvider.notifier);
+      final currentUser = ref.read(currentUserProvider);
+      final canDirectCreate = currentUser?.role == 'admin';
 
-      if (widget.supplier == null) {
-        // Create
+       if (widget.supplier == null) {
+      // Create
+      if (canDirectCreate) {
+        // Admin Langsung create ke master
+        final notifier = ref.read(supplierNotifierProvider.notifier);
         await notifier.createSupplier(
           CreateSupplierRequest(
             supplierCode: _supplierCodeController.text.trim(),
@@ -99,12 +106,11 @@ class _SupplierFormScreenState extends ConsumerState<SupplierFormScreen> {
           ),
         );
       } else {
-        // Update
-        await notifier.updateSupplier(
-          widget.supplier!.id,
-          UpdateSupplierRequest(
-            supplierCode: _supplierCodeController.text.trim(),
-            name: _nameController.text.trim(),
+        // User biasa: Create assessment request
+        final assessmentNotifier = ref.read(supplierAssessmentNotifierProvider.notifier);
+        await assessmentNotifier.createAssessment(
+          CreateSupplierAssessmentRequest(
+            supplierName: _nameController.text.trim(),
             contactName: _contactNameController.text.trim().isEmpty
                 ? null
                 : _contactNameController.text.trim(),
@@ -117,11 +123,6 @@ class _SupplierFormScreenState extends ConsumerState<SupplierFormScreen> {
             address: _addressController.text.trim().isEmpty
                 ? null
                 : _addressController.text.trim(),
-            authEmail: _canLogin && _authEmailController.text.trim().isNotEmpty
-                ? _authEmailController.text.trim()
-                : null,
-            canLogin: _canLogin,
-            isActive: _isActive,
           ),
         );
       }
@@ -131,29 +132,67 @@ class _SupplierFormScreenState extends ConsumerState<SupplierFormScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              widget.supplier == null
+              canDirectCreate
                   ? 'Supplier created successfully'
-                  : 'Supplier updated successfully',
+                  : 'Supplier assessment request submitted. Waiting for approval.',
             ),
             backgroundColor: Colors.green,
           ),
         );
       }
-    } catch (e) {
+    } else {
+      // Update (unchanged)
+      final notifier = ref.read(supplierNotifierProvider.notifier);
+      await notifier.updateSupplier(
+        widget.supplier!.id,
+        UpdateSupplierRequest(
+          supplierCode: _supplierCodeController.text.trim(),
+          name: _nameController.text.trim(),
+          contactName: _contactNameController.text.trim().isEmpty
+              ? null
+              : _contactNameController.text.trim(),
+          phone: _phoneController.text.trim().isEmpty
+              ? null
+              : _phoneController.text.trim(),
+          email: _emailController.text.trim().isEmpty
+              ? null
+              : _emailController.text.trim(),
+          address: _addressController.text.trim().isEmpty
+              ? null
+              : _addressController.text.trim(),
+          authEmail: _canLogin && _authEmailController.text.trim().isNotEmpty
+              ? _authEmailController.text.trim()
+              : null,
+          canLogin: _canLogin,
+          isActive: _isActive,
+        ),
+      );
+
       if (mounted) {
+        Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed: $e'),
-            backgroundColor: Colors.red,
+          const SnackBar(
+            content: Text('Supplier updated successfully'),
+            backgroundColor: Colors.green,
           ),
         );
       }
-    } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
+    }
+  } catch (e) {
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  } finally {
+    if (mounted) {
+      setState(() => _isLoading = false);
     }
   }
+}
 
   @override
   Widget build(BuildContext context) {
@@ -265,9 +304,11 @@ class _SupplierFormScreenState extends ConsumerState<SupplierFormScreen> {
                         // Portal Access Switch
                         SwitchListTile(
                           title: const Text('Allow Portal Access'),
-                          subtitle: const Text('Supplier can login and create shipments'),
+                          subtitle: const Text(
+                              'Supplier can login and create shipments'),
                           value: _canLogin,
-                          onChanged: (value) => setState(() => _canLogin = value),
+                          onChanged: (value) =>
+                              setState(() => _canLogin = value),
                         ),
 
                         // Auth Email (if can login)
@@ -282,7 +323,8 @@ class _SupplierFormScreenState extends ConsumerState<SupplierFormScreen> {
                             ),
                             keyboardType: TextInputType.emailAddress,
                             validator: (value) {
-                              if (_canLogin && (value == null || value.isEmpty)) {
+                              if (_canLogin &&
+                                  (value == null || value.isEmpty)) {
                                 return 'Portal email is required';
                               }
                               if (_canLogin && !value!.contains('@')) {
@@ -299,7 +341,8 @@ class _SupplierFormScreenState extends ConsumerState<SupplierFormScreen> {
                           SwitchListTile(
                             title: const Text('Active'),
                             value: _isActive,
-                            onChanged: (value) => setState(() => _isActive = value),
+                            onChanged: (value) =>
+                                setState(() => _isActive = value),
                           ),
                         ],
                       ],
@@ -314,7 +357,8 @@ class _SupplierFormScreenState extends ConsumerState<SupplierFormScreen> {
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
                     TextButton(
-                      onPressed: _isLoading ? null : () => Navigator.pop(context),
+                      onPressed:
+                          _isLoading ? null : () => Navigator.pop(context),
                       child: const Text('Cancel'),
                     ),
                     const SizedBox(width: 12),

@@ -1,13 +1,12 @@
-/// Product Assessment Model
-/// Represents product assessment request for approval before creating master product
-class ProductAssessmentModel {
+/// Supplier Assessment Model
+/// Represents supplier assessment request for approval before creating master supplier
+class SupplierAssessmentModel {
   final String id;
-  final String productName;
-  final String categoryId;
-  final String? categoryName;
-  final String unit;
-  final String? description;
-  final String? specifications;
+  final String supplierName;
+  final String? contactName;
+  final String? phone;
+  final String? email;
+  final String? address;
   final String requesterId;
   final String? requesterName;
   final String status; // pending, verified, approved, rejected
@@ -22,14 +21,13 @@ class ProductAssessmentModel {
   final DateTime createdAt;
   final DateTime updatedAt;
 
-  ProductAssessmentModel({
+  SupplierAssessmentModel({
     required this.id,
-    required this.productName,
-    required this.categoryId,
-    this.categoryName,
-    required this.unit,
-    this.description,
-    this.specifications,
+    required this.supplierName,
+    this.contactName,
+    this.phone,
+    this.email,
+    this.address,
     required this.requesterId,
     this.requesterName,
     required this.status,
@@ -45,15 +43,14 @@ class ProductAssessmentModel {
     required this.updatedAt,
   });
 
-  factory ProductAssessmentModel.fromJson(Map<String, dynamic> json) {
-    return ProductAssessmentModel(
+  factory SupplierAssessmentModel.fromJson(Map<String, dynamic> json) {
+    return SupplierAssessmentModel(
       id: json['id'] as String,
-      productName: json['product_name'] as String,
-      categoryId: json['category_id'] as String,
-      categoryName: json['category_name'] as String?,
-      unit: json['unit'] as String? ?? 'pcs',
-      description: json['description'] as String?,
-      specifications: json['specifications'] as String?,
+      supplierName: json['supplier_name'] as String,
+      contactName: json['contact_name'] as String?,
+      phone: json['phone'] as String?,
+      email: json['email'] as String?,
+      address: json['address'] as String?,
       requesterId: json['requester_id'] as String,
       requesterName: json['requester_name'] as String?,
       status: json['status'] as String? ?? 'pending',
@@ -77,12 +74,11 @@ class ProductAssessmentModel {
   Map<String, dynamic> toJson() {
     return {
       'id': id,
-      'product_name': productName,
-      'category_id': categoryId,
-      'category_name': categoryName,
-      'unit': unit,
-      'description': description,
-      'specifications': specifications,
+      'supplier_name': supplierName,
+      'contact_name': contactName,
+      'phone': phone,
+      'email': email,
+      'address': address,
       'requester_id': requesterId,
       'requester_name': requesterName,
       'status': status,
@@ -105,14 +101,13 @@ class ProductAssessmentModel {
   bool get isApproved => status == 'approved';
   bool get isRejected => status == 'rejected';
 
-  ProductAssessmentModel copyWith({
+  SupplierAssessmentModel copyWith({
     String? id,
-    String? productName,
-    String? categoryId,
-    String? categoryName,
-    String? unit,
-    String? description,
-    String? specifications,
+    String? supplierName,
+    String? contactName,
+    String? phone,
+    String? email,
+    String? address,
     String? requesterId,
     String? requesterName,
     String? status,
@@ -127,14 +122,13 @@ class ProductAssessmentModel {
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
-    return ProductAssessmentModel(
+    return SupplierAssessmentModel(
       id: id ?? this.id,
-      productName: productName ?? this.productName,
-      categoryId: categoryId ?? this.categoryId,
-      categoryName: categoryName ?? this.categoryName,
-      unit: unit ?? this.unit,
-      description: description ?? this.description,
-      specifications: specifications ?? this.specifications,
+      supplierName: supplierName ?? this.supplierName,
+      contactName: contactName ?? this.contactName,
+      phone: phone ?? this.phone,
+      email: email ?? this.email,
+      address: address ?? this.address,
       requesterId: requesterId ?? this.requesterId,
       requesterName: requesterName ?? this.requesterName,
       status: status ?? this.status,
@@ -152,72 +146,72 @@ class ProductAssessmentModel {
   }
 }
 
-/// Create Product Assessment Request
-class CreateProductAssessmentRequest {
-  final String productName;
-  final String categoryId;
-  final String unit;
-  final String? description;
-  final String? specifications;
+/// Create Supplier Assessment Request
+class CreateSupplierAssessmentRequest {
+  final String supplierName;
+  final String? contactName;
+  final String? phone;
+  final String? email;
+  final String? address;
   final String? notes;
 
-  CreateProductAssessmentRequest({
-    required this.productName,
-    required this.categoryId,
-    this.unit = 'pcs',
-    this.description,
-    this.specifications,
+  CreateSupplierAssessmentRequest({
+    required this.supplierName,
+    this.contactName,
+    this.phone,
+    this.email,
+    this.address,
     this.notes,
   });
 
   Map<String, dynamic> toJson() {
     return {
-      'product_name': productName,
-      'category_id': categoryId,
-      'unit': unit,
-      if (description != null) 'description': description,
-      if (specifications != null) 'specifications': specifications,
+      'supplier_name': supplierName,
+      if (contactName != null) 'contact_name': contactName,
+      if (phone != null) 'phone': phone,
+      if (email != null) 'email': email,
+      if (address != null) 'address': address,
       if (notes != null) 'notes': notes,
     };
   }
 }
 
-/// Update Product Assessment Request
-class UpdateProductAssessmentRequest {
-  final String productName;
-  final String categoryId;
-  final String unit;
-  final String? description;
-  final String? specifications;
+/// Update Supplier Assessment Request
+class UpdateSupplierAssessmentRequest {
+  final String supplierName;
+  final String? contactName;
+  final String? phone;
+  final String? email;
+  final String? address;
   final String? notes;
 
-  UpdateProductAssessmentRequest({
-    required this.productName,
-    required this.categoryId,
-    required this.unit,
-    this.description,
-    this.specifications,
+  UpdateSupplierAssessmentRequest({
+    required this.supplierName,
+    this.contactName,
+    this.phone,
+    this.email,
+    this.address,
     this.notes,
   });
 
   Map<String, dynamic> toJson() {
     return {
-      'product_name': productName,
-      'category_id': categoryId,
-      'unit': unit,
-      if (description != null) 'description': description,
-      if (specifications != null) 'specifications': specifications,
+      'supplier_name': supplierName,
+      if (contactName != null) 'contact_name': contactName,
+      if (phone != null) 'phone': phone,
+      if (email != null) 'email': email,
+      if (address != null) 'address': address,
       if (notes != null) 'notes': notes,
     };
   }
 }
 
-/// Verify/Reject Request (SIMPLIFIED - NO PRODUCT CODE)
-class AssessmentActionRequest {
+/// Assessment Action Request (for verify/reject)
+class SupplierAssessmentActionRequest {
   final String? notes;
   final String? rejectionReason;
 
-  AssessmentActionRequest({
+  SupplierAssessmentActionRequest({
     this.notes,
     this.rejectionReason,
   });

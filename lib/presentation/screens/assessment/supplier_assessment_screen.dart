@@ -2,32 +2,31 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
-import 'package:erp_purchasing_apps/data/providers/product_assessment_provider.dart';
+import 'package:erp_purchasing_apps/data/providers/supplier_assessment_provider.dart';
 import 'package:erp_purchasing_apps/data/providers/auth_providers.dart';
-import 'package:erp_purchasing_apps/data/models/product_assessment_model.dart';
+import 'package:erp_purchasing_apps/data/models/supplier_assessment_model.dart';
 
-class ProductAssessmentScreen extends ConsumerStatefulWidget {
-  const ProductAssessmentScreen({super.key});
+class SupplierAssessmentScreen extends ConsumerStatefulWidget {
+  const SupplierAssessmentScreen({super.key});
 
   @override
-  ConsumerState<ProductAssessmentScreen> createState() =>
-      _ProductAssessmentScreenState();
+  ConsumerState<SupplierAssessmentScreen> createState() =>
+      _SupplierAssessmentScreenState();
 }
 
-class _ProductAssessmentScreenState
-    extends ConsumerState<ProductAssessmentScreen> {
+class _SupplierAssessmentScreenState
+    extends ConsumerState<SupplierAssessmentScreen> {
   String _searchQuery = '';
   String? _selectedStatus;
 
   @override
   Widget build(BuildContext context) {
-    final assessmentsState = ref.watch(productAssessmentNotifierProvider);
+    final assessmentsState = ref.watch(supplierAssessmentNotifierProvider);
     final currentUser = ref.watch(currentUserProvider);
 
-    // Check if user has permission
-    final canVerify = currentUser?.role == 'admin';
-    final canApprove =
-        currentUser?.role == 'admin' || currentUser?.role == 'kadiv';
+    final canVerify =
+        currentUser?.role == 'admin' || currentUser?.role == 'warehouse';
+    final canApprove = currentUser?.role == 'admin';
 
     return Scaffold(
       backgroundColor: const Color(0xFFF5F7FA),
@@ -39,14 +38,14 @@ class _ProductAssessmentScreenState
           onPressed: () => context.go('/dashboard'),
         ),
         title: const Text(
-          'Product Assessment',
+          'Supplier Assessment',
           style: TextStyle(color: Colors.black87, fontWeight: FontWeight.bold),
         ),
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: () {
-              ref.read(productAssessmentNotifierProvider.notifier).refresh();
+              ref.read(supplierAssessmentNotifierProvider.notifier).refresh();
             },
           ),
           const SizedBox(width: 8),
@@ -54,38 +53,30 @@ class _ProductAssessmentScreenState
       ),
       body: Column(
         children: [
-          // Filtter & Search Bar
+          // Filter & Search
           Container(
             color: Colors.white,
             padding: const EdgeInsets.all(16),
             child: Row(
               children: [
-                // Search Field
                 Expanded(
                   flex: 2,
                   child: TextField(
                     decoration: InputDecoration(
-                      hintText: 'Search Product name, category...',
+                      hintText: 'Search supplier name, contact...',
                       prefixIcon: const Icon(Icons.search, size: 20),
                       border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
+                          borderRadius: BorderRadius.circular(8)),
                       contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 12,
-                      ),
+                          horizontal: 16, vertical: 12),
                       isDense: true,
                     ),
                     onChanged: (value) {
-                      setState(() {
-                        _searchQuery = value.toLowerCase();
-                      });
+                      setState(() => _searchQuery = value.toLowerCase());
                     },
                   ),
                 ),
                 const SizedBox(width: 12),
-
-                // Status Filter
                 Expanded(
                   child: DropdownButtonFormField<String>(
                     value: _selectedStatus,
@@ -93,12 +84,9 @@ class _ProductAssessmentScreenState
                       labelText: 'Status',
                       prefixIcon: const Icon(Icons.filter_list, size: 20),
                       border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
+                          borderRadius: BorderRadius.circular(8)),
                       contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 12,
-                      ),
+                          horizontal: 16, vertical: 12),
                       isDense: true,
                     ),
                     items: const [
@@ -112,11 +100,8 @@ class _ProductAssessmentScreenState
                       DropdownMenuItem(
                           value: 'rejected', child: Text('Rejected')),
                     ],
-                    onChanged: (value) {
-                      setState(() {
-                        _selectedStatus = value;
-                      });
-                    },
+                    onChanged: (value) =>
+                        setState(() => _selectedStatus = value),
                   ),
                 ),
               ],
@@ -125,17 +110,19 @@ class _ProductAssessmentScreenState
 
           const Divider(height: 1),
 
-          // Assessment Cards
           Expanded(
             child: assessmentsState.when(
               data: (assessments) {
-                // Apply filters
                 var filtered = assessments;
 
                 if (_searchQuery.isNotEmpty) {
                   filtered = filtered.where((a) {
-                    return a.productName.toLowerCase().contains(_searchQuery) ||
-                        (a.categoryName?.toLowerCase().contains(_searchQuery) ??
+                    return a.supplierName
+                            .toLowerCase()
+                            .contains(_searchQuery) ||
+                        (a.contactName?.toLowerCase().contains(_searchQuery) ??
+                            false) ||
+                        (a.email?.toLowerCase().contains(_searchQuery) ??
                             false);
                   }).toList();
                 }
@@ -154,11 +141,9 @@ class _ProductAssessmentScreenState
                         Icon(Icons.check_circle_outline,
                             size: 80, color: Colors.grey.shade300),
                         const SizedBox(height: 16),
-                        const Text(
-                          'No Assessments',
-                          style: TextStyle(
-                              fontSize: 18, fontWeight: FontWeight.bold),
-                        )
+                        const Text('No Assessments',
+                            style: TextStyle(
+                                fontSize: 18, fontWeight: FontWeight.bold)),
                       ],
                     ),
                   );
@@ -167,7 +152,7 @@ class _ProductAssessmentScreenState
                 return RefreshIndicator(
                   onRefresh: () async {
                     await ref
-                        .read(productAssessmentNotifierProvider.notifier)
+                        .read(supplierAssessmentNotifierProvider.notifier)
                         .refresh();
                   },
                   child: GridView.builder(
@@ -181,9 +166,8 @@ class _ProductAssessmentScreenState
                     ),
                     itemCount: filtered.length,
                     itemBuilder: (context, index) {
-                      final assessment = filtered[index];
                       return _buildAssessmentCard(
-                          assessment, canVerify, canApprove);
+                          filtered[index], canVerify, canApprove);
                     },
                   ),
                 );
@@ -199,41 +183,36 @@ class _ProductAssessmentScreenState
                     Text('Error: $error', textAlign: TextAlign.center),
                     const SizedBox(height: 16),
                     ElevatedButton.icon(
-                      onPressed: () {
-                        ref
-                            .read(productAssessmentNotifierProvider.notifier)
-                            .refresh();
-                      },
+                      onPressed: () => ref
+                          .read(supplierAssessmentNotifierProvider.notifier)
+                          .refresh(),
                       icon: const Icon(Icons.refresh),
                       label: const Text('Retry'),
-                    )
+                    ),
                   ],
                 ),
               ),
             ),
-          )
+          ),
         ],
       ),
     );
   }
 
   Widget _buildAssessmentCard(
-    ProductAssessmentModel assessment,
-    bool canVerify,
-    bool canApprove,
-  ) {
+      SupplierAssessmentModel assessment, bool canVerify, bool canApprove) {
     return Card(
       elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       child: InkWell(
-        onTap: () {},
+        onTap: () => _showDetailDialog(assessment, canVerify, canApprove),
         borderRadius: BorderRadius.circular(8),
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Header - Status Badge
+              // Status Badge
               Row(
                 children: [
                   Container(
@@ -247,16 +226,15 @@ class _ProductAssessmentScreenState
                     child: Text(
                       assessment.status.toUpperCase(),
                       style: TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.bold,
-                          color: _getStatusColor(assessment.status)
-                              .withOpacity(0.2)),
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                        color: _getStatusColor(assessment.status),
+                      ),
                     ),
                   ),
                   const Spacer(),
                   IconButton(
                     icon: const Icon(Icons.visibility, size: 20),
-                    tooltip: 'View Detail',
                     onPressed: () =>
                         _showDetailDialog(assessment, canVerify, canApprove),
                     color: Colors.blue,
@@ -268,9 +246,9 @@ class _ProductAssessmentScreenState
 
               const SizedBox(height: 12),
 
-              // Product Name
+              // Supplier Name
               Text(
-                assessment.productName,
+                assessment.supplierName,
                 style:
                     const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                 maxLines: 2,
@@ -279,23 +257,43 @@ class _ProductAssessmentScreenState
 
               const SizedBox(height: 8),
 
-              // Category & Requester
-              Row(
-                children: [
-                  const Icon(Icons.category, size: 16, color: Colors.grey),
-                  const SizedBox(width: 4),
-                  Expanded(
-                    child: Text(
-                      assessment.categoryName ?? 'N/A',
-                      style:
-                          TextStyle(fontSize: 13, color: Colors.grey.shade700),
-                      overflow: TextOverflow.ellipsis,
+              // Contact & Requester
+              if (assessment.contactName != null) ...[
+                Row(
+                  children: [
+                    const Icon(Icons.person_outline,
+                        size: 16, color: Colors.grey),
+                    const SizedBox(width: 4),
+                    Expanded(
+                      child: Text(
+                        assessment.contactName!,
+                        style: TextStyle(
+                            fontSize: 13, color: Colors.grey.shade700),
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
-                  ),
-                ],
-              ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+              ],
 
-              const SizedBox(height: 4),
+              if (assessment.phone != null) ...[
+                Row(
+                  children: [
+                    const Icon(Icons.phone, size: 16, color: Colors.grey),
+                    const SizedBox(width: 4),
+                    Expanded(
+                      child: Text(
+                        assessment.phone!,
+                        style: TextStyle(
+                            fontSize: 13, color: Colors.grey.shade700),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+              ],
 
               Row(
                 children: [
@@ -303,9 +301,9 @@ class _ProductAssessmentScreenState
                   const SizedBox(width: 4),
                   Expanded(
                     child: Text(
-                      assessment.requesterName ?? 'Unknown',
+                      'by ${assessment.requesterName ?? 'Unknown'}',
                       style:
-                          TextStyle(fontSize: 13, color: Colors.grey.shade700),
+                          TextStyle(fontSize: 12, color: Colors.grey.shade600),
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
@@ -314,26 +312,16 @@ class _ProductAssessmentScreenState
 
               const SizedBox(height: 12),
 
-              // Date & Unit
-              Row(
-                children: [
-                  _buildStatChip(
-                    Icons.straighten,
-                    assessment.unit.toUpperCase(),
-                    Colors.purple,
-                  ),
-                  const SizedBox(width: 8),
-                  _buildStatChip(
-                    Icons.calendar_today,
-                    DateFormat('dd/MM/yy').format(assessment.createdAt),
-                    Colors.blue,
-                  ),
-                ],
+              // Date
+              _buildStatChip(
+                Icons.calendar_today,
+                DateFormat('dd/MM/yy').format(assessment.createdAt),
+                Colors.blue,
               ),
 
               const Spacer(),
 
-              // Action Buttons
+              // Actions
               if (assessment.isPending && canVerify)
                 Row(
                   children: [
@@ -351,7 +339,7 @@ class _ProductAssessmentScreenState
                     ),
                     const SizedBox(width: 8),
                     Expanded(
-                      child: OutlinedButton.icon(
+                      child: ElevatedButton.icon(
                         onPressed: () => _confirmVerify(assessment),
                         icon: const Icon(Icons.verified, size: 16),
                         label: const Text('Verify'),
@@ -360,7 +348,7 @@ class _ProductAssessmentScreenState
                           padding: const EdgeInsets.symmetric(vertical: 12),
                         ),
                       ),
-                    )
+                    ),
                   ],
                 )
               else if (assessment.isVerified && canApprove)
@@ -396,17 +384,17 @@ class _ProductAssessmentScreenState
                 Center(
                   child: Text(
                     assessment.isApproved
-                        ? 'Approved'
+                        ? 'Approved ✓'
                         : assessment.isRejected
-                            ? 'Rejected'
+                            ? 'Rejected ✗'
                             : 'Pending Review',
                     style: TextStyle(
                       fontSize: 12,
                       color: _getStatusColor(assessment.status),
-                      fontWeight: FontWeight.bold,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
-                )
+                ),
             ],
           ),
         ),
@@ -426,11 +414,9 @@ class _ProductAssessmentScreenState
         children: [
           Icon(icon, size: 14, color: color),
           const SizedBox(width: 4),
-          Text(
-            label,
-            style: TextStyle(
-                fontSize: 12, fontWeight: FontWeight.w600, color: color),
-          ),
+          Text(label,
+              style: TextStyle(
+                  fontSize: 12, fontWeight: FontWeight.w600, color: color)),
         ],
       ),
     );
@@ -452,10 +438,7 @@ class _ProductAssessmentScreenState
   }
 
   void _showDetailDialog(
-    ProductAssessmentModel assessment,
-    bool canVerify,
-    bool canApprove,
-  ) {
+      SupplierAssessmentModel assessment, bool canVerify, bool canApprove) {
     showDialog(
       context: context,
       builder: (context) => Dialog(
@@ -469,50 +452,46 @@ class _ProductAssessmentScreenState
                 decoration: BoxDecoration(
                   color: Colors.blue.shade50,
                   borderRadius: const BorderRadius.only(
-                    topLeft: Radius.circular(4),
-                    topRight: Radius.circular(4),
-                  ),
+                      topLeft: Radius.circular(4),
+                      topRight: Radius.circular(4)),
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.assessment, color: Colors.blue, size: 28),
+                    const Icon(Icons.business, color: Colors.blue, size: 28),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text(
-                            'Product Assessment Detail',
-                            style: TextStyle(
-                                fontSize: 18, fontWeight: FontWeight.bold),
-                          ),
-                          Text(
-                            assessment.productName,
-                            style: TextStyle(
-                                fontSize: 14, color: Colors.grey.shade700),
-                          ),
+                          const Text('Supplier Assessment Detail',
+                              style: TextStyle(
+                                  fontSize: 18, fontWeight: FontWeight.bold)),
+                          Text(assessment.supplierName,
+                              style: TextStyle(
+                                  fontSize: 14, color: Colors.grey.shade700)),
                         ],
                       ),
                     ),
                     IconButton(
-                      icon: const Icon(Icons.close),
-                      onPressed: () => Navigator.pop(context),
-                    )
+                        icon: const Icon(Icons.close),
+                        onPressed: () => Navigator.pop(context)),
                   ],
                 ),
               ),
 
-              // body
+              // Body
               Expanded(
                 child: SingleChildScrollView(
                   padding: const EdgeInsets.all(20),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      _buildInfoRow('Product Name', assessment.productName),
+                      _buildInfoRow('Supplier Name', assessment.supplierName),
                       _buildInfoRow(
-                          'Category', assessment.categoryName ?? 'N/A'),
-                      _buildInfoRow('Unit', assessment.unit.toUpperCase()),
+                          'Contact Person', assessment.contactName ?? '-'),
+                      _buildInfoRow('Phone', assessment.phone ?? '-'),
+                      _buildInfoRow('Email', assessment.email ?? '-'),
+                      _buildInfoRow('Address', assessment.address ?? '-'),
                       _buildInfoRow('Status', assessment.status.toUpperCase()),
                       _buildInfoRow('Requester',
                           assessment.requesterName ?? assessment.requesterId),
@@ -520,40 +499,6 @@ class _ProductAssessmentScreenState
                           'Created',
                           DateFormat('dd MMMM yyyy, HH:mm')
                               .format(assessment.createdAt)),
-                      if (assessment.description != null &&
-                          assessment.description!.isNotEmpty) ...[
-                        const SizedBox(height: 16),
-                        const Text('Description:',
-                            style: TextStyle(
-                                fontSize: 14, fontWeight: FontWeight.bold)),
-                        const SizedBox(height: 8),
-                        Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: Colors.grey.shade100,
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: Text(assessment.description!),
-                        ),
-                      ],
-                      if (assessment.specifications != null &&
-                          assessment.specifications!.isNotEmpty) ...[
-                        const SizedBox(height: 16),
-                        const Text('Specifications:',
-                            style: TextStyle(
-                                fontSize: 14, fontWeight: FontWeight.bold)),
-                        const SizedBox(height: 8),
-                        Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: Colors.grey.shade100,
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: Text(assessment.specifications!),
-                        ),
-                      ],
                       if (assessment.rejectionReason != null) ...[
                         const SizedBox(height: 16),
                         const Text('Rejection Reason:',
@@ -566,9 +511,8 @@ class _ProductAssessmentScreenState
                           width: double.infinity,
                           padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
-                            color: Colors.red.shade50,
-                            borderRadius: BorderRadius.circular(4),
-                          ),
+                              color: Colors.red.shade50,
+                              borderRadius: BorderRadius.circular(4)),
                           child: Text(assessment.rejectionReason!),
                         ),
                       ],
@@ -577,7 +521,7 @@ class _ProductAssessmentScreenState
                 ),
               ),
 
-              // Footer Actions
+              // Footer
               Container(
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
@@ -611,10 +555,9 @@ class _ProductAssessmentScreenState
                         icon: const Icon(Icons.verified, size: 18),
                         label: const Text('Verify'),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.blue,
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 24, vertical: 12),
-                        ),
+                            backgroundColor: Colors.blue,
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 24, vertical: 12)),
                       ),
                     ] else if (assessment.isVerified && canApprove) ...[
                       OutlinedButton.icon(
@@ -625,11 +568,10 @@ class _ProductAssessmentScreenState
                         icon: const Icon(Icons.close, size: 18),
                         label: const Text('Reject'),
                         style: OutlinedButton.styleFrom(
-                          foregroundColor: Colors.red,
-                          side: const BorderSide(color: Colors.red),
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 24, vertical: 12),
-                        ),
+                            foregroundColor: Colors.red,
+                            side: const BorderSide(color: Colors.red),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 24, vertical: 12)),
                       ),
                       const SizedBox(width: 12),
                       ElevatedButton.icon(
@@ -640,19 +582,17 @@ class _ProductAssessmentScreenState
                         icon: const Icon(Icons.check, size: 18),
                         label: const Text('Approve'),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.green,
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 24, vertical: 12),
-                        ),
+                            backgroundColor: Colors.green,
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 24, vertical: 12)),
                       ),
                     ] else
                       TextButton(
-                        onPressed: () => Navigator.pop(context),
-                        child: const Text('Close'),
-                      )
+                          onPressed: () => Navigator.pop(context),
+                          child: const Text('Close')),
                   ],
                 ),
-              )
+              ),
             ],
           ),
         ),
@@ -667,40 +607,34 @@ class _ProductAssessmentScreenState
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           SizedBox(
-            width: 120,
-            child: Text(
-              '$label:',
-              style: const TextStyle(fontWeight: FontWeight.w600),
-            ),
-          ),
+              width: 120,
+              child: Text('$label:',
+                  style: const TextStyle(fontWeight: FontWeight.w600))),
           Expanded(child: Text(value)),
         ],
       ),
     );
   }
 
-  void _confirmVerify(ProductAssessmentModel assessment) {
+  void _confirmVerify(SupplierAssessmentModel assessment) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Row(
-          children: [
-            Icon(Icons.verified, color: Colors.blue, size: 28),
-            SizedBox(width: 12),
-            Text('Verify Assessment'),
-          ],
-        ),
-        content:
-            Text('Verify product assessment for "${assessment.productName}"?'),
+        title: const Row(children: [
+          Icon(Icons.verified, color: Colors.blue, size: 28),
+          SizedBox(width: 12),
+          Text('Verify Assessment')
+        ]),
+        content: Text(
+            'Verify supplier assessment for "${assessment.supplierName}"?'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel')),
           ElevatedButton.icon(
             onPressed: () async {
               Navigator.pop(context);
-              await _verifyAssessment(assessment.id, assessment.productName);
+              await _verifyAssessment(assessment.id, assessment.supplierName);
             },
             icon: const Icon(Icons.verified, size: 18),
             label: const Text('Verify'),
@@ -711,106 +645,68 @@ class _ProductAssessmentScreenState
     );
   }
 
- void _confirmApprove(ProductAssessmentModel assessment) {
-  showDialog(
-    context: context,
-    builder: (context) => AlertDialog(
-      title: const Row(
-        children: [
+  void _confirmApprove(SupplierAssessmentModel assessment) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Row(children: [
           Icon(Icons.check_circle, color: Colors.green, size: 28),
           SizedBox(width: 12),
-          Text('Approve Assessment'),
-        ],
-      ),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('Approve and create product "${assessment.productName}" in master data?'),
-          const SizedBox(height: 16),
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: Colors.blue.shade50,
-              borderRadius: BorderRadius.circular(4),
-              border: Border.all(color: Colors.blue.shade200),
-            ),
-            child: Row(
-              children: [
-                Icon(Icons.info_outline, size: 18, color: Colors.blue.shade700),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    'Product code will be auto-generated based on category',
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: Colors.blue.shade700,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ),
-              ],
-            ),
+          Text('Approve Assessment')
+        ]),
+        content: Text(
+            'Approve and create supplier "${assessment.supplierName}" in master data?'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel')),
+          ElevatedButton.icon(
+            onPressed: () async {
+              Navigator.pop(context);
+              await _approveAssessment(assessment.id, assessment.supplierName);
+            },
+            icon: const Icon(Icons.check, size: 18),
+            label: const Text('Approve'),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
           ),
         ],
       ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('Cancel'),
-        ),
-        ElevatedButton.icon(
-          onPressed: () async {
-            Navigator.pop(context);
-            await _approveAssessment(assessment.id, assessment.productName);
-          },
-          icon: const Icon(Icons.check, size: 18),
-          label: const Text('Approve'),
-          style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
-        ),
-      ],
-    ),
-  );
-}
+    );
+  }
 
-  void _showRejectDialog(ProductAssessmentModel assessment) {
+  void _showRejectDialog(SupplierAssessmentModel assessment) {
     final reasonController = TextEditingController();
     final formKey = GlobalKey<FormState>();
 
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Row(
-          children: [
-            Icon(Icons.cancel, color: Colors.red, size: 28),
-            SizedBox(width: 12),
-            Text('Reject Assessment'),
-          ],
-        ),
+        title: const Row(children: [
+          Icon(Icons.cancel, color: Colors.red, size: 28),
+          SizedBox(width: 12),
+          Text('Reject Assessment')
+        ]),
         content: Form(
           key: formKey,
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
-                  'Reject product assessment for "${assessment.productName}"?'),
+                  'Reject supplier assessment for "${assessment.supplierName}"?'),
               const SizedBox(height: 16),
               TextFormField(
                 controller: reasonController,
                 maxLines: 4,
                 decoration: const InputDecoration(
-                  labelText: 'Rejection Reason *',
-                  hintText: 'Enter reason...',
-                  border: OutlineInputBorder(),
-                  alignLabelWithHint: true,
-                ),
+                    labelText: 'Rejection Reason *',
+                    hintText: 'Enter reason...',
+                    border: OutlineInputBorder(),
+                    alignLabelWithHint: true),
                 validator: (value) {
-                  if (value == null || value.trim().isEmpty) {
+                  if (value == null || value.trim().isEmpty)
                     return 'Please enter rejection reason';
-                  }
-                  if (value.trim().length < 10) {
+                  if (value.trim().length < 10)
                     return 'Reason must be at least 10 characters';
-                  }
                   return null;
                 },
               ),
@@ -819,14 +715,13 @@ class _ProductAssessmentScreenState
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel')),
           ElevatedButton.icon(
             onPressed: () async {
               if (formKey.currentState!.validate()) {
                 Navigator.pop(context);
-                await _rejectAssessment(assessment.id, assessment.productName,
+                await _rejectAssessment(assessment.id, assessment.supplierName,
                     reasonController.text.trim());
               }
             },
@@ -843,11 +738,11 @@ class _ProductAssessmentScreenState
     _showLoading('Verifying...');
     try {
       await ref
-          .read(productAssessmentNotifierProvider.notifier)
+          .read(supplierAssessmentNotifierProvider.notifier)
           .verifyAssessment(id);
       if (mounted) {
         Navigator.pop(context);
-        _showSuccess('Product "$name" verified successfully');
+        _showSuccess('Supplier "$name" verified successfully');
       }
     } catch (e) {
       if (mounted) {
@@ -858,34 +753,32 @@ class _ProductAssessmentScreenState
   }
 
   Future<void> _approveAssessment(String id, String name) async {
-  _showLoading('Approving...');
-  try {
-    // Backend auto-generates product code
-    await ref
-        .read(productAssessmentNotifierProvider.notifier)
-        .approveAssessment(id); // ← NO PRODUCT CODE parameter
-        
-    if (mounted) {
-      Navigator.pop(context);
-      _showSuccess('Product "$name" approved and created in master data with auto-generated code');
-    }
-  } catch (e) {
-    if (mounted) {
-      Navigator.pop(context);
-      _showError('Failed to approve: $e');
+    _showLoading('Approving...');
+    try {
+      await ref
+          .read(supplierAssessmentNotifierProvider.notifier)
+          .approveAssessment(id);
+      if (mounted) {
+        Navigator.pop(context);
+        _showSuccess('Supplier "$name" approved and created in master data');
+      }
+    } catch (e) {
+      if (mounted) {
+        Navigator.pop(context);
+        _showError('Failed to approve: $e');
+      }
     }
   }
-}
 
   Future<void> _rejectAssessment(String id, String name, String reason) async {
     _showLoading('Rejecting...');
     try {
       await ref
-          .read(productAssessmentNotifierProvider.notifier)
+          .read(supplierAssessmentNotifierProvider.notifier)
           .rejectAssessment(id, reason);
       if (mounted) {
         Navigator.pop(context);
-        _showSuccess('Product "$name" rejected');
+        _showSuccess('Supplier "$name" rejected');
       }
     } catch (e) {
       if (mounted) {
@@ -900,50 +793,34 @@ class _ProductAssessmentScreenState
       context: context,
       barrierDismissible: false,
       builder: (context) => Center(
-        child: Card(
-          child: Padding(
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const CircularProgressIndicator(),
-                const SizedBox(height: 16),
-                Text(message),
-              ],
-            ),
-          ),
-        ),
-      ),
+          child: Card(
+              child: Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: Column(mainAxisSize: MainAxisSize.min, children: [
+                    const CircularProgressIndicator(),
+                    const SizedBox(height: 16),
+                    Text(message)
+                  ])))),
     );
   }
 
   void _showSuccess(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            const Icon(Icons.check_circle, color: Colors.white),
-            const SizedBox(width: 16),
-            Expanded(child: Text(message)),
-          ],
-        ),
-        backgroundColor: Colors.green,
-      ),
-    );
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Row(children: [
+          const Icon(Icons.check_circle, color: Colors.white),
+          const SizedBox(width: 16),
+          Expanded(child: Text(message))
+        ]),
+        backgroundColor: Colors.green));
   }
 
   void _showError(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            const Icon(Icons.error, color: Colors.white),
-            const SizedBox(width: 16),
-            Expanded(child: Text(message)),
-          ],
-        ),
-        backgroundColor: Colors.red,
-      ),
-    );
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Row(children: [
+          const Icon(Icons.error, color: Colors.white),
+          const SizedBox(width: 16),
+          Expanded(child: Text(message))
+        ]),
+        backgroundColor: Colors.red));
   }
 }

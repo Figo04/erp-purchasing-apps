@@ -76,9 +76,9 @@ class _ProductFormDialogState extends ConsumerState<ProductFormDialog> {
       final canDirectCreate = currentUser?.role == 'admin';
 
       if (widget.product == null) {
-        // Create
+        // CREATE MODE
         if (canDirectCreate) {
-          // Admin Langsung create ke master
+          // Admin: Langsung create ke master (PERLU PRODUCT CODE)
           final notifier = ref.read(productNotifierProvider.notifier);
           await notifier.createProduct(
             CreateProductRequest(
@@ -95,7 +95,7 @@ class _ProductFormDialogState extends ConsumerState<ProductFormDialog> {
             ),
           );
         } else {
-          // User biasa: Create assessment request
+          // User biasa: Create assessment request (TIDAK PERLU PRODUCT CODE)
           final assessmentNotifier =
               ref.read(productAssessmentNotifierProvider.notifier);
           await assessmentNotifier.createAssessment(
@@ -127,7 +127,7 @@ class _ProductFormDialogState extends ConsumerState<ProductFormDialog> {
           );
         }
       } else {
-        // Update (unchanged)
+        // UPDATE MODE (unchanged)
         final notifier = ref.read(productNotifierProvider.notifier);
         await notifier.updateProduct(
           widget.product!.id,
@@ -175,6 +175,14 @@ class _ProductFormDialogState extends ConsumerState<ProductFormDialog> {
   @override
   Widget build(BuildContext context) {
     final categoriesAsync = ref.watch(categoryListProvider);
+    final currentUser = ref.watch(currentUserProvider);
+    final isAdmin = currentUser?.role == 'admin';
+    final isCreateMode = widget.product == null;
+
+    // Show product code field only for:
+    // 1. Admin creating new product (direct to master)
+    // 2. Editing existing product (update mode)
+    final showProductCodeField = !isCreateMode || isAdmin;
 
     return Dialog(
       child: ConstrainedBox(
@@ -197,22 +205,60 @@ class _ProductFormDialogState extends ConsumerState<ProductFormDialog> {
                   ),
                   const SizedBox(height: 24),
 
-                  // Product Code
-                  TextFormField(
-                    controller: _productCodeController,
-                    decoration: const InputDecoration(
-                      labelText: 'Product Code *',
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.qr_code),
+                  // Info banner for non-admin
+                  if (isCreateMode && !isAdmin) ...[
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.blue.shade50,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.blue.shade200),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.info_outline,
+                            size: 20,
+                            color: Colors.blue.shade700,
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              'Product code will be auto-generated after approval',
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: Colors.blue.shade700,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Product code is required';
-                      }
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 16),
+                    const SizedBox(height: 16),
+                  ],
+
+                  // Product Code (conditional)
+                  if (showProductCodeField) ...[
+                    TextFormField(
+                      controller: _productCodeController,
+                      decoration: const InputDecoration(
+                        labelText: 'Product Code *',
+                        border: OutlineInputBorder(),
+                        prefixIcon: Icon(Icons.qr_code),
+                        helperText:
+                            'Format: PROD-{CATEGORY}-{SEQ} (e.g., PROD-2.3-001)',
+                      ),
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Product code is required';
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 16),
+                  ],
 
                   // Name
                   TextFormField(
@@ -231,17 +277,24 @@ class _ProductFormDialogState extends ConsumerState<ProductFormDialog> {
                   ),
                   const SizedBox(height: 16),
 
-                  // Category Dropdown
+                  // Category Dropdown (FILTER: Only Sub-Categories)
                   categoriesAsync.when(
                     data: (categories) {
+                      // Filter: Hanya tampilkan sub-category (yang punya parent_id)
+                      final subCategories = categories
+                          .where((cat) => cat.parentId != null)
+                          .toList();
+
                       return DropdownButtonFormField<String>(
                         value: _selectedCategoryId,
                         decoration: const InputDecoration(
                           labelText: 'Category *',
                           border: OutlineInputBorder(),
                           prefixIcon: Icon(Icons.category),
+                          helperText:
+                              'Select specific sub-category (e.g., 1.1, 2.3)',
                         ),
-                        items: categories.map((category) {
+                        items: subCategories.map((category) {
                           return DropdownMenuItem(
                             value: category.id,
                             child: Text(category.getFullPath()),
@@ -252,7 +305,7 @@ class _ProductFormDialogState extends ConsumerState<ProductFormDialog> {
                         },
                         validator: (value) {
                           if (value == null) {
-                            return 'Please select a category';
+                            return 'Please select a sub-category';
                           }
                           return null;
                         },
@@ -307,7 +360,7 @@ class _ProductFormDialogState extends ConsumerState<ProductFormDialog> {
                   ),
                   const SizedBox(height: 16),
 
-                  // Active Switch
+                  // Active Switch (Edit mode only)
                   if (widget.product != null)
                     SwitchListTile(
                       title: const Text('Active'),
