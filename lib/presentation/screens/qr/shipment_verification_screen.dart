@@ -1,3 +1,5 @@
+import 'package:erp_purchasing_apps/data/providers/lpb_provider.dart';
+import 'package:erp_purchasing_apps/data/providers/shipment_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -65,13 +67,11 @@ class _ShipmentVerificationScreenState
     setState(() => _isLoading = true);
 
     try {
+      // Prepare items data untuk LPB
       final itemsData = _items.map((item) {
         return {
           'po_item_id': item.poItemId,
-          'item_name': item.itemName,
-          'quantity_ordered': item.quantityOrdered,
           'quantity_received': int.parse(item.quantityReceivedController.text),
-          'unit': item.unit,
           'notes': item.notesController.text.trim().isNotEmpty
               ? item.notesController.text.trim()
               : null,
@@ -88,30 +88,43 @@ class _ShipmentVerificationScreenState
         }
       }
 
-      await Future.delayed(const Duration(seconds: 1));
+      // Create LPB via backend
+      final lpb = await ref.read(lpbDetailProvider.notifier).createLPB(
+            poId: widget.shipment.poId,
+            shipmentId: widget.shipment.id,
+            receiptDate: _receiptDate,
+            notes: _notesController.text.trim().isNotEmpty
+                ? _notesController.text.trim()
+                : null,
+            items: itemsData,
+          );
+
+      if (lpb == null) {
+        throw Exception('Failed to create LPB');
+      }
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
               isFullyReceived
-                  ? 'LPB Created - All items received'
-                  : 'LPB Created - Partial Receipt (differences noted)',
+                  ? 'LPB Created Successfully - All items received'
+                  : 'LPB Created - Partial receipt (differences noted)',
             ),
             backgroundColor: isFullyReceived ? Colors.green : Colors.orange,
           ),
         );
 
-        // TODO: Update shipment status via API
-        // TODO: Refresh shipment list
+        // Refresh shipment list
+        ref.invalidate(shipmentListProvider);
 
-        Navigator.pop(context);
+        Navigator.pop(context); // Back to scanner
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error: $e'),
+            content: Text('Error creating LPB: $e'),
             backgroundColor: Colors.red,
           ),
         );
@@ -132,6 +145,7 @@ class _ShipmentVerificationScreenState
     super.dispose();
   }
 
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
@@ -172,8 +186,9 @@ class _ShipmentVerificationScreenState
                                     const Text(
                                       'Shipment Verified Successfully',
                                       style: TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 18),
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 18,
+                                      ),
                                     ),
                                   ],
                                 ),
@@ -189,7 +204,7 @@ class _ShipmentVerificationScreenState
                                           ),
                                           _buildInfoRow(
                                             'PO Number',
-                                            widget.shipment.poNumber ?? '_',
+                                            widget.shipment.poNumber ?? '-',
                                           ),
                                           _buildInfoRow(
                                             'Delivery Note',
@@ -282,7 +297,7 @@ class _ShipmentVerificationScreenState
                               child: Card(
                                 child: Padding(
                                   padding: const EdgeInsets.all(16),
-                                  child: TextField(
+                                  child: TextFormField(
                                     controller: _notesController,
                                     maxLines: 3,
                                     decoration: const InputDecoration(
@@ -296,7 +311,7 @@ class _ShipmentVerificationScreenState
                                   ),
                                 ),
                               ),
-                            )
+                            ),
                           ],
                         ),
                         const SizedBox(height: 32),
@@ -315,6 +330,7 @@ class _ShipmentVerificationScreenState
                             ),
                             ElevatedButton.icon(
                               onPressed: () {
+                                // Auto-fill all items with shipped quantity
                                 setState(() {
                                   for (var item in _items) {
                                     item.quantityReceivedController.text =
@@ -339,7 +355,9 @@ class _ShipmentVerificationScreenState
                         Text(
                           'Review each item and confirm the received quantity. Edit if different from shipment.',
                           style: TextStyle(
-                              fontSize: 14, color: Colors.grey.shade700),
+                            fontSize: 14,
+                            color: Colors.grey.shade700,
+                          ),
                         ),
                         const SizedBox(height: 24),
 
@@ -348,7 +366,7 @@ class _ShipmentVerificationScreenState
                           final index = entry.key;
                           final item = entry.value;
                           return _buildItemCard(index, item);
-                        })
+                        }),
                       ],
                     ),
                   ),
@@ -413,14 +431,15 @@ class _ShipmentVerificationScreenState
                             icon: const Icon(Icons.check_circle, size: 24),
                             label: const Text('Create LPB (Confirm Receipt)'),
                             style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.green,
-                                foregroundColor: Colors.white,
-                                textStyle: const TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                )),
+                              backgroundColor: Colors.green,
+                              foregroundColor: Colors.white,
+                              textStyle: const TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
                           ),
-                        )
+                        ),
                       ],
                     ),
                   ),
@@ -437,15 +456,15 @@ class _ShipmentVerificationScreenState
                     CircularProgressIndicator(),
                     SizedBox(height: 16),
                     Text(
-                      'Crating LPB...',
+                      'Creating LPB...',
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
                       ),
-                    )
+                    ),
                   ],
                 ),
-              )
+              ),
           ],
         ),
       ),
