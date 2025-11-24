@@ -1,19 +1,39 @@
-import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:erp_purchasing_apps/core/constants/api_constants.dart';
+import 'package:erp_purchasing_apps/core/service/api_service.dart';
 import 'package:erp_purchasing_apps/data/models/inventory_model.dart';
 
 class InventoryRepository {
-  final SupabaseClient _supabase = Supabase.instance.client;
+  final ApiService _apiService = ApiService();
 
   // Get all inventory
-  Future<List<InventoryModel>> getAllInventory() async {
+  Future<List<InventoryModel>> getAllInventory({
+    String? productId,
+    String? categoryId,
+    String? status,
+    String? location,
+    String? search,
+  }) async {
     try {
-      final response = await _supabase
-          .from('inventory')
-          .select()
-          .order('created_at', ascending: false);
+      final queryParams = <String, dynamic>{};
 
-      return (response as List)
-          .map((json) => InventoryModel.fromJson(json))
+      if (productId != null) queryParams['product_id'] = productId;
+      if (categoryId != null) queryParams['category_id'] = categoryId;
+      if (status != null && status != 'all') queryParams['status'] = status;
+      if (location != null) queryParams['location'] = location;
+      if (search != null && search.isNotEmpty) queryParams['search'] = search;
+
+      final response = await _apiService.get(
+        ApiEndpoints.inventory,
+        queryParameters: queryParams,
+      );
+
+      if (response.data == null) return [];
+
+      final List<dynamic> dataList =
+          response.data is List ? response.data as List : [response.data];
+
+      return dataList
+          .map((json) => InventoryModel.fromJson(json as Map<String, dynamic>))
           .toList();
     } catch (e) {
       throw Exception('Failed to load inventory: $e');
@@ -23,251 +43,184 @@ class InventoryRepository {
   // Get inventory by ID
   Future<InventoryModel?> getInventoryById(String id) async {
     try {
-      final response =
-          await _supabase.from('inventory').select().eq('id', id).maybeSingle();
-
-      if (response == null) return null;
-      return InventoryModel.fromJson(response);
+      final response = await _apiService.get(ApiEndpoints.inventoryById(id));
+      if (response.data == null) return null;
+      return InventoryModel.fromJson(response.data as Map<String, dynamic>);
     } catch (e) {
       throw Exception('Failed to load inventory: $e');
     }
   }
 
-  // Create inventory from PO items (auto-create when PO received)
-  Future<void> createInventoryFromPO(String poId, DateTime receivedDate) async {
+  // Create inventory
+  Future<InventoryModel> createInventory({
+    required String productId,
+    required int quantity,
+    String? location,
+    DateTime? receivedDate,
+    String? notes,
+  }) async {
     try {
-      // Get PO items
-      final poItemsResponse = await _supabase
-          .from('purchase_order_item')
-          .select()
-          .eq('po_id', poId);
-
-      if (poItemsResponse.isEmpty) return;
-
-      // Create Inventory for each item
-      final inventoryData = (poItemsResponse as List).map((item) {
-        return {
-          'po_item_id': item['id'],
-          'item_name': item['item_name'],
-          'quantity': item['quantity'],
-          'unit': item['unit'] ?? 'pcs',
-          'status': 'available',
+      final body = {
+        'product_id': productId,
+        'quantity': quantity,
+        if (location != null) 'location': location,
+        if (receivedDate != null)
           'received_date': receivedDate.toIso8601String(),
-        };
-      }).toList();
+        if (notes != null) 'notes': notes,
+      };
 
-      await _supabase.from('inventory').insert(inventoryData);
+      final response =
+          await _apiService.post(ApiEndpoints.inventory, body: body);
+      return InventoryModel.fromJson(response.data as Map<String, dynamic>);
     } catch (e) {
-      throw Exception('Failed to create inventory from PO: $e');
+      throw Exception('Failed to create inventory: $e');
     }
   }
 
   // Update inventory
   Future<InventoryModel> updateInventory({
     required String id,
-    required String itemName,
     required int quantity,
-    required String unit,
     String? location,
     required String status,
     String? notes,
   }) async {
     try {
-      final data = {
-        'item_name': itemName,
+      final body = {
         'quantity': quantity,
-        'unit': unit,
         'location': location,
         'status': status,
         'notes': notes,
       };
 
-      final response = await _supabase
-          .from('inventory')
-          .update(data)
-          .eq('id', id)
-          .select()
-          .single();
-
-      return InventoryModel.fromJson(response);
+      final response =
+          await _apiService.put(ApiEndpoints.inventoryById(id), body: body);
+      return InventoryModel.fromJson(response.data as Map<String, dynamic>);
     } catch (e) {
       throw Exception('Failed to update inventory: $e');
     }
   }
 
-  // Search inventory
-  Future<List<InventoryModel>> searchInventory(String query) async {
-    try {
-      final response = await _supabase
-          .from('inventory')
-          .select()
-          .or('item_name.ilike.%$query%,location.ilike.%$query%')
-          .order('item_name', ascending: true);
+  // // Search inventory
+  // Future<List<InventoryModel>> searchInventory(String query) async {
+  //   try {
+  //     final response = await _supabase
+  //         .from('inventory')
+  //         .select()
+  //         .or('item_name.ilike.%$query%,location.ilike.%$query%')
+  //         .order('item_name', ascending: true);
 
-      return (response as List)
-          .map((json) => InventoryModel.fromJson(json))
-          .toList();
+  //     return (response as List)
+  //         .map((json) => InventoryModel.fromJson(json))
+  //         .toList();
+  //   } catch (e) {
+  //     throw Exception('Failed to search inventory: $e');
+  //   }
+  // }
+
+  // ADJUST INVENTORY
+  Future<InventoryModel> adjustInventory({
+    required String id,
+    required int quantity,
+    required String reason,
+    String? notes,
+  }) async {
+    try {
+      final body = {
+        'quantity': quantity,
+        'reason': reason,
+        if (notes != null) 'notes': notes,
+      };
+
+      final response = await _apiService.post(
+        ApiEndpoints.adjustInventory(id),
+        body: body,
+      );
+      return InventoryModel.fromJson(response.data as Map<String, dynamic>);
     } catch (e) {
-      throw Exception('Failed to search inventory: $e');
+      throw Exception('Failed to adjust inventory: $e');
     }
   }
 
-  // Get inventory by status
-  Future<List<InventoryModel>> getInventoryByStatus(String status) async {
+  // DELETE INVENTORY
+  Future<void> deleteInventory(String id) async {
     try {
-      final response = await _supabase
-          .from('inventory')
-          .select()
-          .eq('status', status)
-          .order('item_name', ascending: true);
-
-      return (response as List)
-          .map((json) => InventoryModel.fromJson(json))
-          .toList();
+      await _apiService.delete(ApiEndpoints.inventoryById(id));
     } catch (e) {
-      throw Exception('Failed to load inventory by status: $e');
+      throw Exception('Failed to delete inventory: $e');
     }
   }
 
-  // Get low stock items (quatity < 10)
+  // GET TRANSACTION HISTORY
+  Future<List<InventoryTransactionModel>> getTransactionHistory(
+      String inventoryId) async {
+    try {
+      final response = await _apiService.get(
+        ApiEndpoints.inventoryTransactions(inventoryId),
+      );
+
+      if (response.data == null) return [];
+
+      final List<dynamic> dataList =
+          response.data is List ? response.data as List : [response.data];
+
+      return dataList
+          .map((json) =>
+              InventoryTransactionModel.fromJson(json as Map<String, dynamic>))
+          .toList();
+    } catch (e) {
+      throw Exception('Failed to load transaction history: $e');
+    }
+  }
+
+  // HELPER: LOW STOCK
   Future<List<InventoryModel>> getLowStockItems() async {
     try {
-      final response = await _supabase
-          .from('inventory')
-          .select()
-          .eq('status', 'available')
-          .order('quantity', ascending: true);
-
-      return (response as List)
-          .map((json) => InventoryModel.fromJson(json))
-          .toList();
+      final allItems = await getAllInventory(status: 'available');
+      return allItems.where((item) => item.quantity < 10).toList();
     } catch (e) {
       throw Exception('Failed to load low stock items: $e');
     }
   }
 
-  // Stock Out Functionality
+  // LEGACY: Stock Out
   Future<InventoryModel> stockOut({
     required String id,
     required int quantityOut,
     required String reason,
   }) async {
-    try {
-      final current = await getInventoryById(id);
-      if (current == null) {
-        throw Exception('Inventory not found');
-      }
-
-      if (quantityOut > current.quantity) {
-        throw Exception('Stock out quantity exceeds available stock');
-      }
-
-      final newQuantity = current.quantity - quantityOut;
-      final notes =
-          '${current.notes ?? ''}\n[STOCK OUT] -$quantityOut: $reason'.trim();
-
-      final data = {
-        'quantity': newQuantity,
-        'notes': notes,
-      };
-
-      final response = await _supabase
-          .from('inventory')
-          .update(data)
-          .eq('id', id)
-          .select()
-          .single();
-
-      return InventoryModel.fromJson(response);
-    } catch (e) {
-      throw Exception('Failed to stock out: $e');
-    }
+    return adjustInventory(
+        id: id, quantity: -quantityOut, reason: 'Stock Out: $reason');
   }
 
-  // Stock Adjustment
+  // LEGACY: Stock Adjustment
   Future<InventoryModel> stockAdjustment({
     required String id,
     required int adjustmentQuantity,
     required String reason,
   }) async {
-    try {
-      final current = await getInventoryById(id);
-      if (current == null) {
-        throw Exception('Inventory not found');
-      }
-
-      final newQuantity = current.quantity + adjustmentQuantity;
-
-      if (newQuantity < 0) {
-        throw Exception('Adjustment result in negative stock');
-      }
-
-      final adjustmentType = adjustmentQuantity > 0 ? '+' : '';
-      final notes =
-          '${current.notes ?? ''}\n[ADJUSTMENT] $adjustmentType$adjustmentQuantity: $reason'
-              .trim();
-
-      final data = {
-        'quantity': newQuantity,
-        'notes': notes,
-      };
-
-      final response = await _supabase
-          .from('inventory')
-          .update(data)
-          .eq('id', id)
-          .select()
-          .single();
-
-      return InventoryModel.fromJson(response);
-    } catch (e) {
-      throw Exception('Failed to adjust stock: $e');
-    }
+    return adjustInventory(
+        id: id, quantity: adjustmentQuantity, reason: reason);
   }
 
-  // Update Status Only
+  // LEGACY: Update Status
   Future<InventoryModel> updateStatus({
     required String id,
     required String status,
     String? reason,
   }) async {
-    try {
-      final current = await getInventoryById(id);
-      if (current == null) {
-        throw Exception('Inventory not found');
-      }
+    final current = await getInventoryById(id);
+    if (current == null) throw Exception('Inventory not found');
 
-      String? notes = current.notes;
-      if (reason != null && reason.isNotEmpty) {
-        notes =
-            '${notes ?? ''}\n[STATUS CHANGE] ${current.status} → $status: $reason'
-                .trim();
-      }
-
-      final data = {
-        'status': status,
-        if (reason != null) 'notes': notes,
-      };
-
-      final response = await _supabase
-          .from('inventory')
-          .update(data)
-          .eq('id', id)
-          .select()
-          .single();
-
-      return InventoryModel.fromJson(response);
-    } catch (e) {
-      throw Exception('Failed to update status: $e');
-    }
-  }
-
-  // Delete Inventory
-  Future<void> deleteInventory(String id) async {
-    try {
-      await _supabase.from('inventory').delete().eq('id', id);
-    } catch (e) {
-      throw Exception('Failed to delete inventory: $e');
-    }
+    return updateInventory(
+      id: id,
+      quantity: current.quantity,
+      location: current.location,
+      status: status,
+      notes: reason != null
+          ? '${current.notes ?? ''}\n[STATUS CHANGE] ${current.status} → $status: $reason'
+              .trim()
+          : current.notes,
+    );
   }
 }

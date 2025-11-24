@@ -4,22 +4,15 @@ import 'package:erp_purchasing_apps/data/models/asset_model.dart';
 import 'package:erp_purchasing_apps/data/providers/asset_provider.dart';
 import 'package:erp_purchasing_apps/data/providers/user_provider.dart';
 import 'package:erp_purchasing_apps/data/providers/auth_providers.dart';
-import 'package:erp_purchasing_apps/presentation/screens/asset/asset_form_screen.dart';
 import 'package:intl/intl.dart';
 
-class AssetDetailScreen extends ConsumerStatefulWidget {
+/// Asset Detail Screen - Updated for Golang Backend (SIMPLIFIED)
+/// Path: lib/presentation/screens/asset/asset_detail_screen.dart
+class AssetDetailScreen extends ConsumerWidget {
   final String assetId;
 
-  const AssetDetailScreen({
-    super.key,
-    required this.assetId,
-  });
+  const AssetDetailScreen({super.key, required this.assetId});
 
-  @override
-  ConsumerState<AssetDetailScreen> createState() => _AssetDetailScreenState();
-}
-
-class _AssetDetailScreenState extends ConsumerState<AssetDetailScreen> {
   Color _getCategoryColor(String category) {
     switch (category) {
       case 'consumable':
@@ -62,30 +55,48 @@ class _AssetDetailScreenState extends ConsumerState<AssetDetailScreen> {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final currentUser = ref.watch(currentUserProvider);
     final canManage =
         currentUser?.role == 'admin' || currentUser?.role == 'warehouse';
+    final assetAsync = ref.watch(assetDetailProvider(assetId));
 
-    return FutureBuilder<AssetModel?>(
-      future: ref.read(assetRepositoryProvider).getAssetById(widget.assetId),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Scaffold(
-            body: Center(child: CircularProgressIndicator()),
-          );
-        }
-
-        if (snapshot.hasError || snapshot.data == null) {
-          return Scaffold(
-            appBar: AppBar(title: const Text('Error')),
-            body: Center(
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Asset Detail'),
+        actions: [
+          if (canManage)
+            PopupMenuButton(
+              itemBuilder: (context) => [
+                const PopupMenuItem(
+                  value: 'delete',
+                  child: Row(
+                    children: [
+                      Icon(Icons.delete, color: Colors.red),
+                      SizedBox(width: 8),
+                      Text('Delete Asset'),
+                    ],
+                  ),
+                )
+              ],
+              onSelected: (value) {
+                if (value == 'delete') {
+                  _confirmDelete(context, ref, assetAsync.value!);
+                }
+              },
+            )
+        ],
+      ),
+      body: assetAsync.when(
+        data: (asset) {
+          if (asset == null) {
+            return Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   const Icon(Icons.error, size: 64, color: Colors.red),
                   const SizedBox(height: 16),
-                  Text('Error: ${snapshot.error ?? "Asset not found"}'),
+                  const Text('Asset not found'),
                   const SizedBox(height: 16),
                   ElevatedButton(
                     onPressed: () => Navigator.pop(context),
@@ -93,295 +104,257 @@ class _AssetDetailScreenState extends ConsumerState<AssetDetailScreen> {
                   ),
                 ],
               ),
-            ),
-          );
-        }
+            );
+          }
 
-        final asset = snapshot.data!;
-
-        return Scaffold(
-          appBar: AppBar(
-            title: const Text('Asset Detail'),
-            actions: [
-              if (canManage)
-                IconButton(
-                  icon: const Icon(Icons.edit),
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) =>
-                            AssetFormScreen(assetId: asset.id),
-                      ),
-                    ).then(
-                      (_) {
-                        ref.invalidate(assetStreamProvider);
-                        setState(() {});
-                      },
-                    );
-                  },
-                ),
-              if (canManage)
-                PopupMenuButton(
-                  itemBuilder: (context) => [
-                    const PopupMenuItem(
-                      value: 'delete',
+          return RefreshIndicator(
+            onRefresh: () async {
+              ref.invalidate(assetDetailProvider(assetId));
+              await Future.delayed(const Duration(milliseconds: 500));
+            },
+            child: SingleChildScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Asset Header Card
+                  Card(
+                    color:
+                        _getCategoryColor(asset.assetCategory).withOpacity(0.1),
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
                       child: Row(
                         children: [
-                          Icon(Icons.delete, color: Colors.red),
-                          SizedBox(width: 8),
-                          Text('Delete Asset'),
-                        ],
-                      ),
-                    )
-                  ],
-                  onSelected: (value) {
-                    if (value == 'delete') {
-                      _confirmDelete(asset);
-                    }
-                  },
-                )
-            ],
-          ),
-          body: SingleChildScrollView(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Asset Header Card
-                Card(
-                  color: _getCategoryColor(asset.category).withOpacity(0.1),
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Row(
-                      children: [
-                        Icon(
-                          _getCategoryIcon(asset.category),
-                          size: 48,
-                          color: _getCategoryColor(asset.category),
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                asset.name,
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .titleLarge
-                                    ?.copyWith(
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                asset.assetCode,
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .bodyMedium
-                                    ?.copyWith(
-                                      color: Colors.grey.shade700,
-                                    ),
-                              )
-                            ],
+                          Icon(
+                            _getCategoryIcon(asset.assetCategory),
+                            size: 48,
+                            color: _getCategoryColor(asset.assetCategory),
                           ),
-                        )
-                      ],
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 16),
-
-                //Status & Category Row
-                Row(
-                  children: [
-                    Expanded(
-                      child: _buildInfoCard(
-                        'Category',
-                        asset.category.toUpperCase(),
-                        _getCategoryColor(asset.category),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: _buildInfoCard(
-                        'Status',
-                        asset.status.toUpperCase(),
-                        _getStatusColor(asset.status),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-
-                // Quantity & Price Row
-                Row(
-                  children: [
-                    Expanded(
-                      child: _buildInfoCard(
-                        'Quantity',
-                        '${asset.quantity} ${asset.category == 'loanable' ? 'unit(s)' : 'pcs'}',
-                        Colors.blue,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: _buildInfoCard(
-                        'Price',
-                        asset.purchasePrice != null
-                            ? 'Rp ${NumberFormat('#,###').format(asset.purchasePrice)}'
-                            : 'N/A',
-                        Colors.green,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 24),
-
-                // Assignment Info (if borrowed)
-                if (asset.status == 'borrowed' && asset.assignedToName != null)
-                  Card(
-                    color: Colors.orange.shade50,
-                    child: Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Icon(Icons.person, color: Colors.orange.shade700),
-                              const SizedBox(width: 8),
-                              Text(
-                                'Currently Borrowed',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.orange.shade700,
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  asset.name,
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .titleLarge
+                                      ?.copyWith(fontWeight: FontWeight.bold),
                                 ),
-                              )
-                            ],
-                          ),
-                          const SizedBox(height: 8),
-                          _builInfoRow('Assigned to', asset.assignedToName!),
-                          if (asset.assignedDate != null)
-                            _builInfoRow(
-                              'Since',
-                              DateFormat('dd MMM yyyy')
-                                  .format(asset.assignedDate!),
-                            )
-                        ],
-                      ),
-                    ),
-                  ),
-                if (asset.status == 'borrowed') const SizedBox(height: 16),
-
-                // Additional Information
-                Text(
-                  'Additional Information',
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
-                const SizedBox(height: 8),
-
-                if (asset.notes != null && asset.notes!.isNotEmpty) ...[
-                  Card(
-                    child: Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'Notes / History:',
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 14,
+                                const SizedBox(height: 4),
+                                Text(
+                                  asset.assetCode,
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .bodyMedium
+                                      ?.copyWith(color: Colors.grey.shade700),
+                                )
+                              ],
                             ),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            asset.notes!,
-                            style: const TextStyle(fontSize: 13),
                           )
                         ],
                       ),
                     ),
                   ),
-                  const SizedBox(height: 8),
-                ],
+                  const SizedBox(height: 16),
 
-                _builInfoRow('Created At',
-                    DateFormat('dd MMM yyyy HH:mm').format(asset.createdAt)),
-                _builInfoRow('Last Updated',
-                    DateFormat('dd MMM yyyy HH:mm').format(asset.updatedAt)),
-                const SizedBox(height: 24),
-
-                // Action Buttons (Admin/Warehouse only)
-                if (canManage) ...[
-                  Text(
-                    'Actions',
-                    style: Theme.of(context).textTheme.titleMedium,
+                  // Status & Category Row
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _buildInfoCard(
+                          'Category',
+                          asset.categoryDisplayName,
+                          _getCategoryColor(asset.assetCategory),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: _buildInfoCard(
+                          'Status',
+                          asset.statusDisplayName,
+                          _getStatusColor(asset.status),
+                        ),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 8),
 
-                  // Assign/Return Button
-                  if (asset.category == 'loadnable') ...[
-                    if (asset.status == 'available')
-                      SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton.icon(
-                          onPressed: () => _showAssignDialog(asset),
-                          icon: const Icon(Icons.person_add),
-                          label: const Text('Assign to User'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.blue,
-                            foregroundColor: Colors.white,
-                          ),
+                  // Quantity & Price Row
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _buildInfoCard(
+                          'Quantity',
+                          '${asset.quantity} ${asset.assetCategory == 'loanable' ? 'unit(s)' : 'pcs'}',
+                          Colors.blue,
                         ),
                       ),
-                    if (asset.status == 'borrowed')
-                      SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton.icon(
-                          onPressed: () => _showReturnDialog(asset),
-                          icon: const Icon(Icons.assignment_return),
-                          label: const Text('Return Asset'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.green,
-                            foregroundColor: Colors.white,
-                          ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: _buildInfoCard(
+                          'Price',
+                          asset.purchasePrice != null
+                              ? 'Rp ${NumberFormat('#,###').format(asset.purchasePrice)}'
+                              : 'N/A',
+                          Colors.green,
                         ),
                       ),
-                    SizedBox(height: 8),
-                  ],
+                    ],
+                  ),
+                  const SizedBox(height: 24),
 
-                  // Decrease Quantity (Consumble Only)
-                  if (asset.category == 'consumable' && asset.quantity > 0) ...[
-                    SizedBox(
-                      width: double.infinity,
-                      child: OutlinedButton.icon(
-                        onPressed: () => _showDecreaseQuantityDialog(asset),
-                        icon: const Icon(Icons.remove_circle_outline),
-                        label: const Text('Use/Consume Item'),
+                  // Assignment Info
+                  if (asset.isBorrowed && asset.assignedToName != null)
+                    Card(
+                      color: Colors.orange.shade50,
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Icon(Icons.person,
+                                    color: Colors.orange.shade700),
+                                const SizedBox(width: 8),
+                                Text(
+                                  'Currently Borrowed',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.orange.shade700,
+                                  ),
+                                )
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            _buildInfoRow('Assigned to', asset.assignedToName!),
+                            if (asset.assignedDate != null)
+                              _buildInfoRow(
+                                'Since',
+                                DateFormat('dd MMM yyyy')
+                                    .format(asset.assignedDate!),
+                              )
+                          ],
+                        ),
+                      ),
+                    ),
+                  if (asset.isBorrowed) const SizedBox(height: 16),
+
+                  // Additional Information
+                  Text('Additional Information',
+                      style: Theme.of(context).textTheme.titleMedium),
+                  const SizedBox(height: 8),
+
+                  if (asset.notes != null && asset.notes!.isNotEmpty) ...[
+                    Card(
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text('Notes / History:',
+                                style: TextStyle(
+                                    fontWeight: FontWeight.bold, fontSize: 14)),
+                            const SizedBox(height: 8),
+                            Text(asset.notes!,
+                                style: const TextStyle(fontSize: 13))
+                          ],
+                        ),
                       ),
                     ),
                     const SizedBox(height: 8),
                   ],
 
-                  // Change Status
-                  SizedBox(
-                    width: double.infinity,
-                    child: OutlinedButton.icon(
-                      onPressed: () => _showStatusChangeDialog(asset),
-                      icon: const Icon(Icons.swap_horiz),
-                      label: const Text('Change Status'),
+                  _buildInfoRow('Created At',
+                      DateFormat('dd MMM yyyy HH:mm').format(asset.createdAt)),
+                  _buildInfoRow('Last Updated',
+                      DateFormat('dd MMM yyyy HH:mm').format(asset.updatedAt)),
+                  const SizedBox(height: 24),
+
+                  // Action Buttons
+                  if (canManage) ...[
+                    Text('Actions',
+                        style: Theme.of(context).textTheme.titleMedium),
+                    const SizedBox(height: 8),
+                    if (asset.assetCategory == 'loanable') ...[
+                      if (asset.isAvailable)
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton.icon(
+                            onPressed: () =>
+                                _showAssignDialog(context, ref, asset),
+                            icon: const Icon(Icons.person_add),
+                            label: const Text('Assign to User'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.blue,
+                              foregroundColor: Colors.white,
+                            ),
+                          ),
+                        ),
+                      if (asset.isBorrowed)
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton.icon(
+                            onPressed: () =>
+                                _showReturnDialog(context, ref, asset),
+                            icon: const Icon(Icons.assignment_return),
+                            label: const Text('Return Asset'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.green,
+                              foregroundColor: Colors.white,
+                            ),
+                          ),
+                        ),
+                      const SizedBox(height: 8),
+                    ],
+                    if (asset.assetCategory == 'consumable' &&
+                        asset.quantity > 0) ...[
+                      SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton.icon(
+                          onPressed: () =>
+                              _showDecreaseQuantityDialog(context, ref, asset),
+                          icon: const Icon(Icons.remove_circle_outline),
+                          label: const Text('Use/Consume Item'),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                    ],
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        onPressed: () =>
+                            _showStatusChangeDialog(context, ref, asset),
+                        icon: const Icon(Icons.swap_horiz),
+                        label: const Text('Change Status'),
+                      ),
                     ),
-                  ),
-                ]
-              ],
+                  ]
+                ],
+              ),
             ),
+          );
+        },
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (error, _) => Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.error, size: 64, color: Colors.red),
+              const SizedBox(height: 16),
+              Text('Error: $error'),
+              ElevatedButton(
+                onPressed: () => ref.invalidate(assetDetailProvider(assetId)),
+                child: const Text('Retry'),
+              ),
+            ],
           ),
-        );
-      },
+        ),
+      ),
     );
   }
 
@@ -392,29 +365,19 @@ class _AssetDetailScreenState extends ConsumerState<AssetDetailScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 12,
-                color: Colors.grey.shade600,
-              ),
-            ),
+            Text(label,
+                style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
             const SizedBox(height: 4),
-            Text(
-              value,
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: color,
-              ),
-            )
+            Text(value,
+                style: TextStyle(
+                    fontSize: 16, fontWeight: FontWeight.bold, color: color))
           ],
         ),
       ),
     );
   }
 
-  Widget _builInfoRow(String label, String value) {
+  Widget _buildInfoRow(String label, String value) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: Row(
@@ -422,33 +385,28 @@ class _AssetDetailScreenState extends ConsumerState<AssetDetailScreen> {
         children: [
           SizedBox(
             width: 120,
-            child: Text(
-              '$label:',
-              style: const TextStyle(
-                fontWeight: FontWeight.w600,
-                color: Colors.grey,
-              ),
-            ),
+            child: Text('$label:',
+                style: const TextStyle(
+                    fontWeight: FontWeight.w600, color: Colors.grey)),
           ),
           Expanded(
-            child: Text(
-              value,
-              style: const TextStyle(fontWeight: FontWeight.w500),
-            ),
+            child: Text(value,
+                style: const TextStyle(fontWeight: FontWeight.w500)),
           )
         ],
       ),
     );
   }
 
-  void _showAssignDialog(AssetModel asset) {
+  void _showAssignDialog(
+      BuildContext context, WidgetRef ref, AssetModel asset) {
     final userListAsync = ref.read(userListProvider);
     String? selectedUserId;
     final reasonController = TextEditingController();
 
     showDialog(
       context: context,
-      builder: (dialogContext) => AlertDialog(
+      builder: (ctx) => AlertDialog(
         title: const Text('Assign Asset to User'),
         content: SingleChildScrollView(
           child: Column(
@@ -459,30 +417,24 @@ class _AssetDetailScreenState extends ConsumerState<AssetDetailScreen> {
                   final activeUsers = users.where((u) => u.isActive).toList();
                   return DropdownButtonFormField<String>(
                     decoration: const InputDecoration(
-                      labelText: 'Select User',
-                      border: OutlineInputBorder(),
-                    ),
-                    items: activeUsers.map((user) {
-                      return DropdownMenuItem(
-                        value: user.id,
-                        child: Text('${user.fullName} (${user.role})'),
-                      );
-                    }).toList(),
-                    onChanged: (value) {
-                      selectedUserId = value;
-                    },
+                        labelText: 'Select User', border: OutlineInputBorder()),
+                    items: activeUsers
+                        .map((user) => DropdownMenuItem(
+                            value: user.id,
+                            child: Text('${user.fullName} (${user.role})')))
+                        .toList(),
+                    onChanged: (value) => selectedUserId = value,
                   );
                 },
                 loading: () => const CircularProgressIndicator(),
                 error: (error, _) => Text('Error: $error'),
               ),
               const SizedBox(height: 16),
-              TextFormField(
+              TextField(
                 controller: reasonController,
                 decoration: const InputDecoration(
-                  labelText: 'Reason (Optional)',
-                  border: OutlineInputBorder(),
-                ),
+                    labelText: 'Reason (Optional)',
+                    border: OutlineInputBorder()),
                 maxLines: 3,
               )
             ],
@@ -490,24 +442,17 @@ class _AssetDetailScreenState extends ConsumerState<AssetDetailScreen> {
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Cancel'),
-          ),
+              onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
           ElevatedButton(
             onPressed: () async {
               if (selectedUserId == null) {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Please select a user')),
-                );
+                    const SnackBar(content: Text('Please select a user')));
                 return;
               }
-
-              Navigator.pop(dialogContext);
-              await _performAssign(
-                asset.id,
-                selectedUserId!,
-                reasonController.text.trim(),
-              );
+              Navigator.pop(ctx);
+              await _performAssign(context, ref, asset.id, selectedUserId!,
+                  reasonController.text);
             },
             child: const Text('Assign'),
           )
@@ -516,92 +461,59 @@ class _AssetDetailScreenState extends ConsumerState<AssetDetailScreen> {
     );
   }
 
-  Future<void> _performAssign(
+  Future<void> _performAssign(BuildContext context, WidgetRef ref,
       String assetId, String userId, String reason) async {
-    final repository = ref.read(assetRepositoryProvider);
-    final navigator = Navigator.of(context);
-    final scaffoldMessenger = ScaffoldMessenger.of(context);
-
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => const Center(
-        child: Card(
-          child: Padding(
-            padding: EdgeInsets.all(20),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                CircularProgressIndicator(),
-                SizedBox(height: 16),
-                Text('Assigning asset...'),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-
+    _showLoading(context, 'Assigning...');
     try {
-      await repository.assignAsset(
-        id: assetId,
-        userId: userId,
-        reason: reason.isEmpty ? null : reason,
-      );
+      await ref.read(assetRepositoryProvider).assignAsset(
+          id: assetId,
+          assignedTo: userId,
+          notes: reason.isEmpty ? null : reason);
 
-      navigator.pop();
-      ref.invalidate(assetStreamProvider);
+      if (!context.mounted) return;
+      Navigator.pop(context);
+      ref.invalidate(assetDetailProvider(assetId));
+      ref.invalidate(filteredAssetListProvider);
 
-      scaffoldMessenger.showSnackBar(
-        const SnackBar(
-          content: Text('Asset assigned successfully'),
-          backgroundColor: Colors.green,
-        ),
-      );
-
-      setState(() {});
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('✓ Assigned successfully'),
+          backgroundColor: Colors.green));
     } catch (e) {
-      navigator.pop();
-      scaffoldMessenger.showSnackBar(
-        SnackBar(
-          content: Text('Failed: ${e.toString()}'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      Navigator.pop(context);
+      _showError(context, e.toString());
     }
   }
 
-  void _showReturnDialog(AssetModel asset) {
+  void _showReturnDialog(
+      BuildContext context, WidgetRef ref, AssetModel asset) {
     final notesController = TextEditingController();
 
     showDialog(
       context: context,
-      builder: (dialogContext) => AlertDialog(
+      builder: (ctx) => AlertDialog(
         title: const Text('Return Asset'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Text('Return asset from ${asset.assignedToName}?'),
             const SizedBox(height: 16),
-            TextFormField(
+            TextField(
               controller: notesController,
               decoration: const InputDecoration(
-                labelText: 'Return Notes (Optional)',
-                border: OutlineInputBorder(),
-              ),
+                  labelText: 'Return Notes (Optional)',
+                  border: OutlineInputBorder()),
               maxLines: 3,
             )
           ],
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Cancel'),
-          ),
+              onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
           ElevatedButton(
             onPressed: () async {
-              Navigator.pop(dialogContext);
-              await _performReturn(asset.id, notesController.text.trim());
+              Navigator.pop(ctx);
+              await _performReturn(
+                  context, ref, asset.id, notesController.text.trim());
             },
             child: const Text('Return'),
           )
@@ -610,110 +522,70 @@ class _AssetDetailScreenState extends ConsumerState<AssetDetailScreen> {
     );
   }
 
-  Future<void> _performReturn(String assetId, String notes) async {
-    final repository = ref.read(assetRepositoryProvider);
-    final navigator = Navigator.of(context);
-    final scaffoldMessenger = ScaffoldMessenger.of(context);
-
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => const Center(
-        child: Card(
-          child: Padding(
-            padding: EdgeInsets.all(20),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                CircularProgressIndicator(),
-                SizedBox(height: 16),
-                Text('Processing return...'),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-
+  Future<void> _performReturn(
+      BuildContext context, WidgetRef ref, String assetId, String notes) async {
+    _showLoading(context, 'Processing return...');
     try {
-      await repository.unassignAsset(
-        id: assetId,
-        returnNotes: notes.isEmpty ? null : notes,
-      );
+      await ref.read(assetRepositoryProvider).unassignAsset(
+          id: assetId, returnNotes: notes.isEmpty ? null : notes);
 
-      navigator.pop();
-      ref.invalidate(assetStreamProvider);
+      if (!context.mounted) return;
+      Navigator.pop(context);
+      ref.invalidate(assetDetailProvider(assetId));
+      ref.invalidate(filteredAssetListProvider);
 
-      scaffoldMessenger.showSnackBar(
-        const SnackBar(
-          content: Text('Asset returned successfully'),
-          backgroundColor: Colors.green,
-        ),
-      );
-
-      setState(() {});
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('✓ Returned successfully'),
+          backgroundColor: Colors.green));
     } catch (e) {
-      navigator.pop();
-      scaffoldMessenger.showSnackBar(
-        SnackBar(
-          content: Text('Failed: ${e.toString()}'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      Navigator.pop(context);
+      _showError(context, e.toString());
     }
   }
 
-  void _showDecreaseQuantityDialog(AssetModel asset) {
-    final quantityController = TextEditingController();
+  void _showDecreaseQuantityDialog(
+      BuildContext context, WidgetRef ref, AssetModel asset) {
+    final qtyController = TextEditingController();
     final reasonController = TextEditingController();
 
     showDialog(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Use/Consume item'),
+      builder: (ctx) => AlertDialog(
+        title: const Text('Use/Consume Item'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text('Avilable: ${asset.quantity} pcs'),
+            Text('Available: ${asset.quantity} pcs'),
             const SizedBox(height: 16),
-            TextFormField(
-              controller: quantityController,
+            TextField(
+              controller: qtyController,
               decoration: const InputDecoration(
-                labelText: 'Quantity to Use',
-                border: OutlineInputBorder(),
-              ),
+                  labelText: 'Quantity', border: OutlineInputBorder()),
               keyboardType: TextInputType.number,
             ),
             const SizedBox(height: 16),
-            TextFormField(
+            TextField(
               controller: reasonController,
               decoration: const InputDecoration(
-                labelText: 'Reason',
-                border: OutlineInputBorder(),
-              ),
+                  labelText: 'Reason', border: OutlineInputBorder()),
               maxLines: 3,
             )
           ],
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Cancel'),
-          ),
+              onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
           ElevatedButton(
             onPressed: () async {
-              final quantity = int.tryParse(quantityController.text);
-              final reason = reasonController.text.trim();
-
-              if (quantity == null || quantity <= 0) {
+              final qty = int.tryParse(qtyController.text);
+              if (qty == null || qty <= 0 || reasonController.text.isEmpty) {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Invalid quantity')),
-                );
+                    const SnackBar(content: Text('Invalid input')));
                 return;
               }
-
-              Navigator.pop(dialogContext);
-              await _performDecreaseQuantity(asset.id, quantity, reason);
+              Navigator.pop(ctx);
+              await _performDecrease(
+                  context, ref, asset.id, qty, reasonController.text);
             },
             child: const Text('Confirm'),
           )
@@ -722,81 +594,47 @@ class _AssetDetailScreenState extends ConsumerState<AssetDetailScreen> {
     );
   }
 
-  Future<void> _performDecreaseQuantity(
-      String assetId, int quantity, String reason) async {
-    final repository = ref.read(assetRepositoryProvider);
-    final navigator = Navigator.of(context);
-    final scaffoldMessenger = ScaffoldMessenger.of(context);
-
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => const Center(
-        child: Card(
-          child: Padding(
-            padding: EdgeInsets.all(20),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                CircularProgressIndicator(),
-                SizedBox(height: 16),
-                Text('Processing...'),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-
+  Future<void> _performDecrease(BuildContext context, WidgetRef ref,
+      String assetId, int qty, String reason) async {
+    _showLoading(context, 'Processing...');
     try {
-      await repository.decreaseQuantity(
-        id: assetId,
-        quantity: quantity,
-        reason: reason,
-      );
+      await ref
+          .read(assetRepositoryProvider)
+          .decreaseQuantity(id: assetId, quantity: qty, reason: reason);
 
-      navigator.pop();
-      ref.invalidate(assetStreamProvider);
+      if (!context.mounted) return;
+      Navigator.pop(context);
+      ref.invalidate(assetDetailProvider(assetId));
+      ref.invalidate(filteredAssetListProvider);
 
-      scaffoldMessenger.showSnackBar(
-        const SnackBar(
-          content: Text('Quantity decreased successfully'),
-          backgroundColor: Colors.green,
-        ),
-      );
-
-      setState(() {});
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('✓ Updated successfully'),
+          backgroundColor: Colors.green));
     } catch (e) {
-      navigator.pop();
-      scaffoldMessenger.showSnackBar(
-        SnackBar(
-          content: Text('Failed: ${e.toString()}'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      Navigator.pop(context);
+      _showError(context, e.toString());
     }
   }
 
-  void _showStatusChangeDialog(AssetModel asset) {
+  void _showStatusChangeDialog(
+      BuildContext context, WidgetRef ref, AssetModel asset) {
     String selectedStatus = asset.status;
     final reasonController = TextEditingController();
 
     showDialog(
       context: context,
-      builder: (dialogContext) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
           title: const Text('Change Status'),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text('Current Status: ${asset.status.toUpperCase()}'),
+              Text('Current: ${asset.statusDisplayName}'),
               const SizedBox(height: 16),
               DropdownButtonFormField<String>(
-                initialValue: selectedStatus,
+                value: selectedStatus,
                 decoration: const InputDecoration(
-                  labelText: 'New Status',
-                  border: OutlineInputBorder(),
-                ),
+                    labelText: 'New Status', border: OutlineInputBorder()),
                 items: const [
                   DropdownMenuItem(
                       value: 'available', child: Text('Available')),
@@ -805,43 +643,27 @@ class _AssetDetailScreenState extends ConsumerState<AssetDetailScreen> {
                       value: 'maintenance', child: Text('Maintenance')),
                   DropdownMenuItem(value: 'disposed', child: Text('Disposed')),
                 ],
-                onChanged: (value) {
-                  setDialogState(() {
-                    selectedStatus = value!;
-                  });
-                },
+                onChanged: (v) => setState(() => selectedStatus = v!),
               ),
               const SizedBox(height: 16),
-              TextFormField(
+              TextField(
                 controller: reasonController,
                 decoration: const InputDecoration(
-                  labelText: 'Reason (Optional)',
-                  border: OutlineInputBorder(),
-                ),
+                    labelText: 'Reason (Optional)',
+                    border: OutlineInputBorder()),
                 maxLines: 3,
               ),
             ],
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(dialogContext),
-              child: const Text('Cancel'),
-            ),
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Cancel')),
             ElevatedButton(
               onPressed: () async {
-                if (selectedStatus == asset.status) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Status unchanged')),
-                  );
-                  return;
-                }
-
-                Navigator.pop(dialogContext);
-                await _performStatusChange(
-                  asset.id,
-                  selectedStatus,
-                  reasonController.text.trim(),
-                );
+                Navigator.pop(ctx);
+                await _performStatusChange(context, ref, asset.id,
+                    selectedStatus, reasonController.text);
               },
               child: const Text('Confirm'),
             )
@@ -851,76 +673,39 @@ class _AssetDetailScreenState extends ConsumerState<AssetDetailScreen> {
     );
   }
 
-  Future<void> _performStatusChange(
+  Future<void> _performStatusChange(BuildContext context, WidgetRef ref,
       String assetId, String status, String reason) async {
-    final repository = ref.read(assetRepositoryProvider);
-    final navigator = Navigator.of(context);
-    final scaffoldMessenger = ScaffoldMessenger.of(context);
-
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => const Center(
-        child: Card(
-          child: Padding(
-            padding: EdgeInsets.all(20),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                CircularProgressIndicator(),
-                SizedBox(height: 16),
-                Text('Updating status...'),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-
+    _showLoading(context, 'Updating...');
     try {
-      await repository.updateStatus(
-        id: assetId,
-        status: status,
-        reason: reason.isEmpty ? null : reason,
-      );
+      await ref.read(assetRepositoryProvider).updateStatus(
+          id: assetId, status: status, reason: reason.isEmpty ? null : reason);
 
-      navigator.pop();
-      ref.invalidate(assetStreamProvider);
+      if (!context.mounted) return;
+      Navigator.pop(context);
+      ref.invalidate(assetDetailProvider(assetId));
+      ref.invalidate(filteredAssetListProvider);
 
-      scaffoldMessenger.showSnackBar(
-        const SnackBar(
-          content: Text('Status updated successfully'),
-          backgroundColor: Colors.green,
-        ),
-      );
-
-      setState(() {});
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('✓ Status updated'), backgroundColor: Colors.green));
     } catch (e) {
-      navigator.pop();
-      scaffoldMessenger.showSnackBar(
-        SnackBar(
-          content: Text('Failed: ${e.toString()}'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      Navigator.pop(context);
+      _showError(context, e.toString());
     }
   }
 
-  void _confirmDelete(AssetModel asset) {
+  void _confirmDelete(BuildContext context, WidgetRef ref, AssetModel asset) {
     showDialog(
       context: context,
-      builder: (dialogContext) => AlertDialog(
+      builder: (ctx) => AlertDialog(
         title: const Text('Delete Asset'),
-        content: Text('Are you sure you want to delete "${asset.name}"?'),
+        content: Text('Delete "${asset.name}"?'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Cancel'),
-          ),
+              onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
           TextButton(
             onPressed: () async {
-              Navigator.pop(dialogContext);
-              await _performDelete(asset.id);
+              Navigator.pop(ctx);
+              await _performDelete(context, ref, asset.id);
             },
             style: TextButton.styleFrom(foregroundColor: Colors.red),
             child: const Text('Delete'),
@@ -930,52 +715,50 @@ class _AssetDetailScreenState extends ConsumerState<AssetDetailScreen> {
     );
   }
 
-  Future<void> _performDelete(String assetId) async {
-    final repository = ref.read(assetRepositoryProvider);
-    final navigator = Navigator.of(context);
-    final scaffoldMessenger = ScaffoldMessenger.of(context);
+  Future<void> _performDelete(
+      BuildContext context, WidgetRef ref, String assetId) async {
+    _showLoading(context, 'Deleting...');
+    try {
+      await ref.read(assetRepositoryProvider).deleteAsset(assetId);
 
+      if (!context.mounted) return;
+      Navigator.pop(context); // Loading
+      Navigator.pop(context); // Detail screen
+      ref.invalidate(filteredAssetListProvider);
+
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('✓ Deleted successfully'),
+          backgroundColor: Colors.green));
+    } catch (e) {
+      Navigator.pop(context);
+      _showError(context, e.toString());
+    }
+  }
+
+  void _showLoading(BuildContext context, String msg) {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => const Center(
+      builder: (_) => Center(
         child: Card(
           child: Padding(
-            padding: EdgeInsets.all(20),
+            padding: const EdgeInsets.all(20),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                CircularProgressIndicator(),
-                SizedBox(height: 16),
-                Text('Deleting...'),
+                const CircularProgressIndicator(),
+                const SizedBox(height: 16),
+                Text(msg),
               ],
             ),
           ),
         ),
       ),
     );
+  }
 
-    try {
-      await repository.deleteAsset(assetId);
-
-      navigator.pop(); // Close loading
-      navigator.pop(); // Close detail screen
-      ref.invalidate(assetStreamProvider);
-
-      scaffoldMessenger.showSnackBar(
-        const SnackBar(
-          content: Text('Asset deleted successfully'),
-          backgroundColor: Colors.green,
-        ),
-      );
-    } catch (e) {
-      navigator.pop();
-      scaffoldMessenger.showSnackBar(
-        SnackBar(
-          content: Text('Failed: ${e.toString()}'),
-          backgroundColor: Colors.red,
-        ),
-      );
-    }
+  void _showError(BuildContext context, String msg) {
+    ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed: $msg'), backgroundColor: Colors.red));
   }
 }

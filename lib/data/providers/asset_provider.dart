@@ -1,79 +1,159 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:flutter_riverpod/legacy.dart';
 import '../models/asset_model.dart';
 import '../repositories/asset_repository.dart';
 
+// REPOSITORY PROVIDER
 final assetRepositoryProvider = Provider<AssetRepository>((ref) {
   return AssetRepository();
 });
 
-// Real-time Asset Stream Provider
-final assetStreamProvider = StreamProvider<List<AssetModel>>((ref) {
-  final supabase = Supabase.instance.client;
-
-  return supabase
-      .from('asset')
-      .stream(primaryKey: ['id'])
-      .order('created_at', ascending: false)
-      .asyncMap((data) async {
-        // Fetch user info for assigned assets
-        final List<AssetModel> assets = [];
-
-        for (var json in data) {
-          if (json['assigned_to'] != null) {
-            try {
-              final userResponse = await supabase
-                  .from('users')
-                  .select('full_name')
-                  .eq('id', json['assigned_to'])
-                  .maybeSingle();
-
-              if (userResponse != null) {
-                json['assigned_to_name'] = userResponse['full_name'];
-              }
-            } catch (e) {
-              // Ignore error, just don't add assigned_to_name
-            }
-          }
-          assets.add(AssetModel.fromJson(json));
-        }
-
-        return assets;
-      });
-});
-
-// Borrowed assets count
-final borrowedAssetsCountProvider = Provider<int>((ref) {
-  final assetStream = ref.watch(assetStreamProvider);
-
-  return assetStream.when(
-    data: (assets) =>
-        assets.where((asset) => asset.status == 'borrowed').length,
-    loading: () => 0,
-    error: (_, __) => 0,
+// ASSET LIST PROVIDER
+final assetListProvider =
+    FutureProvider.family<List<AssetModel>, AssetFilter>((ref, filter) async {
+  final repository = ref.watch(assetRepositoryProvider);
+  return await repository.getAllAssets(
+    productId: filter.productId,
+    categoryId: filter.categoryId,
+    assetCategory: filter.assetCategory,
+    status: filter.status,
+    assignedTo: filter.assignedTo,
+    search: filter.search,
   );
 });
 
-// Assets by category count
-final assetsByCategoryProvider = Provider<Map<String, int>>((ref) {
-  final assetStream = ref.watch(assetStreamProvider);
-
-  return assetStream.when(
-    data: (assets) {
-      return {
-        'consumable': assets.where((a) => a.category == 'consumable').length,
-        'loanable': assets.where((a) => a.category == 'loanable').length,
-        'saleable': assets.where((a) => a.category == 'saleable').length,
-      };
-    },
-    loading: () => {'consumable': 0, 'loanable': 0, 'saleable': 0},
-    error: (_, __) => {'consumable': 0, 'loanable': 0, 'saleable': 0},
-  );
+// ASSET DETAIL PROVIDER
+final assetDetailProvider =
+    FutureProvider.family<AssetModel?, String>((ref, id) async {
+  final repository = ref.watch(assetRepositoryProvider);
+  return await repository.getAssetById(id);
 });
 
-// My assigned assets (for regular users)
+// BORROWED ASSETS COUNT PROVIDER
+final borrowedAssetsCountProvider = FutureProvider<int>((ref) async {
+  final repository = ref.watch(assetRepositoryProvider);
+  final borrowedAssets = await repository.getAssetsByStatus('borrowed');
+  return borrowedAssets.length;
+});
+
+// ASSETS BY CATEGORY PROVIDER
+final assetsByCategoryProvider =
+    FutureProvider<Map<String, int>>((ref) async {
+  final repository = ref.watch(assetRepositoryProvider);
+  final allAssets = await repository.getAllAssets();
+
+  return {
+    'consumable':
+        allAssets.where((a) => a.assetCategory == 'consumable').length,
+    'loanable': allAssets.where((a) => a.assetCategory == 'loanable').length,
+    'saleable': allAssets.where((a) => a.assetCategory == 'saleable').length,
+  };
+});
+
+// MY ASSIGNED ASSETS PROVIDER
 final myAssignedAssetsProvider =
     FutureProvider.family<List<AssetModel>, String>((ref, userId) async {
-  final repo = ref.watch(assetRepositoryProvider);
-  return await repo.getMyAssignedAssets(userId);
+  final repository = ref.watch(assetRepositoryProvider);
+  return await repository.getMyAssignedAssets(userId);
+});
+
+// ASSET TRANSACTION PROVIDER
+final assetTransactionProvider =
+    FutureProvider.family<List<AssetTransactionModel>, String>(
+        (ref, assetId) async {
+  final repository = ref.watch(assetRepositoryProvider);
+  return await repository.getTransactionHistory(assetId);
+});
+
+// ASSET FILTER CLASS
+class AssetFilter {
+  final String? productId;
+  final String? categoryId;
+  final String? assetCategory;
+  final String? status;
+  final String? assignedTo;
+  final String? search;
+
+  const AssetFilter({
+    this.productId,
+    this.categoryId,
+    this.assetCategory,
+    this.status,
+    this.assignedTo,
+    this.search,
+  });
+
+  static const empty = AssetFilter();
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    return other is AssetFilter &&
+        other.productId == productId &&
+        other.categoryId == categoryId &&
+        other.assetCategory == assetCategory &&
+        other.status == status &&
+        other.assignedTo == assignedTo &&
+        other.search == search;
+  }
+
+  @override
+  int get hashCode => Object.hash(
+        productId,
+        categoryId,
+        assetCategory,
+        status,
+        assignedTo,
+        search,
+      );
+
+  AssetFilter copyWith({
+    String? productId,
+    String? categoryId,
+    String? assetCategory,
+    String? status,
+    String? assignedTo,
+    String? search,
+  }) {
+    return AssetFilter(
+      productId: productId ?? this.productId,
+      categoryId: categoryId ?? this.categoryId,
+      assetCategory: assetCategory ?? this.assetCategory,
+      status: status ?? this.status,
+      assignedTo: assignedTo ?? this.assignedTo,
+      search: search ?? this.search,
+    );
+  }
+}
+
+// STATE NOTIFIER FOR FILTER MANAGEMENT
+class AssetFilterNotifier extends StateNotifier<AssetFilter> {
+  AssetFilterNotifier() : super(AssetFilter.empty);
+
+  void setFilter(AssetFilter filter) => state = filter;
+  void updateCategory(String? category) =>
+      state = state.copyWith(assetCategory: category);
+  void updateStatus(String? status) => state = state.copyWith(status: status);
+  void updateSearch(String? search) => state = state.copyWith(search: search);
+  void reset() => state = AssetFilter.empty;
+}
+
+final assetFilterProvider =
+    StateNotifierProvider<AssetFilterNotifier, AssetFilter>(
+  (ref) => AssetFilterNotifier(),
+);
+
+// FILTERED ASSET LIST PROVIDER
+final filteredAssetListProvider = FutureProvider<List<AssetModel>>((ref) async {
+  final filter = ref.watch(assetFilterProvider);
+  final repository = ref.watch(assetRepositoryProvider);
+
+  return await repository.getAllAssets(
+    productId: filter.productId,
+    categoryId: filter.categoryId,
+    assetCategory: filter.assetCategory,
+    status: filter.status,
+    assignedTo: filter.assignedTo,
+    search: filter.search,
+  );
 });

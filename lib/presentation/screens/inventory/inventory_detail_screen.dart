@@ -14,13 +14,14 @@ class InventoryDetailScreen extends ConsumerStatefulWidget {
   });
 
   @override
-  ConsumerState<InventoryDetailScreen> createState() => _InventoryDetailScreenState();
+  ConsumerState<InventoryDetailScreen> createState() =>
+      _InventoryDetailScreenState();
 }
 
 class _InventoryDetailScreenState extends ConsumerState<InventoryDetailScreen> {
   bool _isEditing = false;
   final _formKey = GlobalKey<FormState>();
-  
+
   late TextEditingController _itemNameController;
   late TextEditingController _quantityController;
   late TextEditingController _unitController;
@@ -82,27 +83,40 @@ class _InventoryDetailScreenState extends ConsumerState<InventoryDetailScreen> {
   @override
   Widget build(BuildContext context) {
     final currentUser = ref.watch(currentUserProvider);
-    final canEdit = currentUser?.role == 'admin' || currentUser?.role == 'warehouse';
+    final canEdit =
+        currentUser?.role == 'admin' || currentUser?.role == 'warehouse';
+    final InventoryAsync =
+        ref.watch(inventoryDetailProvider(widget.inventoryId));
 
-    return FutureBuilder<InventoryModel?>(
-      future: ref.read(inventoryRepositoryProvider).getInventoryById(widget.inventoryId),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Scaffold(
-            body: Center(child: CircularProgressIndicator()),
-          );
-        }
-
-        if (snapshot.hasError || snapshot.data == null) {
-          return Scaffold(
-            appBar: AppBar(title: const Text('Error')),
-            body: Center(
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Inventory Detail'),
+        actions: [
+          if (canEdit && !_isEditing)
+            IconButton(
+              icon: const Icon(Icons.edit),
+              onPressed: () => setState(() => _isEditing = true),
+            ),
+          if (_isEditing)
+            IconButton(
+              icon: const Icon(Icons.close),
+              onPressed: () {
+                setState(() => _isEditing = false);
+                ref.invalidate(inventoryDetailProvider(widget.inventoryId));
+              },
+            ),
+        ],
+      ),
+      body: InventoryAsync.when(
+        data: (item) {
+          if (item == null) {
+            return Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   const Icon(Icons.error, size: 64, color: Colors.red),
                   const SizedBox(height: 16),
-                  Text('Error: ${snapshot.error ?? "Item not found"}'),
+                  const Text('Inventory not found'),
                   const SizedBox(height: 16),
                   ElevatedButton(
                     onPressed: () => Navigator.pop(context),
@@ -110,290 +124,266 @@ class _InventoryDetailScreenState extends ConsumerState<InventoryDetailScreen> {
                   ),
                 ],
               ),
-            ),
-          );
-        }
+            );
+          }
 
-        final item = snapshot.data!;
-        if (!_isEditing) {
-          _initializeControllers(item);
-        }
+          if (!_isEditing) _initializeControllers(item);
+          final isLowStock = item.quantity < 10 && item.status == 'available';
 
-        final isLowStock = item.quantity < 10 && item.status == 'available';
-
-        return Scaffold(
-          appBar: AppBar(
-            title: const Text('Inventory Detail'),
-            actions: [
-              if (canEdit && !_isEditing)
-                IconButton(
-                  icon: const Icon(Icons.edit),
-                  onPressed: () {
-                    setState(() {
-                      _isEditing = true;
-                    });
-                  },
-                ),
-              if (_isEditing)
-                IconButton(
-                  icon: const Icon(Icons.close),
-                  onPressed: () {
-                    setState(() {
-                      _isEditing = false;
-                      _initializeControllers(item);
-                    });
-                  },
-                ),
-            ],
-          ),
-          body: SingleChildScrollView(
-            padding: const EdgeInsets.all(16),
-            child: Form(
-              key: _formKey,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Stock Level Indicator
-                  Card(
-                    color: _getStockLevelColor(item.quantity).withOpacity(0.1),
-                    child: Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Row(
-                        children: [
-                          Icon(
-                            Icons.inventory_2,
-                            size: 48,
-                            color: _getStockLevelColor(item.quantity),
-                          ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'Current Stock',
-                                  style: Theme.of(context).textTheme.bodySmall,
-                                ),
-                                Text(
-                                  '${item.quantity} ${item.unit}',
-                                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                                    fontWeight: FontWeight.bold,
-                                    color: _getStockLevelColor(item.quantity),
-                                  ),
-                                ),
-                                if (isLowStock)
-                                  Row(
-                                    children: [
-                                      Icon(Icons.warning, color: Colors.red, size: 16),
-                                      const SizedBox(width: 4),
-                                      const Text(
-                                        'Low Stock Alert!',
-                                        style: TextStyle(
-                                          color: Colors.red,
-                                          fontWeight: FontWeight.bold,
-                                        ),
+          return RefreshIndicator(
+            onRefresh: () async {
+              ref.invalidate(inventoryDetailProvider(widget.inventoryId));
+              await Future.delayed(const Duration(milliseconds: 500));
+            },
+            child: SingleChildScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.all(16),
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Stock Card
+                    Card(
+                      color:
+                          _getStockLevelColor(item.quantity).withOpacity(0.1),
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Row(
+                          children: [
+                            // Stock Card
+                            Card(
+                              color: _getStockLevelColor(item.quantity)
+                                  .withOpacity(0.1),
+                              child: Padding(
+                                padding: const EdgeInsets.all(16),
+                                child: Row(
+                                  children: [
+                                    Icon(Icons.inventory_2,
+                                        size: 48,
+                                        color:
+                                            _getStockLevelColor(item.quantity)),
+                                    const SizedBox(width: 16),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text('Current Stock',
+                                              style: Theme.of(context)
+                                                  .textTheme
+                                                  .bodySmall),
+                                          Text('${item.quantity} ${item.unit}',
+                                              style: Theme.of(context)
+                                                  .textTheme
+                                                  .headlineMedium
+                                                  ?.copyWith(
+                                                      fontWeight:
+                                                          FontWeight.bold,
+                                                      color:
+                                                          _getStockLevelColor(
+                                                              item.quantity))),
+                                          if (isLowStock)
+                                            const Row(
+                                              children: [
+                                                Icon(Icons.warning,
+                                                    color: Colors.red,
+                                                    size: 16),
+                                                SizedBox(width: 4),
+                                                Text('Low Stock Alert!',
+                                                    style: TextStyle(
+                                                        color: Colors.red,
+                                                        fontWeight:
+                                                            FontWeight.bold))
+                                              ],
+                                            )
+                                        ],
                                       ),
-                                    ],
-                                  ),
-                              ],
-                            ),
-                          ),
-                          Chip(
-                            label: Text(
-                              item.status.toUpperCase(),
-                              style: const TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
+                                    ),
+                                    Chip(
+                                      label: Text(item.status.toUpperCase(),
+                                          style: const TextStyle(
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.bold)),
+                                      backgroundColor:
+                                          _getStatusColor(item.status)
+                                              .withOpacity(0.2),
+                                    ),
+                                  ],
+                                ),
                               ),
                             ),
-                            backgroundColor: _getStatusColor(item.status).withOpacity(0.2),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 24),
+                            const SizedBox(height: 24),
 
-                  // Item Details Form
-                  Text(
-                    'Item Information',
-                    style: Theme.of(context).textTheme.titleLarge,
-                  ),
-                  const SizedBox(height: 16),
+                            // Form Fiels
+                            Text('Item Information',
+                                style: Theme.of(context).textTheme.titleLarge),
+                            const SizedBox(height: 16),
 
-                  TextFormField(
-                    controller: _itemNameController,
-                    decoration: const InputDecoration(
-                      labelText: 'Item Name',
-                      border: OutlineInputBorder(),
-                    ),
-                    enabled: _isEditing,
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Please enter item name';
-                      }
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 16),
+                            TextFormField(
+                              initialValue: item.itemName,
+                              decoration: const InputDecoration(
+                                  labelText: 'Item Name',
+                                  border: OutlineInputBorder()),
+                              enabled: false,
+                            ),
+                            const SizedBox(height: 16),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: TextFormField(
+                                    controller: _quantityController,
+                                    decoration: const InputDecoration(
+                                        labelText: 'Quantity',
+                                        border: OutlineInputBorder()),
+                                    keyboardType: TextInputType.number,
+                                    enabled: _isEditing,
+                                    validator: (v) => v == null || v.isEmpty
+                                        ? 'Required'
+                                        : null,
+                                  ),
+                                ),
+                                const SizedBox(width: 16),
+                                Expanded(
+                                  child: TextFormField(
+                                    initialValue: item.unit,
+                                    decoration: const InputDecoration(
+                                        labelText: 'Unit',
+                                        border: OutlineInputBorder()),
+                                    enabled: false,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 16),
 
-                  Row(
-                    children: [
-                      Expanded(
-                        child: TextFormField(
-                          controller: _quantityController,
-                          decoration: const InputDecoration(
-                            labelText: 'Quantity',
-                            border: OutlineInputBorder(),
-                          ),
-                          keyboardType: TextInputType.number,
-                          enabled: _isEditing,
-                          validator: (value) {
-                            if (value == null || value.isEmpty) {
-                              return 'Required';
-                            }
-                            if (int.tryParse(value) == null) {
-                              return 'Invalid number';
-                            }
-                            return null;
-                          },
+                            if (_isEditing)
+                              DropdownButtonFormField<String>(
+                                value: _selectedStatus,
+                                decoration: const InputDecoration(
+                                    labelText: 'Status',
+                                    border: OutlineInputBorder()),
+                                items: const [
+                                  DropdownMenuItem(
+                                      value: 'available',
+                                      child: Text('Available')),
+                                  DropdownMenuItem(
+                                      value: 'reserved',
+                                      child: Text('Reserved')),
+                                  DropdownMenuItem(
+                                      value: 'damaged', child: Text('Damaged')),
+                                  DropdownMenuItem(
+                                      value: 'disposed',
+                                      child: Text('Disposed')),
+                                ],
+                                onChanged: (v) =>
+                                    setState(() => _selectedStatus = v!),
+                              )
+                            else
+                              TextFormField(
+                                initialValue: item.status.toUpperCase(),
+                                decoration: const InputDecoration(
+                                    labelText: 'Status',
+                                    border: OutlineInputBorder()),
+                                enabled: false,
+                              ),
+                            const SizedBox(height: 16),
+
+                            TextFormField(
+                              controller: _locationController,
+                              decoration: const InputDecoration(
+                                  labelText: 'Location',
+                                  border: OutlineInputBorder(),
+                                  hintText: 'Warehouse location'),
+                              enabled: _isEditing,
+                            ),
+                            const SizedBox(height: 16),
+
+                            TextFormField(
+                              controller: _notesController,
+                              decoration: const InputDecoration(
+                                  labelText: 'Notes',
+                                  border: OutlineInputBorder()),
+                              maxLines: 3,
+                              enabled: _isEditing,
+                            ),
+                            const SizedBox(height: 16),
+
+                            if (item.receivedDate != null)
+                              _buildInfoRow(
+                                  'Received Date',
+                                  DateFormat('dd MMM yyyy')
+                                      .format(item.receivedDate!)),
+                            _buildInfoRow(
+                                'Created At',
+                                DateFormat('dd MMM yyyy HH:mm')
+                                    .format(item.createdAt)),
+                            _buildInfoRow(
+                                'Last Updated',
+                                DateFormat('dd MMM yyyy HH:mm')
+                                    .format(item.updatedAt)),
+                            const SizedBox(height: 24),
+
+                            // action buttons
+                            if (_isEditing)
+                              SizedBox(
+                                width: double.infinity,
+                                child: ElevatedButton(
+                                  onPressed: () => _saveChanges(item),
+                                  child: const Text('Save Changes'),
+                                ),
+                              )
+                            else if (canEdit)
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: OutlinedButton.icon(
+                                      onPressed: () =>
+                                          _showAdjustDialog(item, false),
+                                      icon: const Icon(
+                                          Icons.remove_circle_outline),
+                                      label: const Text('Stock Out'),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: OutlinedButton.icon(
+                                      onPressed: () =>
+                                          _showAdjustDialog(item, true),
+                                      icon:
+                                          const Icon(Icons.add_circle_outline),
+                                      label: const Text('Stock In'),
+                                    ),
+                                  ),
+                                ],
+                              )
+                          ],
                         ),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: TextFormField(
-                          controller: _unitController,
-                          decoration: const InputDecoration(
-                            labelText: 'Unit',
-                            border: OutlineInputBorder(),
-                          ),
-                          enabled: _isEditing,
-                          validator: (value) {
-                            if (value == null || value.isEmpty) {
-                              return 'Required';
-                            }
-                            return null;
-                          },
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-
-                  if (_isEditing)
-                    DropdownButtonFormField<String>(
-                      initialValue: _selectedStatus,
-                      decoration: const InputDecoration(
-                        labelText: 'Status',
-                        border: OutlineInputBorder(),
-                      ),
-                      items: const [
-                        DropdownMenuItem(value: 'available', child: Text('Available')),
-                        DropdownMenuItem(value: 'reserved', child: Text('Reserved')),
-                        DropdownMenuItem(value: 'damaged', child: Text('Damaged')),
-                        DropdownMenuItem(value: 'disposed', child: Text('Disposed')),
-                      ],
-                      onChanged: (value) {
-                        setState(() {
-                          _selectedStatus = value!;
-                        });
-                      },
-                    )
-                  else
-                    TextFormField(
-                      initialValue: item.status.toUpperCase(),
-                      decoration: const InputDecoration(
-                        labelText: 'Status',
-                        border: OutlineInputBorder(),
-                      ),
-                      enabled: false,
-                    ),
-                  const SizedBox(height: 16),
-
-                  TextFormField(
-                    controller: _locationController,
-                    decoration: const InputDecoration(
-                      labelText: 'Location',
-                      border: OutlineInputBorder(),
-                      hintText: 'Warehouse location',
-                    ),
-                    enabled: _isEditing,
-                  ),
-                  const SizedBox(height: 16),
-
-                  TextFormField(
-                    controller: _notesController,
-                    decoration: const InputDecoration(
-                      labelText: 'Notes / History',
-                      border: OutlineInputBorder(),
-                      hintText: 'Additional notes',
-                    ),
-                    maxLines: 5,
-                    enabled: _isEditing,
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Additional Info
-                  if (item.receivedDate != null)
-                    _buildInfoRow(
-                      'Received Date',
-                      DateFormat('dd MMM yyyy').format(item.receivedDate!),
-                    ),
-                  _buildInfoRow(
-                    'Created At',
-                    DateFormat('dd MMM yyyy HH:mm').format(item.createdAt),
-                  ),
-                  _buildInfoRow(
-                    'Last Updated',
-                    DateFormat('dd MMM yyyy HH:mm').format(item.updatedAt),
-                  ),
-                  const SizedBox(height: 24),
-
-                  // Action Buttons
-                  if (_isEditing)
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        onPressed: () => _saveChanges(item),
-                        child: const Text('Save Changes'),
                       ),
                     )
-                  else if (canEdit) ...[
-                    Row(
-                      children: [
-                        Expanded(
-                          child: OutlinedButton.icon(
-                            onPressed: () => _showStockOutDialog(item),
-                            icon: const Icon(Icons.remove_circle_outline),
-                            label: const Text('Stock Out'),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: OutlinedButton.icon(
-                            onPressed: () => _showStockAdjustmentDialog(item),
-                            icon: const Icon(Icons.tune),
-                            label: const Text('Adjustment'),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    SizedBox(
-                      width: double.infinity,
-                      child: OutlinedButton.icon(
-                        onPressed: () => _showStatusChangeDialog(item),
-                        icon: const Icon(Icons.swap_horiz),
-                        label: const Text('Change Status'),
-                      ),
-                    ),
                   ],
-                ],
+                ),
               ),
             ),
+          );
+        },
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (error, _) => Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.error, size: 64, color: Colors.red),
+              const SizedBox(height: 16),
+              Text('Error: $error'),
+              ElevatedButton(
+                onPressed: () =>
+                    ref.invalidate(inventoryDetailProvider(widget.inventoryId)),
+                child: const Text('Retry'),
+              ),
+            ],
           ),
-        );
-      },
+        ),
+      ),
     );
   }
 
@@ -427,130 +417,76 @@ class _InventoryDetailScreenState extends ConsumerState<InventoryDetailScreen> {
   Future<void> _saveChanges(InventoryModel item) async {
     if (!_formKey.currentState!.validate()) return;
 
-    final repository = ref.read(inventoryRepositoryProvider);
-    final navigator = Navigator.of(context);
-    final scaffoldMessenger = ScaffoldMessenger.of(context);
-
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => const Center(
-        child: Card(
-          child: Padding(
-            padding: EdgeInsets.all(20),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                CircularProgressIndicator(),
-                SizedBox(height: 16),
-                Text('Updating...'),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-
+    _showLoading('Updating...');
     try {
-      await repository.updateInventory(
-        id: item.id,
-        itemName: _itemNameController.text,
-        quantity: int.parse(_quantityController.text),
-        unit: _unitController.text,
-        location: _locationController.text.isEmpty ? null : _locationController.text,
-        status: _selectedStatus,
-        notes: _notesController.text.isEmpty ? null : _notesController.text,
-      );
+      await ref.read(inventoryRepositoryProvider).updateInventory(
+            id: item.id,
+            quantity: int.parse(_quantityController.text),
+            location: _locationController.text.isEmpty
+                ? null
+                : _locationController.text,
+            status: _selectedStatus,
+            notes: _notesController.text.isEmpty ? null : _notesController.text,
+          );
 
-      navigator.pop(); // Close loading
-      ref.invalidate(inventoryStreamProvider);
+      if (!mounted) return;
+      Navigator.pop(context);
+      ref.invalidate(inventoryDetailProvider(widget.inventoryId));
+      ref.invalidate(filteredInventoryListProvider);
 
-      scaffoldMessenger.showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Row(
-            children: [
-              Icon(Icons.check_circle, color: Colors.white),
-              SizedBox(width: 16),
-              Text('Inventory updated successfully'),
-            ],
-          ),
-          backgroundColor: Colors.green,
-        ),
+            content: Text('✓ Updated successfully'),
+            backgroundColor: Colors.green),
       );
-
-      setState(() {
-        _isEditing = false;
-      });
+      setState(() => _isEditing = false);
     } catch (e) {
-      navigator.pop();
-      scaffoldMessenger.showSnackBar(
-        SnackBar(
-          content: Text('Failed: ${e.toString()}'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      Navigator.pop(context);
+      _showError(e.toString());
     }
   }
 
-  void _showStockOutDialog(InventoryModel item) {
-    final quantityController = TextEditingController();
-    final reasonController = TextEditingController();
+  void _showAdjustDialog(InventoryModel item, bool isStockIn) {
+    final qtyCtrl = TextEditingController();
+    final reasonCtrl = TextEditingController();
 
     showDialog(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Stock Out'),
+      builder: (ctx) => AlertDialog(
+        title: Text(isStockIn ? 'Stock In' : 'Stock Out'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text('Available Stock: ${item.quantity} ${item.unit}'),
+            Text('Current: ${item.quantity} ${item.unit}'),
             const SizedBox(height: 16),
-            TextFormField(
-              controller: quantityController,
+            TextField(
+              controller: qtyCtrl,
               decoration: const InputDecoration(
-                labelText: 'Quantity Out',
-                border: OutlineInputBorder(),
-              ),
+                  labelText: 'Quantity', border: OutlineInputBorder()),
               keyboardType: TextInputType.number,
             ),
             const SizedBox(height: 16),
-            TextFormField(
-              controller: reasonController,
+            TextField(
+              controller: reasonCtrl,
               decoration: const InputDecoration(
-                labelText: 'Reason',
-                border: OutlineInputBorder(),
-                hintText: 'e.g., Used in production',
-              ),
-              maxLines: 3,
+                  labelText: 'Reason', border: OutlineInputBorder()),
+              maxLines: 2,
             ),
           ],
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Cancel'),
-          ),
+              onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
           ElevatedButton(
-            onPressed: () async {
-              final quantity = int.tryParse(quantityController.text);
-              final reason = reasonController.text.trim();
-
-              if (quantity == null || quantity <= 0) {
+            onPressed: () {
+              final qty = int.tryParse(qtyCtrl.text);
+              if (qty == null || qty <= 0 || reasonCtrl.text.trim().isEmpty) {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Invalid quantity')),
-                );
+                    const SnackBar(content: Text('Invalid input')));
                 return;
               }
-
-              if (reason.isEmpty) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Please enter reason')),
-                );
-                return;
-              }
-
-              Navigator.pop(dialogContext);
-              await _performStockOut(item.id, quantity, reason);
+              Navigator.pop(ctx);
+              _performAdjust(item.id, isStockIn ? qty : -qty, reasonCtrl.text);
             },
             child: const Text('Confirm'),
           ),
@@ -559,323 +495,54 @@ class _InventoryDetailScreenState extends ConsumerState<InventoryDetailScreen> {
     );
   }
 
-  Future<void> _performStockOut(String id, int quantity, String reason) async {
-    final repository = ref.read(inventoryRepositoryProvider);
-    final navigator = Navigator.of(context);
-    final scaffoldMessenger = ScaffoldMessenger.of(context);
+  Future<void> _performAdjust(String id, int qty, String reason) async {
+    _showLoading('Processing...');
+    try {
+      await ref
+          .read(inventoryRepositoryProvider)
+          .adjustInventory(id: id, quantity: qty, reason: reason);
 
+      if (!mounted) return;
+      Navigator.pop(context);
+      ref.invalidate(inventoryDetailProvider(widget.inventoryId));
+      ref.invalidate(filteredInventoryListProvider);
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text('✓ Adjustment successful'),
+            backgroundColor: Colors.green),
+      );
+    } catch (e) {
+      Navigator.pop(context);
+      _showError(e.toString());
+    }
+  }
+
+  void _showLoading(String msg) {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => const Center(
+      builder: (_) => Center(
         child: Card(
           child: Padding(
-            padding: EdgeInsets.all(20),
+            padding: const EdgeInsets.all(20),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                CircularProgressIndicator(),
-                SizedBox(height: 16),
-                Text('Processing stock out...'),
+                const CircularProgressIndicator(),
+                const SizedBox(height: 16),
+                Text(msg),
               ],
             ),
           ),
         ),
       ),
     );
-
-    try {
-      await repository.stockOut(
-        id: id,
-        quantityOut: quantity,
-        reason: reason,
-      );
-
-      navigator.pop();
-      ref.invalidate(inventoryStreamProvider);
-
-      scaffoldMessenger.showSnackBar(
-        const SnackBar(
-          content: Text('Stock out successful'),
-          backgroundColor: Colors.green,
-        ),
-      );
-
-      setState(() {}); // Refresh UI
-    } catch (e) {
-      navigator.pop();
-      scaffoldMessenger.showSnackBar(
-        SnackBar(
-          content: Text('Failed: ${e.toString()}'),
-          backgroundColor: Colors.red,
-        ),
-      );
-    }
   }
 
-  void _showStockAdjustmentDialog(InventoryModel item) {
-    final adjustmentController = TextEditingController();
-    final reasonController = TextEditingController();
-    String adjustmentType = 'add';
-
-    showDialog(
-      context: context,
-      builder: (dialogContext) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
-          title: const Text('Stock Adjustment'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text('Current Stock: ${item.quantity} ${item.unit}'),
-              const SizedBox(height: 16),
-              SegmentedButton<String>(
-                segments: const [
-                  ButtonSegment(value: 'add', label: Text('Add (+)')),
-                  ButtonSegment(value: 'subtract', label: Text('Subtract (-)')),
-                ],
-                selected: {adjustmentType},
-                onSelectionChanged: (Set<String> newSelection) {
-                  setDialogState(() {
-                    adjustmentType = newSelection.first;
-                  });
-                },
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: adjustmentController,
-                decoration: const InputDecoration(
-                  labelText: 'Adjustment Quantity',
-                  border: OutlineInputBorder(),
-                ),
-                keyboardType: TextInputType.number,
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: reasonController,
-                decoration: const InputDecoration(
-                  labelText: 'Reason',
-                  border: OutlineInputBorder(),
-                  hintText: 'e.g., Physical count correction',
-                ),
-                maxLines: 3,
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext),
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () async {
-                final quantity = int.tryParse(adjustmentController.text);
-                final reason = reasonController.text.trim();
-
-                if (quantity == null || quantity <= 0) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Invalid quantity')),
-                  );
-                  return;
-                }
-
-                if (reason.isEmpty) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Please enter reason')),
-                  );
-                  return;
-                }
-
-                final adjustmentQty = adjustmentType == 'add' ? quantity : -quantity;
-
-                Navigator.pop(dialogContext);
-                await _performStockAdjustment(item.id, adjustmentQty, reason);
-              },
-              child: const Text('Confirm'),
-            ),
-          ],
-        ),
-      ),
+  void _showError(String msg) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Failed: $msg'), backgroundColor: Colors.red),
     );
-  }
-
-  Future<void> _performStockAdjustment(String id, int adjustment, String reason) async {
-    final repository = ref.read(inventoryRepositoryProvider);
-    final navigator = Navigator.of(context);
-    final scaffoldMessenger = ScaffoldMessenger.of(context);
-
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => const Center(
-        child: Card(
-          child: Padding(
-            padding: EdgeInsets.all(20),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                CircularProgressIndicator(),
-                SizedBox(height: 16),
-                Text('Processing adjustment...'),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-
-    try {
-      await repository.stockAdjustment(
-        id: id,
-        adjustmentQuantity: adjustment,
-        reason: reason,
-      );
-
-      navigator.pop();
-      ref.invalidate(inventoryStreamProvider);
-
-      scaffoldMessenger.showSnackBar(
-        const SnackBar(
-          content: Text('Stock adjustment successful'),
-          backgroundColor: Colors.green,
-        ),
-      );
-
-      setState(() {});
-    } catch (e) {
-      navigator.pop();
-      scaffoldMessenger.showSnackBar(
-        SnackBar(
-          content: Text('Failed: ${e.toString()}'),
-          backgroundColor: Colors.red,
-        ),
-      );
-    }
-  }
-
-  void _showStatusChangeDialog(InventoryModel item) {
-    String selectedStatus = item.status;
-    final reasonController = TextEditingController();
-
-    showDialog(
-      context: context,
-      builder: (dialogContext) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
-          title: const Text('Change Status'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text('Current Status: ${item.status.toUpperCase()}'),
-              const SizedBox(height: 16),
-              DropdownButtonFormField<String>(
-                initialValue: selectedStatus,
-                decoration: const InputDecoration(
-                  labelText: 'New Status',
-                  border: OutlineInputBorder(),
-                ),
-                items: const [
-                  DropdownMenuItem(value: 'available', child: Text('Available')),
-                  DropdownMenuItem(value: 'reserved', child: Text('Reserved')),
-                  DropdownMenuItem(value: 'damaged', child: Text('Damaged')),
-                  DropdownMenuItem(value: 'disposed', child: Text('Disposed')),
-                ],
-                onChanged: (value) {
-                  setDialogState(() {
-                    selectedStatus = value!;
-                  });
-                },
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: reasonController,
-                decoration: const InputDecoration(
-                  labelText: 'Reason (Optional)',
-                  border: OutlineInputBorder(),
-                  hintText: 'e.g., Reserved for project X',
-                ),
-                maxLines: 3,
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext),
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () async {
-                if (selectedStatus == item.status) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Status unchanged')),
-                  );
-                  return;
-                }
-
-                Navigator.pop(dialogContext);
-                await _performStatusChange(
-                  item.id,
-                  selectedStatus,
-                  reasonController.text.trim(),
-                );
-              },
-              child: const Text('Confirm'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Future<void> _performStatusChange(String id, String status, String reason) async {
-    final repository = ref.read(inventoryRepositoryProvider);
-    final navigator = Navigator.of(context);
-    final scaffoldMessenger = ScaffoldMessenger.of(context);
-
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => const Center(
-        child: Card(
-          child: Padding(
-            padding: EdgeInsets.all(20),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                CircularProgressIndicator(),
-                SizedBox(height: 16),
-                Text('Updating status...'),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-
-    try {
-      await repository.updateStatus(
-        id: id,
-        status: status,
-        reason: reason.isEmpty ? null : reason,
-      );
-
-      navigator.pop();
-      ref.invalidate(inventoryStreamProvider);
-
-      scaffoldMessenger.showSnackBar(
-        const SnackBar(
-          content: Text('Status updated successfully'),
-          backgroundColor: Colors.green,
-        ),
-      );
-
-      setState(() {});
-    } catch (e) {
-      navigator.pop();
-      scaffoldMessenger.showSnackBar(
-        SnackBar(
-          content: Text('Failed: ${e.toString()}'),
-          backgroundColor: Colors.red,
-        ),
-      );
-    }
   }
 }

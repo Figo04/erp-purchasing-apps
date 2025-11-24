@@ -1,53 +1,55 @@
 import 'package:erp_purchasing_apps/data/models/asset_model.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:erp_purchasing_apps/core/constants/api_constants.dart';
+import 'package:erp_purchasing_apps/core/service/api_service.dart';
 
 class AssetRepository {
-  final SupabaseClient _supabase = Supabase.instance.client;
+  final ApiService _apiService = ApiService();
 
-  // Get all assets with user info (joined)
-  Future<List<AssetModel>> getAllAssets() async {
+  // GET ALL ASSETS
+  Future<List<AssetModel>> getAllAssets({
+    String? productId,
+    String? categoryId,
+    String? assetCategory,
+    String? status,
+    String? assignedTo,
+    String? search,
+  }) async {
     try {
-      final response = await _supabase.from('asset').select('''
-            *,
-            users!asset_assigned_to_fkey(full_name)
-          ''').order('created_at', ascending: false);
+      final queryParams = <String, dynamic>{};
 
-      return (response as List).map((json) {
-        // Extract user full_name from joined data
-        final userData = json['users'];
-        final Map<String, dynamic> assetData = Map.from(json);
-        assetData.remove('users');
+      if (productId != null) queryParams['product_id'] = productId;
+      if (categoryId != null) queryParams['category_id'] = categoryId;
+      if (assetCategory != null && assetCategory != 'all') {
+        queryParams['asset_category'] = assetCategory;
+      }
+      if (status != null && status != 'all') queryParams['status'] = status;
+      if (assignedTo != null) queryParams['assigned_to'] = assignedTo;
+      if (search != null && search.isNotEmpty) queryParams['search'] = search;
 
-        if (userData != null) {
-          assetData['assigned_to_name'] = userData['full_name'];
-        }
+      final response = await _apiService.get(
+        ApiEndpoints.assets,
+        queryParameters: queryParams,
+      );
 
-        return AssetModel.fromJson(assetData);
-      }).toList();
+      if (response.data == null) return [];
+
+      final List<dynamic> dataList =
+          response.data is List ? response.data as List : [response.data];
+
+      return dataList
+          .map((json) => AssetModel.fromJson(json as Map<String, dynamic>))
+          .toList();
     } catch (e) {
       throw Exception('Failed to load assets: $e');
     }
   }
 
-  // Get asset by ID
+  // GET ASSET BY ID
   Future<AssetModel?> getAssetById(String id) async {
     try {
-      final response = await _supabase.from('asset').select('''
-            *,
-            users!asset_assigned_to_fkey(full_name)
-          ''').eq('id', id).maybeSingle();
-
-      if (response == null) return null;
-
-      final userData = response['users'];
-      final Map<String, dynamic> assetData = Map.from(response);
-      assetData.remove('users');
-
-      if (userData != null) {
-        assetData['assigned_to_name'] = userData['full_name'];
-      }
-
-      return AssetModel.fromJson(assetData);
+      final response = await _apiService.get(ApiEndpoints.assetById(id));
+      if (response.data == null) return null;
+      return AssetModel.fromJson(response.data as Map<String, dynamic>);
     } catch (e) {
       throw Exception('Failed to load asset: $e');
     }
@@ -55,301 +57,163 @@ class AssetRepository {
 
   // Create new asset
   Future<AssetModel> createAsset({
+    required String assetCode,
+    String? productId,
     required String name,
-    required String category,
+    required String assetCategory,
     required int quantity,
     double? purchasePrice,
     String? notes,
   }) async {
     try {
-      // Generate asset code
-      final assetCode = await _generateAssetCode();
-
-      final data = {
+      final body = {
         'asset_code': assetCode,
+        if (productId != null) 'product_id': productId,
         'name': name,
-        'category': category,
-        'status': 'available',
+        'asset_category': assetCategory,
+        'quantity': quantity,
+        if (purchasePrice != null) 'purchase_price': purchasePrice,
+        if (notes != null) 'notes': notes,
+      };
+
+      final response = await _apiService.post(ApiEndpoints.assets, body: body);
+      return AssetModel.fromJson(response.data as Map<String, dynamic>);
+    } catch (e) {
+      throw Exception('Failed to create asset: $e');
+    }
+  }
+
+  // UPDATE ASSET
+  Future<AssetModel> updateAsset({
+    required String id,
+    required String name,
+    required String assetCategory,
+    required String status,
+    required int quantity,
+    double? purchasePrice,
+    String? notes,
+  }) async {
+    try {
+      final body = {
+        'name': name,
+        'asset_category': assetCategory,
+        'status': status,
         'quantity': quantity,
         'purchase_price': purchasePrice,
         'notes': notes,
       };
 
       final response =
-          await _supabase.from('asset').insert(data).select().single();
-
-      return AssetModel.fromJson(response);
-    } catch (e) {
-      throw Exception('Failed to create asset: $e');
-    }
-  }
-
-  // Update asset
-  Future<AssetModel> updateAsset({
-    required String id,
-    required String name,
-    required String category,
-    required int quantity,
-    double? purchasePrice,
-    String? notes,
-  }) async {
-    try {
-      final data = {
-        'name': name,
-        'category': category,
-        'quantity': quantity,
-        'purchase_price': purchasePrice,
-        'notes': notes,
-      };
-
-      final response = await _supabase
-          .from('asset')
-          .update(data)
-          .eq('id', id)
-          .select()
-          .single();
-
-      return AssetModel.fromJson(response);
+          await _apiService.put(ApiEndpoints.assetById(id), body: body);
+      return AssetModel.fromJson(response.data as Map<String, dynamic>);
     } catch (e) {
       throw Exception('Failed to update asset: $e');
     }
   }
 
-  // Delete asset
-  Future<void> deleteAsset(String id) async {
-    try {
-      await _supabase.from('asset').delete().eq('id', id);
-    } catch (e) {
-      throw Exception('Failed to delete asset: $e');
-    }
-  }
-
-  // Assign asset to user
+  // ASSIGN ASSET TO USER
   Future<AssetModel> assignAsset({
     required String id,
-    required String userId,
-    String? reason,
+    required String assignedTo,
+    String? notes,
   }) async {
     try {
-      final current = await getAssetById(id);
-      if (current == null) {
-        throw Exception('Asset not found');
-      }
-
-      if (current.status == 'borrowed') {
-        throw Exception('Asset is already borrowed');
-      }
-
-      // Add to notes
-      String? notes = current.notes;
-      if (reason != null && reason.isNotEmpty) {
-        notes =
-            '${notes ?? ''}\n[ASSIGNED] to user on ${DateTime.now()}: $reason'
-                .trim();
-      }
-
-      final data = {
-        'assigned_to': userId,
-        'assigned_date': DateTime.now().toIso8601String(),
-        'status': 'borrowed',
-        'notes': notes,
+      final body = {
+        'assigned_to': assignedTo,
+        if (notes != null) 'notes': notes,
       };
 
-      final response = await _supabase
-          .from('asset')
-          .update(data)
-          .eq('id', id)
-          .select()
-          .single();
-
-      return AssetModel.fromJson(response);
+      final response = await _apiService.post(
+        ApiEndpoints.assignAsset(id),
+        body: body,
+      );
+      return AssetModel.fromJson(response.data as Map<String, dynamic>);
     } catch (e) {
       throw Exception('Failed to assign asset: $e');
     }
   }
 
-  // Unassign asset (return)
+  // UNASSIGN ASSET (Return)
   Future<AssetModel> unassignAsset({
     required String id,
     String? returnNotes,
   }) async {
     try {
       final current = await getAssetById(id);
-      if (current == null) {
-        throw Exception('Asset not found');
-      }
+      if (current == null) throw Exception('Asset not found');
 
-      // Add to notes
-      String? notes = current.notes;
-      if (returnNotes != null && returnNotes.isNotEmpty) {
-        notes = '${notes ?? ''}\n[RETURNED] on ${DateTime.now()}: $returnNotes'
-            .trim();
-      } else {
-        notes = '${notes ?? ''}\n[RETURNED] on ${DateTime.now()}'.trim();
-      }
-
-      final data = {
-        'assigned_to': null,
-        'assigned_date': null,
+      final body = {
+        'name': current.name,
+        'asset_category': current.assetCategory,
         'status': 'available',
-        'notes': notes,
+        'quantity': current.quantity,
+        'purchase_price': current.purchasePrice,
+        'notes': returnNotes != null
+            ? '${current.notes ?? ''}\n[RETURNED] ${DateTime.now()}: $returnNotes'
+                .trim()
+            : current.notes,
       };
 
-      final response = await _supabase
-          .from('asset')
-          .update(data)
-          .eq('id', id)
-          .select()
-          .single();
-
-      return AssetModel.fromJson(response);
+      final response =
+          await _apiService.put(ApiEndpoints.assetById(id), body: body);
+      return AssetModel.fromJson(response.data as Map<String, dynamic>);
     } catch (e) {
       throw Exception('Failed to return asset: $e');
     }
   }
 
-  // Update asset status
-  Future<AssetModel> updateStatus({
-    required String id,
-    required String status,
-    String? reason,
-  }) async {
+  // DELETE ASSET
+  Future<void> deleteAsset(String id) async {
     try {
-      final current = await getAssetById(id);
-      if (current == null) {
-        throw Exception('Asset not found');
-      }
-
-      String? notes = current.notes;
-      if (reason != null && reason.isNotEmpty) {
-        notes =
-            '${notes ?? ''}\n[STATUS CHANGE] ${current.status} → $status: $reason'
-                .trim();
-      }
-
-      final data = {
-        'status': status,
-        'notes': notes,
-      };
-
-      final response = await _supabase
-          .from('asset')
-          .update(data)
-          .eq('id', id)
-          .select()
-          .single();
-
-      return AssetModel.fromJson(response);
+      await _apiService.delete(ApiEndpoints.assetById(id));
     } catch (e) {
-      throw Exception('Failed to update status: $e');
+      throw Exception('Failed to delete asset: $e');
     }
   }
 
-  // Get assets by category
+  // GET TRANSACTION HISTORY
+  Future<List<AssetTransactionModel>> getTransactionHistory(
+      String assetId) async {
+    try {
+      final response = await _apiService.get(
+        ApiEndpoints.assetTransactions(assetId),
+      );
+
+      if (response.data == null) return [];
+
+      final List<dynamic> dataList =
+          response.data is List ? response.data as List : [response.data];
+
+      return dataList
+          .map((json) =>
+              AssetTransactionModel.fromJson(json as Map<String, dynamic>))
+          .toList();
+    } catch (e) {
+      throw Exception('Failed to load transaction history: $e');
+    }
+  }
+
+  // HELPER: GET BY CATEGORY
   Future<List<AssetModel>> getAssetsByCategory(String category) async {
-    try {
-      final response = await _supabase.from('asset').select('''
-            *,
-            users!asset_assigned_to_fkey(full_name)
-          ''').eq('category', category).order('name', ascending: true);
-
-      return (response as List).map((json) {
-        final userData = json['users'];
-        final Map<String, dynamic> assetData = Map.from(json);
-        assetData.remove('users');
-
-        if (userData != null) {
-          assetData['assigned_to_name'] = userData['full_name'];
-        }
-
-        return AssetModel.fromJson(assetData);
-      }).toList();
-    } catch (e) {
-      throw Exception('Failed to load assets by category: $e');
-    }
+    return await getAllAssets(assetCategory: category);
   }
 
-  // Get assets by status
+  // HELPER: GET BY STATUS
   Future<List<AssetModel>> getAssetsByStatus(String status) async {
-    try {
-      final response = await _supabase.from('asset').select('''
-            *,
-            users!asset_assigned_to_fkey(full_name)
-          ''').eq('status', status).order('name', ascending: true);
-
-      return (response as List).map((json) {
-        final userData = json['users'];
-        final Map<String, dynamic> assetData = Map.from(json);
-        assetData.remove('users');
-
-        if (userData != null) {
-          assetData['assigned_to_name'] = userData['full_name'];
-        }
-
-        return AssetModel.fromJson(assetData);
-      }).toList();
-    } catch (e) {
-      throw Exception('Failed to load assets by status: $e');
-    }
+    return await getAllAssets(status: status);
   }
 
-  // Get my assigned assets (for regular users)
+  // HELPER: GET MY ASSIGNED ASSETS
   Future<List<AssetModel>> getMyAssignedAssets(String userId) async {
-    try {
-      final response = await _supabase
-          .from('asset')
-          .select('''
-            *,
-            users!asset_assigned_to_fkey(full_name)
-          ''')
-          .eq('assigned_to', userId)
-          .order('assigned_date', ascending: false);
-
-      return (response as List).map((json) {
-        final userData = json['users'];
-        final Map<String, dynamic> assetData = Map.from(json);
-        assetData.remove('users');
-
-        if (userData != null) {
-          assetData['assigned_to_name'] = userData['full_name'];
-        }
-
-        return AssetModel.fromJson(assetData);
-      }).toList();
-    } catch (e) {
-      throw Exception('Failed to load my assets: $e');
-    }
+    return await getAllAssets(assignedTo: userId);
   }
 
-  // Search assets
+  // HELPER: SEARCH ASSETS
   Future<List<AssetModel>> searchAssets(String query) async {
-    try {
-      final response = await _supabase
-          .from('asset')
-          .select('''
-            *,
-            users!asset_assigned_to_fkey(full_name)
-          ''')
-          .or('name.ilike.%$query%,asset_code.ilike.%$query%')
-          .order('name', ascending: true);
-
-      return (response as List).map((json) {
-        final userData = json['users'];
-        final Map<String, dynamic> assetData = Map.from(json);
-        assetData.remove('users');
-
-        if (userData != null) {
-          assetData['assigned_to_name'] = userData['full_name'];
-        }
-
-        return AssetModel.fromJson(assetData);
-      }).toList();
-    } catch (e) {
-      throw Exception('Failed to search assets: $e');
-    }
+    return await getAllAssets(search: query);
   }
 
-  // Decrease quantity for consumable assets
+  // HELPER: DECREASE QUANTITY (Consumable only)
   Future<AssetModel> decreaseQuantity({
     required String id,
     required int quantity,
@@ -357,11 +221,9 @@ class AssetRepository {
   }) async {
     try {
       final current = await getAssetById(id);
-      if (current == null) {
-        throw Exception('Asset not found');
-      }
+      if (current == null) throw Exception('Asset not found');
 
-      if (current.category != 'consumable') {
+      if (current.assetCategory != 'consumable') {
         throw Exception('Only consumable assets can decrease quantity');
       }
 
@@ -373,35 +235,46 @@ class AssetRepository {
       final notes =
           '${current.notes ?? ''}\n[CONSUMED] -$quantity: $reason'.trim();
 
-      final data = {
-        'quantity': newQuantity,
-        'notes': notes,
-      };
-
-      final response = await _supabase
-          .from('asset')
-          .update(data)
-          .eq('id', id)
-          .select()
-          .single();
-
-      return AssetModel.fromJson(response);
+      return await updateAsset(
+        id: id,
+        name: current.name,
+        assetCategory: current.assetCategory,
+        status: current.status,
+        quantity: newQuantity,
+        purchasePrice: current.purchasePrice,
+        notes: notes,
+      );
     } catch (e) {
       throw Exception('Failed to decrease quantity: $e');
     }
   }
 
-  // Generate asset code
-  Future<String> _generateAssetCode() async {
+  // HELPER: UPDATE STATUS ONLY
+  Future<AssetModel> updateStatus({
+    required String id,
+    required String status,
+    String? reason,
+  }) async {
     try {
-      final count = await _supabase.from('asset').select().count();
+      final current = await getAssetById(id);
+      if (current == null) throw Exception('Asset not found');
 
-      final nextNumber = count.count + 1;
-      final yearMonth =
-          DateTime.now().toString().substring(0, 7).replaceAll('-', '');
-      return 'AST-$yearMonth-${nextNumber.toString().padLeft(4, '0')}';
+      final notes = reason != null
+          ? '${current.notes ?? ''}\n[STATUS CHANGE] ${current.status} → $status: $reason'
+              .trim()
+          : current.notes;
+
+      return await updateAsset(
+        id: id,
+        name: current.name,
+        assetCategory: current.assetCategory,
+        status: status,
+        quantity: current.quantity,
+        purchasePrice: current.purchasePrice,
+        notes: notes,
+      );
     } catch (e) {
-      throw Exception('Failed to generate asset code: $e');
+      throw Exception('Failed to update status: $e');
     }
   }
 }

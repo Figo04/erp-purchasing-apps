@@ -30,8 +30,8 @@ class DashboardScreen2 extends ConsumerWidget {
       ref,
       currentUser,
       pendingCount,
-      lowStockCount,
-      borrowedAssetsCount,
+      lowStockCount.asData?.value ?? 0,
+      borrowedAssetsCount.asData?.value ?? 0,
       overduePaymentsCount,
     );
   }
