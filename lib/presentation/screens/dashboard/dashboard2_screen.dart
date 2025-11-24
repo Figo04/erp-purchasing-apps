@@ -23,6 +23,7 @@ class DashboardScreen2 extends ConsumerWidget {
     final lowStockCount = ref.watch(lowStockCountProvider);
     final borrowedAssetsCount = ref.watch(borrowedAssetsCountProvider);
     final overduePaymentsCount = ref.watch(overduePaymentsCountProvider);
+    
 
     // Dekstop only - no responsive check
     return _buildDesktopLayout(
@@ -32,7 +33,7 @@ class DashboardScreen2 extends ConsumerWidget {
       pendingCount,
       lowStockCount.asData?.value ?? 0,
       borrowedAssetsCount.asData?.value ?? 0,
-      overduePaymentsCount,
+      overduePaymentsCount.asData?.value ?? 0,
     );
   }
 

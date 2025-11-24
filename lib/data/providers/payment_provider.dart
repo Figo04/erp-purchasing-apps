@@ -1,128 +1,128 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
-import '../models/payment_model.dart';
-import '../repositories/payment_repository.dart';
+import 'package:erp_purchasing_apps/data/models/payment_model.dart';
+import 'package:erp_purchasing_apps/data/repositories/payment_repository.dart';
+
+// ============================================
+// REPOSITORY PROVIDER
+// ============================================
 
 final paymentRepositoryProvider = Provider<PaymentRepository>((ref) {
   return PaymentRepository();
 });
 
-// Real-time Payment Stream Provider - 🔄 UPDATED with goods_receipt join
-final paymentStreamProvider = StreamProvider<List<PaymentModel>>((ref) {
-  final supabase = Supabase.instance.client;
+// ============================================
+// PAYMENT LIST PROVIDER (with auto-refresh)
+// ============================================
 
-  return supabase
-      .from('payment')
-      .stream(primaryKey: ['id'])
-      .order('created_at', ascending: false)
-      .asyncMap((data) async {
-        final List<PaymentModel> payments = [];
+final paymentListProvider = FutureProvider.autoDispose
+    .family<List<PaymentModel>, PaymentFilterParams>((ref, params) async {
+  final repository = ref.read(paymentRepositoryProvider);
 
-        for (var json in data) {
-          try {
-            // Fetch PO data
-            if (json['po_id'] != null) {
-              final poResponse = await supabase
-                  .from('purchase_order')
-                  .select(
-                      'po_number, supplier_id, suppliers!purchase_order_supplier_id_fkey(name)')
-                  .eq('id', json['po_id'])
-                  .maybeSingle();
-
-              if (poResponse != null) {
-                json['po_number'] = poResponse['po_number'];
-                if (poResponse['suppliers'] != null) {
-                  json['supplier_name'] = poResponse['suppliers']['name'];
-                }
-              }
-            }
-
-            // 🆕 NEW: Fetch goods receipt data
-            if (json['goods_receipt_id'] != null) {
-              final grResponse = await supabase
-                  .from('goods_receipt')
-                  .select('receipt_number')
-                  .eq('id', json['goods_receipt_id'])
-                  .maybeSingle();
-
-              if (grResponse != null) {
-                json['receipt_number'] = grResponse['receipt_number'];
-              }
-            }
-
-            // Fetch verified by user
-            if (json['verified_by'] != null) {
-              final verifiedUser = await supabase
-                  .from('users')
-                  .select('full_name')
-                  .eq('id', json['verified_by'])
-                  .maybeSingle();
-
-              if (verifiedUser != null) {
-                json['verified_by_name'] = verifiedUser['full_name'];
-              }
-            }
-
-            // Fetch paid by user
-            if (json['paid_by'] != null) {
-              final paidUser = await supabase
-                  .from('users')
-                  .select('full_name')
-                  .eq('id', json['paid_by'])
-                  .maybeSingle();
-
-              if (paidUser != null) {
-                json['paid_by_name'] = paidUser['full_name'];
-              }
-            }
-
-            payments.add(PaymentModel.fromJson(json));
-          } catch (e) {
-            // Skip this payment if error
-            continue;
-          }
-        }
-
-        return payments;
-      });
-});
-
-// Pending payments count (no changes)
-final pendingPaymentsCountProvider = Provider<int>((ref) {
-  final paymentStream = ref.watch(paymentStreamProvider);
-
-  return paymentStream.when(
-    data: (payments) => payments.where((p) => p.status == 'pending').length,
-    loading: () => 0,
-    error: (_, __) => 0,
+  return await repository.getAllPayments(
+    supplierId: params.supplierId,
+    status: params.status,
+    paidBy: params.paidBy,
+    search: params.search,
+    fromDate: params.fromDate,
+    toDate: params.toDate,
   );
 });
 
-// Overdue payments count (no changes)
-final overduePaymentsCountProvider = Provider<int>((ref) {
-  final paymentStream = ref.watch(paymentStreamProvider);
+// ============================================
+// PAYMENT DETAIL PROVIDER
+// ============================================
 
-  return paymentStream.when(
-    data: (payments) {
-      final now = DateTime.now();
-      return payments.where((p) {
-        if (p.dueDate == null) return false;
-        return p.dueDate!.isBefore(now) &&
-            (p.status == 'pending' || p.status == 'scheduled');
-      }).length;
-    },
-    loading: () => 0,
-    error: (_, __) => 0,
-  );
+final paymentDetailProvider =
+    FutureProvider.autoDispose.family<PaymentModel?, String>((ref, id) async {
+  final repository = ref.read(paymentRepositoryProvider);
+  return await repository.getPaymentById(id);
 });
 
-// Payments by status (no changes)
-final paymentsByStatusProvider = Provider.family<int, String>((ref, status) {
-  final paymentStream = ref.watch(paymentStreamProvider);
+// ============================================
+// UNPAID LPBs GROUPED PROVIDER
+// ============================================
 
-  return paymentStream.when(
-    data: (payments) => payments.where((p) => p.status == status).length,
-    loading: () => 0,
-    error: (_, __) => 0,
-  );
+final unpaidLPBsGroupedProvider =
+    FutureProvider.autoDispose<List<SupplierPaymentSummary>>((ref) async {
+  final repository = ref.read(paymentRepositoryProvider);
+  return await repository.getUnpaidLPBsGrouped();
 });
+
+// ============================================
+// UNPAID LPBs BY SUPPLIER PROVIDER
+// ============================================
+
+final unpaidLPBsBySupplierProvider = FutureProvider.autoDispose
+    .family<List<UnpaidLPBInfo>, String>((ref, supplierId) async {
+  final repository = ref.read(paymentRepositoryProvider);
+  return await repository.getUnpaidLPBsBySupplier(supplierId);
+});
+
+// ============================================
+// PAYMENT COUNTS (pending, overdue)
+// ============================================
+
+final pendingPaymentsCountProvider = FutureProvider.autoDispose<int>((ref) async {
+  final payments = await ref.watch(
+    paymentListProvider(PaymentFilterParams(status: 'pending')).future,
+  );
+  return payments.length;
+});
+
+final overduePaymentsCountProvider = FutureProvider.autoDispose<int>((ref) async {
+  final payments = await ref.watch(
+    paymentListProvider(PaymentFilterParams()).future,
+  );
+  
+  final now = DateTime.now();
+  final overdueCount = payments.where((p) {
+    if (p.dueDate == null) return false;
+    return p.dueDate!.isBefore(now) &&
+        (p.status == 'pending' || p.status == 'scheduled');
+  }).length;
+  
+  return overdueCount;
+});
+
+// ============================================
+// FILTER PARAMS CLASS
+// ============================================
+
+class PaymentFilterParams {
+  final String? supplierId;
+  final String? status;
+  final String? paidBy;
+  final String? search;
+  final DateTime? fromDate;
+  final DateTime? toDate;
+
+  PaymentFilterParams({
+    this.supplierId,
+    this.status,
+    this.paidBy,
+    this.search,
+    this.fromDate,
+    this.toDate,
+  });
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is PaymentFilterParams &&
+          runtimeType == other.runtimeType &&
+          supplierId == other.supplierId &&
+          status == other.status &&
+          paidBy == other.paidBy &&
+          search == other.search &&
+          fromDate == other.fromDate &&
+          toDate == other.toDate;
+
+  @override
+  int get hashCode =>
+      supplierId.hashCode ^
+      status.hashCode ^
+      paidBy.hashCode ^
+      search.hashCode ^
+      fromDate.hashCode ^
+      toDate.hashCode;
+}

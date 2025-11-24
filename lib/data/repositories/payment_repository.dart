@@ -1,525 +1,226 @@
-import 'package:intl/intl.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:erp_purchasing_apps/core/service/api_service.dart';
+import 'package:erp_purchasing_apps/core/constants/api_constants.dart';
 import 'package:erp_purchasing_apps/data/models/payment_model.dart';
 
 class PaymentRepository {
-  final SupabaseClient _supabase = Supabase.instance.client;
+  final ApiService _apiService = ApiService();
 
-  // Get all payments with joined data
-  Future<List<PaymentModel>> getAllPayments() async {
-    try {
-      final response = await _supabase.from('payment').select('''
-            *,
-            purchase_order!payment_po_id_fkey(
-              po_number,
-              suppliers!purchase_order_supplier_id_fkey(name)
-            ),
-            goods_receipt!payment_goods_receipt_id_fkey(receipt_number),
-            verified_user:users!payment_verified_by_fkey(full_name),
-            paid_user:users!payment_paid_by_fkey(full_name)
-          ''').order('created_at', ascending: false);
-
-      return (response as List).map((json) {
-        final poData = json['purchase_order'];
-        final grData = json['goods_receipt']; // 🆕 HPB data
-        final verifiedUser = json['verified_user'];
-        final paidUser = json['paid_user'];
-
-        final Map<String, dynamic> paymentData = Map.from(json);
-        paymentData.remove('purchase_order');
-        paymentData.remove('goods_receipt'); // 🆕
-        paymentData.remove('verified_user');
-        paymentData.remove('paid_user');
-
-        if (poData != null) {
-          paymentData['po_number'] = poData['po_number'];
-          if (poData['suppliers'] != null) {
-            paymentData['supplier_name'] = poData['suppliers']['name'];
-          }
-        }
-
-        // 🆕 Add receipt number
-        if (grData != null) {
-          paymentData['receipt_number'] = grData['receipt_number'];
-        }
-
-        if (verifiedUser != null) {
-          paymentData['verified_by_name'] = verifiedUser['full_name'];
-        }
-
-        if (paidUser != null) {
-          paymentData['paid_by_name'] = paidUser['full_name'];
-        }
-
-        return PaymentModel.fromJson(paymentData);
-      }).toList();
-    } catch (e) {
-      throw Exception('Failed to load payments: $e');
-    }
-  }
-
-  // Get payment by ID
-  Future<PaymentModel?> getPaymentById(String id) async {
-    try {
-      final response = await _supabase.from('payment').select('''
-            *,
-            purchase_order!payment_po_id_fkey(
-              po_number,
-              suppliers!purchase_order_supplier_id_fkey(name)
-            ),
-            goods_receipt!payment_goods_receipt_id_fkey(receipt_number),
-            verified_user:users!payment_verified_by_fkey(full_name),
-            paid_user:users!payment_paid_by_fkey(full_name)
-          ''').eq('id', id).maybeSingle();
-
-      if (response == null) return null;
-
-      final poData = response['purchase_order'];
-      final grData = response['goods_receipt']; // 🆕
-      final verifiedUser = response['verified_user'];
-      final paidUser = response['paid_user'];
-
-      final Map<String, dynamic> paymentData = Map.from(response);
-      paymentData.remove('purchase_order');
-      paymentData.remove('goods_receipt'); // 🆕
-      paymentData.remove('verified_user');
-      paymentData.remove('paid_user');
-
-      if (poData != null) {
-        paymentData['po_number'] = poData['po_number'];
-        if (poData['suppliers'] != null) {
-          paymentData['supplier_name'] = poData['suppliers']['name'];
-        }
-      }
-
-      // 🆕 Add receipt number
-      if (grData != null) {
-        paymentData['receipt_number'] = grData['receipt_number'];
-      }
-
-      if (verifiedUser != null) {
-        paymentData['verified_by_name'] = verifiedUser['full_name'];
-      }
-
-      if (paidUser != null) {
-        paymentData['paid_by_name'] = paidUser['full_name'];
-      }
-
-      return PaymentModel.fromJson(paymentData);
-    } catch (e) {
-      throw Exception('Failed to load payment: $e');
-    }
-  }
-
-  // 🆕 NEW: Get payment by Goods Receipt ID
-  Future<PaymentModel?> getPaymentByReceiptId(String receiptId) async {
-    try {
-      final response = await _supabase.from('payment').select('''
-            *,
-            purchase_order!payment_po_id_fkey(
-              po_number,
-              suppliers!purchase_order_supplier_id_fkey(name)
-            ),
-            goods_receipt!payment_goods_receipt_id_fkey(receipt_number),
-            verified_user:users!payment_verified_by_fkey(full_name),
-            paid_user:users!payment_paid_by_fkey(full_name)
-          ''').eq('goods_receipt_id', receiptId).maybeSingle();
-
-      if (response == null) return null;
-
-      final poData = response['purchase_order'];
-      final grData = response['goods_receipt'];
-      final verifiedUser = response['verified_user'];
-      final paidUser = response['paid_user'];
-
-      final Map<String, dynamic> paymentData = Map.from(response);
-      paymentData.remove('purchase_order');
-      paymentData.remove('goods_receipt');
-      paymentData.remove('verified_user');
-      paymentData.remove('paid_user');
-
-      if (poData != null) {
-        paymentData['po_number'] = poData['po_number'];
-        if (poData['suppliers'] != null) {
-          paymentData['supplier_name'] = poData['suppliers']['name'];
-        }
-      }
-
-      if (grData != null) {
-        paymentData['receipt_number'] = grData['receipt_number'];
-      }
-
-      if (verifiedUser != null) {
-        paymentData['verified_by_name'] = verifiedUser['full_name'];
-      }
-
-      if (paidUser != null) {
-        paymentData['paid_by_name'] = paidUser['full_name'];
-      }
-
-      return PaymentModel.fromJson(paymentData);
-    } catch (e) {
-      throw Exception('Failed to load payment by receipt: $e');
-    }
-  }
-
-  // Get payment by PO ID (existing - no change needed)
-  Future<PaymentModel?> getPaymentByPOId(String poId) async {
-    try {
-      final response = await _supabase.from('payment').select('''
-            *,
-            purchase_order!payment_po_id_fkey(
-              po_number,
-              suppliers!purchase_order_supplier_id_fkey(name)
-            ),
-            goods_receipt!payment_goods_receipt_id_fkey(receipt_number),
-            verified_user:users!payment_verified_by_fkey(full_name),
-            paid_user:users!payment_paid_by_fkey(full_name)
-          ''').eq('po_id', poId).maybeSingle();
-
-      if (response == null) return null;
-
-      final poData = response['purchase_order'];
-      final grData = response['goods_receipt'];
-      final verifiedUser = response['verified_user'];
-      final paidUser = response['paid_user'];
-
-      final Map<String, dynamic> paymentData = Map.from(response);
-      paymentData.remove('purchase_order');
-      paymentData.remove('goods_receipt');
-      paymentData.remove('verified_user');
-      paymentData.remove('paid_user');
-
-      if (poData != null) {
-        paymentData['po_number'] = poData['po_number'];
-        if (poData['suppliers'] != null) {
-          paymentData['supplier_name'] = poData['suppliers']['name'];
-        }
-      }
-
-      if (grData != null) {
-        paymentData['receipt_number'] = grData['receipt_number'];
-      }
-
-      if (verifiedUser != null) {
-        paymentData['verified_by_name'] = verifiedUser['full_name'];
-      }
-
-      if (paidUser != null) {
-        paymentData['paid_by_name'] = paidUser['full_name'];
-      }
-
-      return PaymentModel.fromJson(paymentData);
-    } catch (e) {
-      throw Exception('Failed to load payment by PO: $e');
-    }
-  }
-
-  // 🔄 MODIFIED: Create payment from Goods Receipt (bukan langsung dari PO)
-  Future<PaymentModel> createPayment({
-    required String receiptId, // 🔄 Changed from poId
-    required double amount,
-    String? invoiceNumber,
-    DateTime? dueDate,
-    String? notes,
+  // ============================================
+  // GET ALL PAYMENTS (with filters)
+  // ============================================
+  Future<List<PaymentModel>> getAllPayments({
+    String? supplierId,
+    String? status,
+    String? paidBy,
+    String? search,
+    DateTime? fromDate,
+    DateTime? toDate,
   }) async {
     try {
-      // 🆕 Get PO ID from receipt
-      final receiptResponse = await _supabase
-          .from('goods_receipt')
-          .select('po_id')
-          .eq('id', receiptId)
-          .single();
+      final queryParams = <String, dynamic>{};
 
-      final poId = receiptResponse['po_id'];
+      if (supplierId != null) queryParams['supplier_id'] = supplierId;
+      if (status != null) queryParams['status'] = status;
+      if (paidBy != null) queryParams['paid_by'] = paidBy;
+      if (search != null) queryParams['search'] = search;
+      if (fromDate != null) queryParams['from_date'] = fromDate.toIso8601String().split('T')[0];
+      if (toDate != null) queryParams['to_date'] = toDate.toIso8601String().split('T')[0];
 
-      // Generate payment number
-      final paymentNumber = await _generatePaymentNumber();
+      final response = await _apiService.get(
+        ApiEndpoints.payments,
+        queryParameters: queryParams,
+      );
 
-      final data = {
-        'payment_number': paymentNumber,
-        'po_id': poId,
-        'goods_receipt_id': receiptId, // 🆕 Link to receipt
-        'invoice_number': invoiceNumber,
-        'amount': amount,
-        'due_date': dueDate?.toIso8601String(),
-        'status': 'pending',
-        'notes': notes,
-      };
+      if (response.success && response.data != null) {
+        final List<dynamic> dataList = response.data as List<dynamic>;
+        return dataList.map((json) => PaymentModel.fromJson(json)).toList();
+      }
 
-      final response =
-          await _supabase.from('payment').insert(data).select().single();
+      return [];
+    } catch (e) {
+      throw Exception('Failed to get payments: $e');
+    }
+  }
 
-      return PaymentModel.fromJson(response);
+  // ============================================
+  // GET PAYMENT BY ID
+  // ============================================
+  Future<PaymentModel?> getPaymentById(String id) async {
+    try {
+      final response = await _apiService.get(
+        ApiEndpoints.paymentById(id),
+      );
+
+      if (response.success && response.data != null) {
+        return PaymentModel.fromJson(response.data);
+      }
+
+      return null;
+    } catch (e) {
+      throw Exception('Failed to get payment: $e');
+    }
+  }
+
+  // ============================================
+  // GET UNPAID LPBs GROUPED BY SUPPLIER
+  // ============================================
+  Future<List<SupplierPaymentSummary>> getUnpaidLPBsGrouped() async {
+    try {
+      final response = await _apiService.get(
+        ApiEndpoints.unpaidLPBsGrouped,
+      );
+
+      if (response.success && response.data != null) {
+        final List<dynamic> dataList = response.data as List<dynamic>;
+        return dataList.map((json) => SupplierPaymentSummary.fromJson(json)).toList();
+      }
+
+      return [];
+    } catch (e) {
+      throw Exception('Failed to get unpaid LPBs: $e');
+    }
+  }
+
+  // ============================================
+  // GET UNPAID LPBs BY SUPPLIER
+  // ============================================
+  Future<List<UnpaidLPBInfo>> getUnpaidLPBsBySupplier(String supplierId) async {
+    try {
+      final response = await _apiService.get(
+        ApiEndpoints.unpaidLPBsBySupplier(supplierId),
+      );
+
+      if (response.success && response.data != null) {
+        final List<dynamic> dataList = response.data as List<dynamic>;
+        return dataList.map((json) => UnpaidLPBInfo.fromJson(json)).toList();
+      }
+
+      return [];
+    } catch (e) {
+      throw Exception('Failed to get unpaid LPBs by supplier: $e');
+    }
+  }
+
+  // ============================================
+  // CREATE PAYMENT
+  // ============================================
+  Future<PaymentModel> createPayment(CreatePaymentRequest request) async {
+    try {
+      final response = await _apiService.post(
+        ApiEndpoints.payments,
+        body: request.toJson(),
+      );
+
+      if (response.success && response.data != null) {
+        return PaymentModel.fromJson(response.data);
+      }
+
+      throw Exception(response.message);
     } catch (e) {
       throw Exception('Failed to create payment: $e');
     }
   }
 
-  // Verify payment (no changes)
-  Future<PaymentModel> verifyPayment({
-    required String id,
-    required String userId,
-  }) async {
+  // ============================================
+  // UPDATE PAYMENT
+  // ============================================
+  Future<PaymentModel> updatePayment(
+    String id,
+    UpdatePaymentRequest request,
+  ) async {
     try {
-      final data = {
-        'verified_by': userId,
-        'verified_at': DateTime.now().toIso8601String(),
-        'status': 'scheduled',
-      };
+      final response = await _apiService.put(
+        ApiEndpoints.paymentById(id),
+        body: request.toJson(),
+      );
 
-      final response = await _supabase
-          .from('payment')
-          .update(data)
-          .eq('id', id)
-          .select()
-          .single();
-
-      return PaymentModel.fromJson(response);
-    } catch (e) {
-      throw Exception('Failed to verify payment: $e');
-    }
-  }
-
-  // Process payment (no changes)
-  Future<PaymentModel> processPayment({
-    required String id,
-    required String userId,
-    required DateTime paymentDate,
-    required String method,
-    String? referenceNumber,
-  }) async {
-    try {
-      final data = {
-        'payment_date': paymentDate.toIso8601String(),
-        'method': method,
-        'reference_number': referenceNumber,
-        'paid_by': userId,
-        'status': 'paid',
-      };
-
-      final response = await _supabase
-          .from('payment')
-          .update(data)
-          .eq('id', id)
-          .select()
-          .single();
-
-      return PaymentModel.fromJson(response);
-    } catch (e) {
-      throw Exception('Failed to process payment: $e');
-    }
-  }
-
-  // Update payment (no changes)
-  Future<PaymentModel> updatePayment({
-    required String id,
-    String? invoiceNumber,
-    double? amount,
-    DateTime? dueDate,
-    String? notes,
-  }) async {
-    try {
-      final current = await getPaymentById(id);
-      if (current == null) {
-        throw Exception('Payment not found');
+      if (response.success && response.data != null) {
+        return PaymentModel.fromJson(response.data);
       }
 
-      String updatedNotes = current.notes ?? '';
-      final List<String> changes = [];
-
-      if (invoiceNumber != null && invoiceNumber != current.invoiceNumber) {
-        changes
-            .add('Invoice: ${current.invoiceNumber ?? 'N/A'} → $invoiceNumber');
-      }
-      if (amount != null && amount != current.amount) {
-        changes.add('Amount: Rp ${current.amount} → Rp $amount');
-      }
-      if (dueDate != null && dueDate != current.dueDate) {
-        final oldDate = current.dueDate != null
-            ? DateFormat('dd/MM/yyyy').format(current.dueDate!)
-            : 'N/A';
-        final newDate = DateFormat('dd/MM/yyyy').format(dueDate);
-        changes.add('Due Date: $oldDate → $newDate');
-      }
-
-      if (changes.isNotEmpty) {
-        updatedNotes =
-            '$updatedNotes\n[UPDATED] ${DateTime.now()}: ${changes.join(', ')}'
-                .trim();
-      }
-
-      final data = <String, dynamic>{};
-
-      if (invoiceNumber != null) data['invoice_number'] = invoiceNumber;
-      if (amount != null) data['amount'] = amount;
-      if (dueDate != null) data['due_date'] = dueDate.toIso8601String();
-      if (notes != null || changes.isNotEmpty) {
-        data['notes'] = notes ?? updatedNotes;
-      }
-
-      final response = await _supabase
-          .from('payment')
-          .update(data)
-          .eq('id', id)
-          .select()
-          .single();
-
-      return PaymentModel.fromJson(response);
+      throw Exception(response.message);
     } catch (e) {
       throw Exception('Failed to update payment: $e');
     }
   }
 
-  // Cancel payment (no changes)
-  Future<PaymentModel> cancelPayment({
-    required String id,
-    required String reason,
-  }) async {
+  // ============================================
+  // PROCESS PAYMENT
+  // ============================================
+  Future<PaymentModel> processPayment(
+    String id,
+    ProcessPaymentRequest request,
+  ) async {
     try {
-      final current = await getPaymentById(id);
-      if (current == null) {
-        throw Exception('Payment not found');
+      final response = await _apiService.post(
+        ApiEndpoints.processPayment(id),
+        body: request.toJson(),
+      );
+
+      if (response.success && response.data != null) {
+        return PaymentModel.fromJson(response.data);
       }
 
-      final notes =
-          '${current.notes ?? ''}\n[CANCELLED] ${DateTime.now()}: $reason'
-              .trim();
+      throw Exception(response.message);
+    } catch (e) {
+      throw Exception('Failed to process payment: $e');
+    }
+  }
 
-      final data = {
-        'status': 'cancelled',
-        'notes': notes,
-      };
+  // ============================================
+  // VERIFY PAYMENT
+  // ============================================
+  Future<PaymentModel> verifyPayment(String id, {String? notes}) async {
+    try {
+      final response = await _apiService.post(
+        ApiEndpoints.verifyPayment(id),
+        body: notes != null ? {'notes': notes} : {},
+      );
 
-      final response = await _supabase
-          .from('payment')
-          .update(data)
-          .eq('id', id)
-          .select()
-          .single();
+      if (response.success && response.data != null) {
+        return PaymentModel.fromJson(response.data);
+      }
 
-      return PaymentModel.fromJson(response);
+      throw Exception(response.message);
+    } catch (e) {
+      throw Exception('Failed to verify payment: $e');
+    }
+  }
+
+  // ============================================
+  // CANCEL PAYMENT
+  // ============================================
+  Future<PaymentModel> cancelPayment(String id, String reason) async {
+    try {
+      final response = await _apiService.post(
+        ApiEndpoints.cancelPayment(id),
+        body: {'reason': reason},
+      );
+
+      if (response.success && response.data != null) {
+        return PaymentModel.fromJson(response.data);
+      }
+
+      throw Exception(response.message);
     } catch (e) {
       throw Exception('Failed to cancel payment: $e');
     }
   }
 
-  // Delete payment (no changes)
+  // ============================================
+  // DELETE PAYMENT
+  // ============================================
   Future<void> deletePayment(String id) async {
     try {
-      await _supabase.from('payment').delete().eq('id', id);
+      final response = await _apiService.delete(
+        ApiEndpoints.paymentById(id),
+      );
+
+      if (!response.success) {
+        throw Exception(response.message);
+      }
     } catch (e) {
       throw Exception('Failed to delete payment: $e');
-    }
-  }
-
-  // Get payments by status (no changes)
-  Future<List<PaymentModel>> getPaymentsByStatus(String status) async {
-    try {
-      final response = await _supabase.from('payment').select('''
-            *,
-            purchase_order!payment_po_id_fkey(
-              po_number,
-              suppliers!purchase_order_supplier_id_fkey(name)
-            ),
-            goods_receipt!payment_goods_receipt_id_fkey(receipt_number),
-            verified_user:users!payment_verified_by_fkey(full_name),
-            paid_user:users!payment_paid_by_fkey(full_name)
-          ''').eq('status', status).order('created_at', ascending: false);
-
-      return (response as List).map((json) {
-        final poData = json['purchase_order'];
-        final grData = json['goods_receipt'];
-        final verifiedUser = json['verified_user'];
-        final paidUser = json['paid_user'];
-
-        final Map<String, dynamic> paymentData = Map.from(json);
-        paymentData.remove('purchase_order');
-        paymentData.remove('goods_receipt');
-        paymentData.remove('verified_user');
-        paymentData.remove('paid_user');
-
-        if (poData != null) {
-          paymentData['po_number'] = poData['po_number'];
-          if (poData['suppliers'] != null) {
-            paymentData['supplier_name'] = poData['suppliers']['name'];
-          }
-        }
-
-        if (grData != null) {
-          paymentData['receipt_number'] = grData['receipt_number'];
-        }
-
-        if (verifiedUser != null) {
-          paymentData['verified_by_name'] = verifiedUser['full_name'];
-        }
-
-        if (paidUser != null) {
-          paymentData['paid_by_name'] = paidUser['full_name'];
-        }
-
-        return PaymentModel.fromJson(paymentData);
-      }).toList();
-    } catch (e) {
-      throw Exception('Failed to load payments by status: $e');
-    }
-  }
-
-  // Get overdue payments (no changes)
-  Future<List<PaymentModel>> getOverduePayments() async {
-    try {
-      final now = DateTime.now().toIso8601String();
-
-      final response = await _supabase
-          .from('payment')
-          .select('''
-            *,
-            purchase_order!payment_po_id_fkey(
-              po_number,
-              suppliers!purchase_order_supplier_id_fkey(name)
-            ),
-            goods_receipt!payment_goods_receipt_id_fkey(receipt_number)
-          ''')
-          .lt('due_date', now)
-          .inFilter('status', ['pending', 'scheduled'])
-          .order('due_date', ascending: true);
-
-      return (response as List).map((json) {
-        final poData = json['purchase_order'];
-        final grData = json['goods_receipt'];
-        final Map<String, dynamic> paymentData = Map.from(json);
-        paymentData.remove('purchase_order');
-        paymentData.remove('goods_receipt');
-
-        if (poData != null) {
-          paymentData['po_number'] = poData['po_number'];
-          if (poData['suppliers'] != null) {
-            paymentData['supplier_name'] = poData['suppliers']['name'];
-          }
-        }
-
-        if (grData != null) {
-          paymentData['receipt_number'] = grData['receipt_number'];
-        }
-
-        return PaymentModel.fromJson(paymentData);
-      }).toList();
-    } catch (e) {
-      throw Exception('Failed to load overdue payments: $e');
-    }
-  }
-
-  // Generate payment number (no changes)
-  Future<String> _generatePaymentNumber() async {
-    try {
-      final count = await _supabase.from('payment').select().count();
-
-      final nextNumber = count.count + 1;
-      final yearMonth =
-          DateTime.now().toString().substring(0, 7).replaceAll('-', '');
-      return 'PAY-$yearMonth-${nextNumber.toString().padLeft(4, '0')}';
-    } catch (e) {
-      throw Exception('Failed to generate payment number: $e');
     }
   }
 }

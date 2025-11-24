@@ -105,10 +105,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
           path: '/asset', builder: (context, state) => const AssetListScreen()),
-      // GoRoute(
-      //   path: '/payment',
-      //   builder: (context, state) => const PaymentListScreen(),
-      // ),
+      GoRoute(
+        path: '/payment',
+        builder: (context, state) => const PaymentListScreen(),
+      ),
     ],
   );
 });

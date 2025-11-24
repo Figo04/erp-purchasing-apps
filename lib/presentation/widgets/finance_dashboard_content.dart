@@ -8,8 +8,11 @@ class FinanceDashboardContent extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final overdueCount = ref.watch(overduePaymentsCountProvider);
-    final pendingCount = ref.watch(pendingPaymentsCountProvider);
+    final overdueCountAsync = ref.watch(overduePaymentsCountProvider);
+    final pendingCountAsync = ref.watch(pendingPaymentsCountProvider);
+    
+    final overdueCount = overdueCountAsync.asData?.value ?? 0;
+    final pendingCount = pendingCountAsync.asData?.value ?? 0;
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
@@ -34,13 +37,13 @@ class FinanceDashboardContent extends ConsumerWidget {
           Row(
             children: [
               Expanded(
-                child: _buildStatCard(
-                    'Pending', '$pendingCount', Icons.pending, Colors.orange),
+                child: _buildStatCard('Pending', pendingCount.toString(),
+                    Icons.pending, Colors.orange),
               ),
               const SizedBox(width: 12),
               Expanded(
-                child: _buildStatCard(
-                    'Overdue', '$overdueCount', Icons.warning, Colors.red),
+                child: _buildStatCard('Overdue', overdueCount.toString(),
+                    Icons.warning, Colors.red),
               ),
               const SizedBox(width: 12),
               Expanded(
