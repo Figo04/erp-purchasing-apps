@@ -19,11 +19,23 @@ class DashboardScreen2 extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final currentUser = ref.watch(currentUserProvider);
-    final pendingCount = ref.watch(pendingPRCountProvider);
-    final lowStockCount = ref.watch(lowStockCountProvider);
-    final borrowedAssetsCount = ref.watch(borrowedAssetsCountProvider);
-    final overduePaymentsCount = ref.watch(overduePaymentsCountProvider);
+    final userRole = currentUser?.role?.toLowerCase();
     
+    // ✅ ONLY watch providers if user has permission
+    final pendingCount = ref.watch(pendingPRCountProvider);
+    
+    // ✅ Conditional watching based on role
+    final lowStockCount = RBACHelper.canAccessMenu(userRole, 'inventory')
+        ? ref.watch(lowStockCountProvider)
+        : const AsyncValue.data(0);
+        
+    final borrowedAssetsCount = RBACHelper.canAccessMenu(userRole, 'asset')
+        ? ref.watch(borrowedAssetsCountProvider)
+        : const AsyncValue.data(0);
+        
+    final overduePaymentsCount = RBACHelper.canAccessMenu(userRole, 'payment')
+        ? ref.watch(overduePaymentsCountProvider)
+        : const AsyncValue.data(0);
 
     // Dekstop only - no responsive check
     return _buildDesktopLayout(
@@ -172,7 +184,7 @@ class DashboardScreen2 extends ConsumerWidget {
                         _buildSideMenuItem(context, Icons.business, 'Suppliers',
                             () => context.go('/suppliers')),
 
-                      // PR History - All rolse
+                      // PR History - All roles
                       if (RBACHelper.canAccessMenu(
                           currentUser?.role, 'pr_history'))
                         _buildSideMenuItem(context, Icons.history, 'PR History',

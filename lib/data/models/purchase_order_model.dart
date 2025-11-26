@@ -19,7 +19,7 @@ class PurchaseOrderModel extends Equatable {
   final String? notes;
   final DateTime createdAt;
   final DateTime updatedAt;
-  
+
   // Relations
   final List<POItemModel>? items;
   final List<String>? prIds; // Related PR IDs
@@ -274,28 +274,59 @@ class UpdatePOItemRequest {
   }
 }
 
-/// PR Grouping Helper (from backend)
+/// PR Grouping Helper (from backend)S
 class PRGrouping {
-  final String supplierId;
-  final String supplierName;
+  final String supplierId; // Will be empty UUID
+  final String supplierName; // Will use category name as fallback
+  final String? categoryId;
+  final String? categoryName;
   final List<String> prIds;
   final List<PRGroupingItem> items;
 
   const PRGrouping({
     required this.supplierId,
     required this.supplierName,
+    this.categoryId,
+    this.categoryName,
     required this.prIds,
     required this.items,
   });
 
   factory PRGrouping.fromJson(Map<String, dynamic> json) {
+    // Extract PR IDs and items from prs array
+    List<String> prIds = [];
+    List<PRGroupingItem> items = [];
+
+    if (json['prs'] != null && json['prs'] is List) {
+      for (var pr in json['prs'] as List) {
+        // Collect PR IDs
+        if (pr['id'] != null) {
+          prIds.add(pr['id'].toString());
+        }
+
+        // Extract items from each PR
+        if (pr['items'] != null && pr['items'] is List) {
+          for (var item in pr['items'] as List) {
+            items.add(PRGroupingItem.fromJson(item));
+          }
+        }
+      }
+    }
+
+    // Use category_name as fallback for supplier_name
+    String displayName = json['supplier_name']?.toString() ?? '';
+    if (displayName.isEmpty) {
+      displayName = json['category_name']?.toString() ?? 'Unknown';
+    }
+
     return PRGrouping(
-      supplierId: json['supplier_id'] as String,
-      supplierName: json['supplier_name'] as String,
-      prIds: (json['pr_ids'] as List).map((e) => e.toString()).toList(),
-      items: (json['items'] as List)
-          .map((item) => PRGroupingItem.fromJson(item))
-          .toList(),
+      supplierId: json['supplier_id']?.toString() ??
+          '00000000-0000-0000-0000-000000000000',
+      supplierName: displayName,
+      categoryId: json['category_id']?.toString(),
+      categoryName: json['category_name']?.toString(),
+      prIds: prIds,
+      items: items,
     );
   }
 }

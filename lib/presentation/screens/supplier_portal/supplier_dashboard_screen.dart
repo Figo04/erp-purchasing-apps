@@ -1,8 +1,9 @@
+import 'package:erp_purchasing_apps/core/constants/api_constants.dart';
+import 'package:erp_purchasing_apps/core/service/api_service.dart';
 import 'package:erp_purchasing_apps/data/providers/supplier_auth_providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
 class SupplierDashboardScreen extends ConsumerStatefulWidget {
   const SupplierDashboardScreen({super.key});
@@ -14,7 +15,10 @@ class SupplierDashboardScreen extends ConsumerStatefulWidget {
 
 class _SupplierDashboardScreenState
     extends ConsumerState<SupplierDashboardScreen> {
+  final ApiService _apiService = ApiService();
+
   String? _supplierName;
+  String? _supplierId;
   Map<String, int> _stats = {
     'active_pos': 0,
     'pending_shipments': 0,
@@ -34,56 +38,56 @@ class _SupplierDashboardScreenState
     setState(() => _isLoading = true);
 
     try {
-      final supabase = Supabase.instance.client;
-      final userEmail = supabase.auth.currentUser?.email;
+      // Get supplier info from provider
+      final supplier = ref.read(currentSupplierProvider);
 
-      if (userEmail == null) throw Exception('Not logged in');
+      if (supplier == null) {
+        throw Exception('Supplier not found');
+      }
 
-      // Get supplier info
-      final supplierResponse = await supabase
-          .from('suppliers')
-          .select()
-          .eq('auth_email', userEmail)
-          .single();
+      _supplierName = supplier.name;
+      _supplierId = supplier.id;
 
-      final supplierId = supplierResponse['id'];
-      _supplierName = supplierResponse['name'];
+      // ✅ GANTI INI - Pakai endpoint supplier
+      final posResponse = await _apiService.get(
+        ApiEndpoints.supplierPOs, // ← Ganti dari purchaseOrders ke supplierPOs
+        queryParameters: {
+          'status': 'approved', // ← Hapus supplier_id, backend otomatis filter
+        },
+      );
 
-      // Get active POs count
-      final posResponse = await supabase
-          .from('purchase_order')
-          .select('id')
-          .eq('supplier_id', supplierId)
-          .eq('status', 'approved')
-          .count();
+      // ✅ GANTI INI JUGA - Pakai endpoint supplier shipments
+      final pendingShipmentsResponse = await _apiService.get(
+        ApiEndpoints.supplierShipments, // ← Ganti dari shipments
+        queryParameters: {
+          'status': 'pending', // ← Hapus supplier_id
+        },
+      );
 
-      // Get pending shipments count
-      final pendingShipmentsResponse = await supabase
-          .from('shipment')
-          .select('id')
-          .eq('supplier_id', supplierId)
-          .eq('status', 'pending')
-          .count();
-
-      // Get completed shipments count
-      final completedShipmentsResponse = await supabase
-          .from('shipment')
-          .select('id')
-          .eq('supplier_id', supplierId)
-          .eq('status', 'received')
-          .count();
+      // ✅ DAN INI
+      final completedShipmentsResponse = await _apiService.get(
+        ApiEndpoints.supplierShipments, // ← Ganti dari shipments
+        queryParameters: {
+          'status': 'received', // ← Hapus supplier_id
+        },
+      );
 
       if (mounted) {
         setState(() {
+          final posData = posResponse.data as List?;
+          final pendingData = pendingShipmentsResponse.data as List?;
+          final completedData = completedShipmentsResponse.data as List?;
+
           _stats = {
-            'active_pos': posResponse.count,
-            'pending_shipments': pendingShipmentsResponse.count,
-            'completed_shipments': completedShipmentsResponse.count,
+            'active_pos': posData?.length ?? 0,
+            'pending_shipments': pendingData?.length ?? 0,
+            'completed_shipments': completedData?.length ?? 0,
           };
           _isLoading = false;
         });
       }
     } catch (e) {
+      print('❌ Error loading dashboard: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error loading data: $e')),
@@ -101,10 +105,6 @@ class _SupplierDashboardScreenState
       await ref.read(supplierAuthStateProvider.notifier).signOut();
 
       print('✅ Logout complete, provider cleared');
-
-      // ✅ Verify provider cleared
-      final supplier = ref.read(currentSupplierProvider);
-      print('🔍 After logout, supplier state: $supplier');
 
       if (mounted) {
         // Small delay untuk pastikan state propagate
@@ -223,7 +223,7 @@ class _SupplierDashboardScreenState
                       ),
                       _buildStatCard(
                         context,
-                        'Pending Shipements',
+                        'Pending Shipments',
                         _stats['pending_shipments']!,
                         Icons.pending_actions,
                         Colors.orange,

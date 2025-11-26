@@ -1,14 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:erp_purchasing_apps/data/providers/pr_provider.dart';
+import 'package:intl/intl.dart';
+import 'package:erp_purchasing_apps/data/providers/dashboard_provider.dart';
+import 'package:erp_purchasing_apps/data/providers/payment_provider.dart';
 
 class KadivDashboardContent extends ConsumerWidget {
   const KadivDashboardContent({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final pendingCount = ref.watch(pendingPRCountProvider);
+    final dashboardStatsAsync = ref.watch(dashboardStatsProvider);
+    final performanceAsync = ref.watch(performanceMetricsProvider);
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
@@ -16,37 +19,54 @@ class KadivDashboardContent extends ConsumerWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
-            'Approval Dashboard',
+            'Kadiv Dashboard',
             style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF2196F3)),
+              fontSize: 28,
+              fontWeight: FontWeight.bold,
+              color: Color(0xFF2196F3),
+            ),
           ),
           const SizedBox(height: 4),
           Text(
-            'Review and approve purchase request',
+            'Review and approve purchase requests',
             style: TextStyle(fontSize: 14, color: Colors.grey[600]),
           ),
           const SizedBox(height: 24),
 
-          // Stats Row
-          Row(
-            children: [
-              Expanded(
-                child: _buildStatCard('Pending Approval', '$pendingCount',
-                    Icons.pending_actions, Colors.orange),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _buildStatCard(
-                    'Approved Today', '3', Icons.check_circle, Colors.green),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _buildStatCard(
-                    'High Priority', '2', Icons.priority_high, Colors.red),
-              ),
-            ],
+          // Stats Row - REAL DATA
+          dashboardStatsAsync.when(
+            data: (stats) => Row(
+              children: [
+                Expanded(
+                  child: _buildStatCard(
+                    'Pending Approval',
+                    stats.pendingPR.toString(),
+                    Icons.pending_actions,
+                    Colors.orange,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _buildStatCard(
+                    'Total PRs',
+                    stats.totalPR.toString(),
+                    Icons.description,
+                    Colors.blue,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _buildStatCard(
+                    'Total POs',
+                    stats.totalPO.toString(),
+                    Icons.shopping_cart,
+                    Colors.green,
+                  ),
+                ),
+              ],
+            ),
+            loading: () => const Center(child: CircularProgressIndicator()),
+            error: (error, _) => Text('Error: $error'),
           ),
           const SizedBox(height: 24),
 
@@ -87,8 +107,68 @@ class KadivDashboardContent extends ConsumerWidget {
           ),
           const SizedBox(height: 24),
 
-          // Departement Performance
-          _buildDepartementPerformance(context),
+          // Performance Metrics - REAL DATA
+          performanceAsync.when(
+            data: (metrics) => Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(8),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 10,
+                  ),
+                ],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(Icons.analytics,
+                          size: 18, color: Color(0xFF2196F3)),
+                      const SizedBox(width: 8),
+                      const Text(
+                        'Team Performance',
+                        style: TextStyle(
+                            fontSize: 16, fontWeight: FontWeight.bold),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+                  _buildPerformanceRow(
+                    'Total Transactions',
+                    metrics.totalTransactions.toString(),
+                    Icons.sync_alt,
+                  ),
+                  const SizedBox(height: 12),
+                  _buildPerformanceRow(
+                    'Completion Rate',
+                    '${metrics.completionRate.toStringAsFixed(1)}%',
+                    Icons.check_circle,
+                  ),
+                  const SizedBox(height: 12),
+                  _buildPerformanceRow(
+                    'Avg Processing Time',
+                    '${metrics.avgProcessingTime.toStringAsFixed(1)} days',
+                    Icons.timer,
+                  ),
+                  const SizedBox(height: 20),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: () => context.go('/pr-history'),
+                      icon: const Icon(Icons.history),
+                      label: const Text('View All History'),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            loading: () => const Center(child: CircularProgressIndicator()),
+            error: (_, __) => const SizedBox.shrink(),
+          ),
         ],
       ),
     );
@@ -121,53 +201,8 @@ class KadivDashboardContent extends ConsumerWidget {
           Text(
             label,
             style: TextStyle(fontSize: 13, color: Colors.grey[600]),
+            textAlign: TextAlign.center,
           )
-        ],
-      ),
-    );
-  }
-
-  Widget _buildDepartementPerformance(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(8),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-          )
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const Icon(Icons.analytics, size: 18, color: Color(0xFF2196F3)),
-              const SizedBox(width: 8),
-              const Text(
-                'Departement Performance',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-              ),
-            ],
-          ),
-          const SizedBox(height: 20),
-          _buildPerformanceRow('Team PRs', '12', Icons.description),
-          const SizedBox(height: 12),
-          _buildPerformanceRow('Approval Rate', '85%', Icons.check_circle),
-          const SizedBox(height: 12),
-          _buildPerformanceRow('Avg Response Time', '2 hours', Icons.timer),
-          const SizedBox(height: 20),
-          SizedBox(
-            width: double.infinity,
-            child: OutlinedButton.icon(
-              onPressed: () => context.go('/pr-history'),
-              icon: const Icon(Icons.history),
-              label: const Text('View All History'),
-            ),
-          ),
         ],
       ),
     );

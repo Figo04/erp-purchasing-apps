@@ -18,69 +18,71 @@ class SupplierPortalApp extends ConsumerStatefulWidget {
 class _SupplierPortalAppState extends ConsumerState<SupplierPortalApp> {
   late final GoRouter _router;
 
-  // @override
-  // void initState() {
-  //   super.initState();
-  //   _router = _createRouter();
-  // }
+  @override
+  void initState() {
+    super.initState();
+    _router = _createRouter();
+  }
 
-  // GoRouter _createRouter() {
-  //   return GoRouter(
-  //     initialLocation: '/supplier/login',
-  //     debugLogDiagnostics: true,
-  //     redirect: (context, state) {
-  //       // ✅ Check current supplier dari provider
-  //       final currentSupplier = ref.read(currentSupplierProvider);
-  //       final isLoggedIn = currentSupplier != null;
-  //       final isLoggingIn = state.matchedLocation == '/supplier/login';
+  GoRouter _createRouter() {
+    return GoRouter(
+      initialLocation: '/supplier/login',
+      debugLogDiagnostics: true,
+      redirect: (context, state) {
+        // ✅ Check current supplier dari provider
+        final currentSupplier = ref.read(currentSupplierProvider);
+        final isLoggedIn = currentSupplier != null;
+        final isLoggingIn = state.matchedLocation == '/supplier/login';
 
-  //       print('🔄 GoRouter redirect check:');
-  //       print('   - Supplier: ${currentSupplier?.name}');
-  //       print('   - Email: ${currentSupplier?.email}');
-  //       print('   - isLoggedIn: $isLoggedIn');
-  //       print('   - current location: ${state.matchedLocation}');
+        print('🔄 GoRouter redirect check:');
+        print('   - Supplier: ${currentSupplier?.name}');
+        print('   - Email: ${currentSupplier?.authEmail}');
+        print('   - isLoggedIn: $isLoggedIn');
+        print('   - current location: ${state.matchedLocation}');
 
-  //       // ✅ HANYA protect halaman yang butuh auth
-  //       // Jika belum login dan mencoba akses halaman protected -> redirect ke login
-  //       if (!isLoggedIn && !isLoggingIn) {
-  //         print('   ➡️ Redirecting to login (not authenticated)');
-  //         return '/supplier/login';
-  //       }
+        // ✅ HANYA protect halaman yang butuh auth
+        // Jika belum login dan mencoba akses halaman protected -> redirect ke login
+        if (!isLoggedIn && !isLoggingIn) {
+          print('   ➡️ Redirecting to login (not authenticated)');
+          return '/supplier/login';
+        }
 
-  //       // ❌ HAPUS auto redirect ke dashboard
-  //       // Biarkan user tetap di login screen meskipun sudah ada session
-  //       // User harus klik tombol login manual
+        // ✅ Jika sudah login dan di halaman login -> redirect ke dashboard
+        if (isLoggedIn && isLoggingIn) {
+          print('   ➡️ Redirecting to dashboard (already authenticated)');
+          return '/supplier/dashboard';
+        }
 
-  //       print('   ✅ No redirect needed');
-  //       return null;
-  //     },
-  //     // routes: [
-  //     //   GoRoute(
-  //     //     path: '/supplier/login',
-  //     //     builder: (context, state) => const SupplierLoginScreen(),
-  //     //   ),
-  //     //   GoRoute(
-  //     //     path: '/supplier/dashboard',
-  //     //     builder: (context, state) => const SupplierDashboardScreen(),
-  //     //   ),
-  //     //   GoRoute(
-  //     //     path: '/supplier/pos',
-  //     //     builder: (context, state) => const SupplierPOListScreen(),
-  //     //   ),
-  //     //   GoRoute(
-  //     //     path: '/supplier/shipments',
-  //     //     builder: (context, state) => const SupplierShipmentListScreen(),
-  //     //   ),
-  //     //   GoRoute(
-  //     //     path: '/supplier/shipment/create',
-  //     //     builder: (context, state) {
-  //     //       final poId = state.uri.queryParameters['poId'];
-  //     //       return SupplierShipmentFormScreen(poId: poId);
-  //     //     },
-  //     //   ),
-  //     // ],
-  //   );
-  // }
+        print('   ✅ No redirect needed');
+        return null;
+      },
+      routes: [
+        GoRoute(
+          path: '/supplier/login',
+          builder: (context, state) => const SupplierLoginScreen(),
+        ),
+        GoRoute(
+          path: '/supplier/dashboard',
+          builder: (context, state) => const SupplierDashboardScreen(),
+        ),
+        GoRoute(
+          path: '/supplier/pos',
+          builder: (context, state) => const SupplierPOListScreen(),
+        ),
+        GoRoute(
+          path: '/supplier/shipments',
+          builder: (context, state) => const SupplierShipmentListScreen(),
+        ),
+        GoRoute(
+          path: '/supplier/shipment/create',
+          builder: (context, state) {
+            final poId = state.uri.queryParameters['poId'];
+            return SupplierShipmentFormScreen(poId: poId);
+          },
+        ),
+      ],
+    );
+  }
 
   @override
   Widget build(BuildContext context) {

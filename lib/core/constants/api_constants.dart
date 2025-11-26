@@ -156,6 +156,18 @@ class ApiEndpoints {
   static const String dashboardTrends = '/dashboard/trends';
 
   // ============================================
+  // SUPPLIER PORTAL ENDPOINTS
+  // ============================================
+
+  /// Supplier POs
+  static const String supplierPOs = '/supplier/pos';
+  static String supplierPOById(String id) => '/supplier/pos/$id';
+
+  /// Supplier Shipments
+  static const String supplierShipments = '/supplier/shipments';
+  static String supplierShipmentById(String id) => '/supplier/shipments/$id';
+
+  // ============================================
   // UTILITY ENDPOINTS
   // ============================================
   static const String health = '/health';

@@ -1,10 +1,13 @@
-import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:erp_purchasing_apps/core/constants/api_constants.dart';
+import 'package:erp_purchasing_apps/core/service/api_service.dart';
 import '../models/supplier_model.dart';
 
+/// Supplier Authentication Repository
+/// Uses Golang backend API (no more Supabase)
 class SupplierAuthRepository {
-  final SupabaseClient _supabase = Supabase.instance.client;
+  final ApiService _apiService = ApiService();
 
-  ///  Sign in supplier menggunakan Supabase Auth
+  /// Sign in supplier menggunakan backend Golang
   Future<SupplierModel?> signIn({
     required String email,
     required String password,
@@ -13,99 +16,90 @@ class SupplierAuthRepository {
       print('🔐 SupplierAuthRepository: Starting sign in...');
       print('📧 Email: $email');
 
-      // 1. Login via Supabase Auth (untuk validasi password)
-      final authResponse = await _supabase.auth.signInWithPassword(
-        email: email,
-        password: password,
+      // ✅ Pakai endpoint /auth/login (sama seperti internal user)
+      final response = await _apiService.post(
+        ApiEndpoints.login,
+        body: {
+          'email': email,
+          'password': password,
+        },
+        requiresAuth: false,
       );
 
-      print('✅ Supabase auth success');
-      print('👤 User ID: ${authResponse.user?.id}');
+      print('📦 Response: ${response.success}');
 
-      if (authResponse.user == null) {
-        throw Exception('Authentication failed: No user returned');
+      if (!response.success) {
+        throw Exception(response.message);
       }
 
-      // 2. Fetch supplier data dari database menggunakan auth_email
-      print('🔍 Fetching supplier data from database...');
-      final supplierData = await _supabase
-          .from('suppliers')
-          .select()
-          .eq('auth_email', email)  // ✅ Pakai auth_email
-          .maybeSingle();
+      // ✅ Check apakah response untuk supplier (bukan internal user)
+      final data = response.data as Map<String, dynamic>;
+      
+      print('🔍 Response data: $data');
+      print('🔍 Role: ${data['role']}');
 
-      print('📦 Supplier response: $supplierData');
-
-      if (supplierData == null) {
-        // Logout jika supplier tidak ditemukan
-        await _supabase.auth.signOut();
-        throw Exception('Data supplier tidak ditemukan di database');
+      if (data['role'] != 'supplier') {
+        throw Exception('Unauthorized: This is not a supplier account');
       }
 
-      // 3. ✅ Check apakah supplier boleh login
-      if (supplierData['can_login'] != true) {
-        await _supabase.auth.signOut();
-        throw Exception('Akun supplier tidak memiliki akses login. Hubungi admin.');
-      }
+      // ✅ Save JWT token
+      final token = data['token'] as String;
+      await _apiService.saveToken(token);
+      print('✅ Token saved');
 
-      // 4. ✅ Check apakah supplier aktif
-      if (supplierData['is_active'] != true) {
-        await _supabase.auth.signOut();
-        throw Exception('Akun supplier tidak aktif. Hubungi admin.');
-      }
-
-      // 5. ✅ Convert ke SupplierModel
+      // ✅ Parse supplier data
+      final supplierData = data['supplier'] as Map<String, dynamic>;
       final supplier = SupplierModel.fromJson(supplierData);
+
       print('✅ Supplier model created: ${supplier.name}');
       print('   - ID: ${supplier.id}');
-      print('   - Name: ${supplier.name}');
-      print('   - Email: ${supplier.email}');
       print('   - Can Login: ${supplier.canLogin}');
-      
+
       return supplier;
-    } on AuthException catch (e) {
-      // Error dari Supabase Auth
-      print('❌ Auth error: ${e.message}');
-      throw Exception('Login gagal: ${e.message}');
     } catch (e) {
-      print('❌ SupplierAuthRepository sign in error: $e');
+      print('❌ Supplier login failed: $e');
       rethrow;
     }
   }
 
-  /// ✅ Get current supplier dari session aktif
+  /// ✅ Get current supplier dari JWT token
+  /// (Backend akan validasi token dan return supplier info)
   Future<SupplierModel?> getCurrentSupplier() async {
     try {
-      final session = _supabase.auth.currentSession;
+      print('🔍 Getting current supplier from token...');
+
+      // Check if token exists
+      final hasToken = await _apiService.hasToken();
+      if (!hasToken) {
+        print('ℹ️ No token found');
+        return null;
+      }
+
+      // Call profile endpoint (backend will validate token)
+      final response = await _apiService.get(
+        ApiEndpoints.profile,
+        requiresAuth: true,
+      );
+
+      if (!response.success) {
+        print('⚠️ Failed to get profile: ${response.message}');
+        return null;
+      }
+
+      final data = response.data as Map<String, dynamic>;
       
-      if (session == null) {
-        print('ℹ️ No active session');
+      // Check if this is supplier (not internal user)
+      if (data['role'] != 'supplier') {
+        print('⚠️ Not a supplier account');
         return null;
       }
 
-      final email = session.user.email;
-      if (email == null) {
-        print('⚠️ Session exists but no email');
-        return null;
-      }
+      // Parse supplier data
+      final supplierData = data['supplier'] as Map<String, dynamic>;
+      final supplier = SupplierModel.fromJson(supplierData);
 
-      print('🔍 Found active session, fetching supplier data...');
-      final supplierData = await _supabase
-          .from('suppliers')
-          .select()
-          .eq('auth_email', email)
-          .maybeSingle();
-
-      if (supplierData != null && 
-          supplierData['can_login'] == true && 
-          supplierData['is_active'] == true) {
-        final supplier = SupplierModel.fromJson(supplierData);
-        print('✅ Current supplier: ${supplier.name}');
-        return supplier;
-      }
-
-      print('⚠️ Supplier data not found or not authorized');
-      return null;
+      print('✅ Current supplier: ${supplier.name}');
+      return supplier;
     } catch (e) {
       print('❌ Get current supplier error: $e');
       return null;
@@ -116,7 +110,7 @@ class SupplierAuthRepository {
   Future<void> signOut() async {
     try {
       print('👋 SupplierAuthRepository: Logging out...');
-      await _supabase.auth.signOut();
+      await _apiService.removeToken();
       print('✅ Logout complete');
     } catch (e) {
       print('❌ SupplierAuthRepository sign out error: $e');

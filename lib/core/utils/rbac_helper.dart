@@ -14,17 +14,10 @@ class RBACHelper {
     'users': ['admin'],
 
     // Purchase Requisition - All can access
-    'pr': ['admin', 'purchasing', 'warehouse', 'finance', 'kadiv' 'user'],
+    'pr': ['admin', 'purchasing', 'warehouse', 'finance', 'kadiv', 'user'],
 
     // PR History - All can see their own
-    'pr_history': [
-      'admin',
-      'purchasing',
-      'warehouse',
-      'finance',
-      'kadiv',
-      'user'
-    ],
+    'pr_history': [],
 
     // PR Approval - Admin, Purchasing, Kadiv
     'pr_approval': ['admin', 'kadiv'],
@@ -39,10 +32,12 @@ class RBACHelper {
     'assessment_product': ['admin', 'kadiv'],
 
     // Master Product - Admin, Kadiv
-    'master_product': ['admin', 'finance'],
+    'master_product': [
+      'admin',
+    ],
 
     // Goods Receipt (LPB) -Admin, Warehouse, Purchasing
-    'receipt': ['admin', 'warehouse', 'purchasing'],
+    'receipt': ['admin', 'warehouse', 'finance'],
 
     // Inventory - Admin, Warehouse
     'inventory': ['admin', 'warehouse'],
