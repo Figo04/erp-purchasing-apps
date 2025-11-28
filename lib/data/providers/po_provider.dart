@@ -29,8 +29,16 @@ final prGroupingsProvider = FutureProvider<List<PRGrouping>>((ref) async {
   return await repo.getPRGroupings();
 });
 
+/// PR Category Groupings Provider (NEW - Better structure)
+final prCategoryGroupingsProvider =
+    FutureProvider<List<PRCategoryGroup>>((ref) async {
+  final repo = ref.watch(poRepositoryProvider);
+  return await repo.getPRGroupingsByCategory();
+});
+
 /// Filtered POs Provider
-final filteredPOsProvider = FutureProvider<List<PurchaseOrderModel>>((ref) async {
+final filteredPOsProvider =
+    FutureProvider<List<PurchaseOrderModel>>((ref) async {
   final repo = ref.watch(poRepositoryProvider);
   final searchQuery = ref.watch(poSearchQueryProvider);
   final statusFilter = ref.watch(poStatusFilterProvider);
@@ -46,8 +54,7 @@ class PONotifier extends StateNotifier<AsyncValue<List<PurchaseOrderModel>>> {
   final PurchaseOrderRepository _repository;
   final Ref ref;
 
-  PONotifier(this.ref, this._repository)
-      : super(const AsyncValue.loading()) {
+  PONotifier(this.ref, this._repository) : super(const AsyncValue.loading()) {
     loadPOs();
   }
 
@@ -131,7 +138,8 @@ class PONotifier extends StateNotifier<AsyncValue<List<PurchaseOrderModel>>> {
 
 /// PO State Notifier Provider
 final poNotifierProvider =
-    StateNotifierProvider<PONotifier, AsyncValue<List<PurchaseOrderModel>>>((ref) {
+    StateNotifierProvider<PONotifier, AsyncValue<List<PurchaseOrderModel>>>(
+        (ref) {
   final repository = ref.watch(poRepositoryProvider);
   return PONotifier(ref, repository);
 });

@@ -66,8 +66,12 @@ class PurchaseOrderRepository {
   Future<List<PRGrouping>> getPRGroupings() async {
     try {
       final response = await _apiService.get(
-        ApiEndpoints.prGroupings,
+        ApiEndpoints
+            .prGroupings, // Pastikan ini '/purchase-orders/helpers/pr-groupings'
         fromJson: (json) {
+          print('🌐 Raw API Response:');
+          print(json); // ⭐ Debug log
+
           if (json is List) {
             return json.map((item) => PRGrouping.fromJson(item)).toList();
           }
@@ -79,7 +83,39 @@ class PurchaseOrderRepository {
         throw Exception(response.errorMessage);
       }
 
-      return response.data as List<PRGrouping>;
+      final groupings = response.data as List<PRGrouping>;
+
+      print('📦 Parsed Groupings: ${groupings.length}');
+      for (var g in groupings) {
+        print(
+            '  - Category: ${g.categoryName}, PRs: ${g.prIds.length}, Items: ${g.items.length}');
+      }
+
+      return groupings;
+    } catch (e) {
+      print('❌ Error in getPRGroupings: $e');
+      throw Exception('Failed to load PR groupings: $e');
+    }
+  }
+
+  /// Get PR groupings by category (NEW)
+  Future<List<PRCategoryGroup>> getPRGroupingsByCategory() async {
+    try {
+      final response = await _apiService.get(
+        '${ApiEndpoints.purchaseOrders}/helpers/pr-groupings-by-category',
+        fromJson: (json) {
+          if (json is List) {
+            return json.map((item) => PRCategoryGroup.fromJson(item)).toList();
+          }
+          return <PRCategoryGroup>[];
+        },
+      );
+
+      if (!response.isSuccess || response.data == null) {
+        throw Exception(response.errorMessage);
+      }
+
+      return response.data as List<PRCategoryGroup>;
     } catch (e) {
       throw Exception('Failed to load PR groupings: $e');
     }

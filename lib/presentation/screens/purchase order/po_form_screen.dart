@@ -7,8 +7,10 @@ import 'package:erp_purchasing_apps/data/providers/po_provider.dart';
 import '../../../data/providers/supplier_provider.dart';
 import '../../../data/models/purchase_order_model.dart';
 import '../../../data/models/supplier_model.dart';
+import '../../../data/models/purchase_requisition_model.dart';
 
-/// PO Form Screen - Create PO with Flexible Mode
+/// PO Form Screen - Complete Fixed Version
+/// Flow: Kategori → PRs → Supplier → Items → Submit
 class POFormScreen extends ConsumerStatefulWidget {
   const POFormScreen({super.key});
 
@@ -16,23 +18,28 @@ class POFormScreen extends ConsumerStatefulWidget {
   ConsumerState<POFormScreen> createState() => _POFormScreenState();
 }
 
-class _POFormScreenState extends ConsumerState<POFormScreen> {  
+class _POFormScreenState extends ConsumerState<POFormScreen> {
   final _formKey = GlobalKey<FormState>();
   final _notesController = TextEditingController();
   DateTime? _expectedDeliveryDate;
-  
-  // Mode selection
-  bool _isGroupMode = true; // true = group by supplier, false = individual PR
-  
-  // Group mode
-  PRGrouping? _selectedGrouping;
-  
-  // Individual mode
-  List<PRGrouping> _allGroupings = [];
-  Set<String> _selectedPRIds = {}; // For selecting individual PRs
-  String? _manualSupplierId;
-  
+
+  // Step 1: Category selection
+  String? _selectedCategoryId;
+  String? _selectedCategoryName;
+  String? _selectedCategoryCode;
+
+  // Step 2: PR selection (multiple or single)
+  bool _isGroupMode = true;
+  Set<String> _selectedPRIds = {};
+  Map<String, PRWithItems> _availablePRs = {}; // prId -> PRWithItems
+
+  // Step 3: Supplier selection
+  String? _selectedSupplierId;
+  String? _selectedSupplierName;
+
+  // Step 4: Items with pricing
   List<POItemForm> _items = [];
+
   bool _isLoading = false;
 
   @override
@@ -47,91 +54,82 @@ class _POFormScreenState extends ConsumerState<POFormScreen> {
   void _toggleMode() {
     setState(() {
       _isGroupMode = !_isGroupMode;
-      _selectedGrouping = null;
       _selectedPRIds.clear();
-      _manualSupplierId = null;
       _items.clear();
     });
   }
 
-  void _selectGrouping(PRGrouping grouping) {
+  void _selectCategory(
+      String categoryId, String categoryName, String categoryCode) {
     setState(() {
-      _selectedGrouping = grouping;
+      _selectedCategoryId = categoryId;
+      _selectedCategoryName = categoryName;
+      _selectedCategoryCode = categoryCode;
       _selectedPRIds.clear();
-      _manualSupplierId = null;
+      _selectedSupplierId = null;
+      _selectedSupplierName = null;
       _items.clear();
-      
-      // Populate items from PR grouping
-      for (var item in grouping.items) {
-        _items.add(POItemForm(
-          productId: item.productId,
-          itemNameController: TextEditingController(text: item.itemName),
-          quantityController: TextEditingController(
-            text: item.totalQuantity.toString(),
-          ),
-          unitController: TextEditingController(text: item.unit),
-          priceController: TextEditingController(
-            text: item.estimatedPrice?.toStringAsFixed(0) ?? '',
-          ),
-        ));
-      }
     });
   }
 
-  void _togglePRSelection(String prId, PRGrouping grouping) {
+  void _togglePRSelection(String prId) {
     setState(() {
-      if (_selectedPRIds.contains(prId)) {
-        _selectedPRIds.remove(prId);
+      if (_isGroupMode) {
+        if (_selectedPRIds.contains(prId)) {
+          _selectedPRIds.remove(prId);
+        } else {
+          _selectedPRIds.add(prId);
+        }
       } else {
+        _selectedPRIds.clear();
         _selectedPRIds.add(prId);
-        _manualSupplierId = grouping.supplierId;
       }
-      
-      // Rebuild items based on selected PRs
       _rebuildItemsFromSelection();
     });
   }
 
+  void _selectSupplier(String supplierId, String supplierName) {
+    setState(() {
+      _selectedSupplierId = supplierId;
+      _selectedSupplierName = supplierName;
+    });
+  }
+
   void _rebuildItemsFromSelection() {
+    // Clear existing items
     _items.clear();
-    
-    if (_selectedPRIds.isEmpty) {
-      _manualSupplierId = null;
-      return;
-    }
+
+    if (_selectedPRIds.isEmpty) return;
 
     // Aggregate items from selected PRs
     Map<String, POItemForm> itemMap = {};
-    
-    for (var grouping in _allGroupings) {
-      for (var prId in grouping.prIds) {
-        if (_selectedPRIds.contains(prId)) {
-          for (var item in grouping.items) {
-            String key = '${item.productId}_${item.itemName}_${item.unit}';
-            
-            if (itemMap.containsKey(key)) {
-              // Update quantity
-              int currentQty = int.parse(itemMap[key]!.quantityController.text);
-              itemMap[key]!.quantityController.text = 
-                  (currentQty + item.totalQuantity).toString();
-            } else {
-              itemMap[key] = POItemForm(
-                productId: item.productId,
-                itemNameController: TextEditingController(text: item.itemName),
-                quantityController: TextEditingController(
-                  text: item.totalQuantity.toString(),
-                ),
-                unitController: TextEditingController(text: item.unit),
-                priceController: TextEditingController(
-                  text: item.estimatedPrice?.toStringAsFixed(0) ?? '',
-                ),
-              );
-            }
-          }
+
+    for (var prId in _selectedPRIds) {
+      final prWithItems = _availablePRs[prId];
+      if (prWithItems == null) continue;
+
+      for (var item in prWithItems.items) {
+        String key = '${item.productId}_${item.itemName}_${item.unit}';
+
+        if (itemMap.containsKey(key)) {
+          // Sum quantities for same items
+          int currentQty = int.parse(itemMap[key]!.quantityController.text);
+          itemMap[key]!.quantityController.text =
+              (currentQty + item.quantity).toString();
+        } else {
+          itemMap[key] = POItemForm(
+            productId: item.productId,
+            itemNameController: TextEditingController(text: item.itemName),
+            quantityController:
+                TextEditingController(text: item.quantity.toString()),
+            unitController: TextEditingController(text: item.unit),
+            priceController: TextEditingController(
+              text: item.estimatedPrice?.toStringAsFixed(0) ?? '',
+            ),
+          );
         }
       }
     }
-    
     _items = itemMap.values.toList();
   }
 
@@ -159,15 +157,19 @@ class _POFormScreenState extends ConsumerState<POFormScreen> {
 
   Future<void> _handleSubmit() async {
     if (!_formKey.currentState!.validate()) return;
-    
-    // Validation
-    if (_isGroupMode && _selectedGrouping == null) {
-      _showSnackBar('Please select a supplier group', Colors.orange);
+
+    if (_selectedSupplierId == null) {
+      _showSnackBar('Please select a supplier', Colors.orange);
       return;
     }
-    
-    if (!_isGroupMode && _selectedPRIds.isEmpty) {
+
+    if (_selectedPRIds.isEmpty) {
       _showSnackBar('Please select at least one PR', Colors.orange);
+      return;
+    }
+
+    if (_items.isEmpty) {
+      _showSnackBar('No items to order', Colors.orange);
       return;
     }
 
@@ -185,13 +187,9 @@ class _POFormScreenState extends ConsumerState<POFormScreen> {
       }).toList();
 
       final request = CreatePORequest(
-        supplierId: _isGroupMode 
-            ? _selectedGrouping!.supplierId 
-            : _manualSupplierId!,
+        supplierId: _selectedSupplierId!,
         expectedDeliveryDate: _expectedDeliveryDate,
-        prIds: _isGroupMode 
-            ? _selectedGrouping!.prIds 
-            : _selectedPRIds.toList(),
+        prIds: _selectedPRIds.toList(),
         items: items,
         notes: _notesController.text.trim().isEmpty
             ? null
@@ -201,11 +199,25 @@ class _POFormScreenState extends ConsumerState<POFormScreen> {
       await ref.read(poNotifierProvider.notifier).createPO(request);
 
       if (mounted) {
-        _showSnackBar('PO created successfully', Colors.green);
+        // ⭐ FIX: Navigate FIRST before showing snackbar
         context.go('/po');
+
+        // ⭐ FIX: Show snackbar AFTER navigation with delay
+        Future.delayed(const Duration(milliseconds: 200), () {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('PO created successfully'),
+                backgroundColor: Colors.green,
+                duration: Duration(seconds: 2),
+              ),
+            );
+          }
+        });
       }
     } catch (e) {
       if (mounted) {
+        setState(() => _isLoading = false);
         _showSnackBar('Failed to create PO: $e', Colors.red);
       }
     } finally {
@@ -223,7 +235,7 @@ class _POFormScreenState extends ConsumerState<POFormScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final prGroupingsAsync = ref.watch(prGroupingsProvider);
+    final prCategoryGroupingsAsync = ref.watch(prCategoryGroupingsProvider);
 
     return Scaffold(
       backgroundColor: const Color(0xFFF5F7FA),
@@ -239,15 +251,16 @@ class _POFormScreenState extends ConsumerState<POFormScreen> {
           style: TextStyle(color: Colors.black87, fontWeight: FontWeight.bold),
         ),
         actions: [
-          // Mode Toggle Button
           Padding(
             padding: const EdgeInsets.only(right: 8.0),
             child: IconButton(
               icon: Icon(
-                _isGroupMode ? Icons.view_list : Icons.view_module,
+                _isGroupMode ? Icons.checklist : Icons.radio_button_checked,
                 color: const Color(0xFF1ABC9C),
               ),
-              tooltip: _isGroupMode ? 'Switch to Individual Mode' : 'Switch to Group Mode',
+              tooltip: _isGroupMode
+                  ? 'Switch to Single PR Mode'
+                  : 'Switch to Multiple PR Mode',
               onPressed: _toggleMode,
             ),
           ),
@@ -265,19 +278,21 @@ class _POFormScreenState extends ConsumerState<POFormScreen> {
               child: Row(
                 children: [
                   Icon(
-                    _isGroupMode ? Icons.group_work : Icons.article,
+                    _isGroupMode ? Icons.checklist : Icons.radio_button_checked,
                     color: _isGroupMode ? Colors.blue : Colors.purple,
                     size: 20,
                   ),
                   const SizedBox(width: 8),
                   Text(
-                    _isGroupMode 
-                        ? 'Group Mode: Create PO by Supplier' 
-                        : 'Individual Mode: Select Specific PRs',
+                    _isGroupMode
+                        ? 'Group Mode: Select Multiple PRs'
+                        : 'Individual Mode: Select 1 PR Only',
                     style: TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w600,
-                      color: _isGroupMode ? Colors.blue.shade900 : Colors.purple.shade900,
+                      color: _isGroupMode
+                          ? Colors.blue.shade900
+                          : Colors.purple.shade900,
                     ),
                   ),
                 ],
@@ -290,73 +305,116 @@ class _POFormScreenState extends ConsumerState<POFormScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    // Step 1: Selection
+                    // Step 1: Select Category
                     Card(
                       child: Padding(
                         padding: const EdgeInsets.all(16),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Row(
-                              children: [
-                                Container(
-                                  width: 32,
-                                  height: 32,
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFF1ABC9C),
-                                    borderRadius: BorderRadius.circular(16),
-                                  ),
-                                  child: const Center(
-                                    child: Text(
-                                      '1',
-                                      style: TextStyle(
-                                        color: Colors.white,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(width: 12),
-                                Text(
-                                  _isGroupMode 
-                                      ? 'Select Supplier Group'
-                                      : 'Select Individual PRs',
-                                  style: const TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ],
-                            ),
+                            _buildStepHeader('1', 'Select Category'),
                             const SizedBox(height: 16),
-                            
-                            prGroupingsAsync.when(
-                              data: (groupings) {
-                                _allGroupings = groupings;
-                                
-                                if (groupings.isEmpty) {
-                                  return Container(
-                                    padding: const EdgeInsets.all(16),
-                                    decoration: BoxDecoration(
-                                      color: Colors.orange.shade50,
-                                      borderRadius: BorderRadius.circular(8),
-                                      border: Border.all(color: Colors.orange.shade200),
-                                    ),
-                                    child: const Row(
-                                      children: [
-                                        Icon(Icons.info_outline, color: Colors.orange),
-                                        SizedBox(width: 12),
-                                        Expanded(
-                                          child: Text('No approved PRs available for PO creation'),
-                                        ),
-                                      ],
-                                    ),
-                                  );
+                            prCategoryGroupingsAsync.when(
+                              data: (groups) {
+                                if (groups.isEmpty) {
+                                  return _buildEmptyState(
+                                      'No approved PRs available');
                                 }
 
-                                return _isGroupMode 
-                                    ? _buildGroupModeSelection(groupings)
-                                    : _buildIndividualModeSelection(groupings);
+                                return Column(
+                                  children: groups.map((group) {
+                                    final isSelected =
+                                        _selectedCategoryId == group.categoryId;
+
+                                    // ⭐ Extract parent name from category code
+                                    String parentName = 'Other';
+                                    if (group.categoryCode.startsWith('1')) {
+                                      parentName = 'Material';
+                                    } else if (group.categoryCode
+                                        .startsWith('2')) {
+                                      parentName = 'Asset';
+                                    } else if (group.categoryCode
+                                            .startsWith('3') ||
+                                        group.categoryCode.startsWith('4')) {
+                                      parentName = 'Logistik';
+                                    }
+
+                                    return Card(
+                                      margin: const EdgeInsets.only(bottom: 8),
+                                      color: isSelected
+                                          ? Colors.blue.shade50
+                                          : null,
+                                      child: InkWell(
+                                        onTap: () {
+                                          _selectCategory(
+                                            group.categoryId,
+                                            group.categoryName,
+                                            group.categoryCode,
+                                          );
+                                          // Store available PRs for this category
+                                          _availablePRs.clear();
+                                          for (var prWithItems in group.prs) {
+                                            _availablePRs[prWithItems.pr.id] =
+                                                prWithItems;
+                                          }
+                                        },
+                                        child: Padding(
+                                          padding: const EdgeInsets.all(12),
+                                          child: Row(
+                                            children: [
+                                              Radio<String>(
+                                                value: group.categoryId,
+                                                groupValue: _selectedCategoryId,
+                                                onChanged: (value) {
+                                                  if (value != null) {
+                                                    _selectCategory(
+                                                      group.categoryId,
+                                                      group.categoryName,
+                                                      group.categoryCode,
+                                                    );
+                                                    _availablePRs.clear();
+                                                    for (var prWithItems
+                                                        in group.prs) {
+                                                      _availablePRs[prWithItems
+                                                          .pr.id] = prWithItems;
+                                                    }
+                                                  }
+                                                },
+                                              ),
+                                              Expanded(
+                                                child: Column(
+                                                  crossAxisAlignment:
+                                                      CrossAxisAlignment.start,
+                                                  children: [
+                                                    // ⭐ DISPLAY FORMAT: Parent > Child
+                                                    Text(
+                                                      '$parentName > ${group.categoryName}',
+                                                      style: TextStyle(
+                                                        fontWeight: isSelected
+                                                            ? FontWeight.bold
+                                                            : FontWeight.normal,
+                                                        fontSize: 15,
+                                                      ),
+                                                    ),
+                                                    const SizedBox(height: 4),
+                                                    Text(
+                                                      '${group.prs.length} PR(s) available',
+                                                      style: TextStyle(
+                                                        fontSize: 12,
+                                                        color: Colors
+                                                            .grey.shade600,
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                    );
+                                  }).toList(),
+                                );
                               },
                               loading: () => const Center(
                                 child: Padding(
@@ -364,40 +422,64 @@ class _POFormScreenState extends ConsumerState<POFormScreen> {
                                   child: CircularProgressIndicator(),
                                 ),
                               ),
-                              error: (error, _) => Container(
-                                padding: const EdgeInsets.all(16),
-                                decoration: BoxDecoration(
-                                  color: Colors.red.shade50,
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                child: Text('Error: $error'),
-                              ),
+                              error: (error, _) =>
+                                  _buildErrorState('Error: $error'),
                             ),
                           ],
                         ),
                       ),
                     ),
 
-                    if ((_isGroupMode && _selectedGrouping != null) ||
-                        (!_isGroupMode && _selectedPRIds.isNotEmpty)) ...[
+                    // Step 2: Select PRs
+                    if (_selectedCategoryId != null) ...[
                       const SizedBox(height: 16),
+                      Card(
+                        child: Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              _buildStepHeader(
+                                '2',
+                                _isGroupMode
+                                    ? 'Select PRs (Multiple)'
+                                    : 'Select PR (Single)',
+                              ),
+                              const SizedBox(height: 16),
+                              _buildPRSelection(),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
 
-                      // Step 2: Expected Delivery Date
+                    // Step 3: Select Supplier
+                    if (_selectedPRIds.isNotEmpty) ...[
+                      const SizedBox(height: 16),
+                      Card(
+                        child: Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              _buildStepHeader('3', 'Select Supplier'),
+                              const SizedBox(height: 16),
+                              _buildSupplierSelection(),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+
+                    // Step 4-6: Delivery, Items, Notes, Summary
+                    if (_selectedSupplierId != null && _items.isNotEmpty) ...[
+                      const SizedBox(height: 16),
                       _buildDeliveryDateCard(),
-
                       const SizedBox(height: 16),
-
-                      // Step 3: Items & Pricing
                       _buildItemsCard(),
-
                       const SizedBox(height: 16),
-
-                      // Step 4: Notes
                       _buildNotesCard(),
-
                       const SizedBox(height: 16),
-
-                      // Summary Card
                       _buildSummaryCard(),
                     ],
                   ],
@@ -405,7 +487,7 @@ class _POFormScreenState extends ConsumerState<POFormScreen> {
               ),
             ),
 
-            // Bottom Submit Button
+            // Submit Button
             _buildSubmitButton(),
           ],
         ),
@@ -413,39 +495,57 @@ class _POFormScreenState extends ConsumerState<POFormScreen> {
     );
   }
 
-  Widget _buildGroupModeSelection(List<PRGrouping> groupings) {
+  Widget _buildPRSelection() {
+    if (_availablePRs.isEmpty) {
+      return _buildEmptyState('No PRs available');
+    }
+
     return Column(
-      children: groupings.map((grouping) {
-        final isSelected = _selectedGrouping?.supplierId == grouping.supplierId;
-        
+      children: _availablePRs.entries.map((entry) {
+        final prId = entry.key;
+        final prWithItems = entry.value;
+        final isSelected = _selectedPRIds.contains(prId);
+
         return Card(
           margin: const EdgeInsets.only(bottom: 8),
-          color: isSelected ? const Color(0xFF1ABC9C).withOpacity(0.1) : null,
+          color: isSelected
+              ? (_isGroupMode ? Colors.blue.shade50 : Colors.purple.shade50)
+              : null,
           child: InkWell(
-            onTap: () => _selectGrouping(grouping),
+            onTap: () => _togglePRSelection(prId),
             child: Padding(
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               child: Row(
                 children: [
-                  Radio<String>(
-                    value: grouping.supplierId,
-                    groupValue: _selectedGrouping?.supplierId,
-                    onChanged: (_) => _selectGrouping(grouping),
-                  ),
+                  if (_isGroupMode)
+                    Checkbox(
+                      value: isSelected,
+                      onChanged: (_) => _togglePRSelection(prId),
+                      activeColor: Colors.blue,
+                    )
+                  else
+                    Radio<String>(
+                      value: prId,
+                      groupValue: _selectedPRIds.firstOrNull,
+                      onChanged: (_) => _togglePRSelection(prId),
+                      activeColor: Colors.purple,
+                    ),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          grouping.supplierName,
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
+                          'PR: ${prWithItems.pr.prNumber}',
+                          style: TextStyle(
+                            fontWeight: isSelected
+                                ? FontWeight.bold
+                                : FontWeight.normal,
                             fontSize: 14,
                           ),
                         ),
-                        const SizedBox(height: 4),
+                        const SizedBox(height: 2),
                         Text(
-                          '${grouping.prIds.length} PR(s) | ${grouping.items.length} items',
+                          '${prWithItems.items.length} item(s)',
                           style: TextStyle(
                             fontSize: 12,
                             color: Colors.grey.shade600,
@@ -463,73 +563,43 @@ class _POFormScreenState extends ConsumerState<POFormScreen> {
     );
   }
 
-  Widget _buildIndividualModeSelection(List<PRGrouping> groupings) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: groupings.map((grouping) {
-        return Card(
-          margin: const EdgeInsets.only(bottom: 12),
-          child: Padding(
-            padding: const EdgeInsets.all(12),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Supplier Header
-                Row(
-                  children: [
-                    Icon(Icons.business, size: 20, color: Colors.grey.shade700),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        grouping.supplierName,
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 15,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const Divider(height: 16),
-                
-                // PR List
-                ...grouping.prIds.map((prId) {
-                  final isSelected = _selectedPRIds.contains(prId);
-                  
-                  return InkWell(
-                    onTap: () => _togglePRSelection(prId, grouping),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
-                      decoration: BoxDecoration(
-                        color: isSelected ? Colors.purple.shade50 : null,
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: Row(
-                        children: [
-                          Checkbox(
-                            value: isSelected,
-                            onChanged: (_) => _togglePRSelection(prId, grouping),
-                            activeColor: Colors.purple,
-                          ),
-                          Expanded(
-                            child: Text(
-                              'PR: $prId',
-                              style: TextStyle(
-                                fontSize: 13,
-                                fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  );
-                }).toList(),
-              ],
-            ),
+  Widget _buildSupplierSelection() {
+    final suppliersAsync = ref.watch(supplierListProvider);
+
+    return suppliersAsync.when(
+      data: (suppliers) {
+        if (suppliers.isEmpty) {
+          return _buildEmptyState('No suppliers available');
+        }
+
+        return DropdownButtonFormField<String>(
+          value: _selectedSupplierId,
+          decoration: const InputDecoration(
+            labelText: 'Supplier *',
+            border: OutlineInputBorder(),
+            prefixIcon: Icon(Icons.business),
           ),
+          hint: const Text('Select supplier'),
+          items: suppliers.map((supplier) {
+            return DropdownMenuItem<String>(
+              value: supplier.id,
+              child: Text(supplier.name),
+            );
+          }).toList(),
+          onChanged: (value) {
+            if (value != null) {
+              final supplier = suppliers.firstWhere((s) => s.id == value);
+              _selectSupplier(value, supplier.name);
+            }
+          },
+          validator: (value) {
+            if (value == null) return 'Please select a supplier';
+            return null;
+          },
         );
-      }).toList(),
+      },
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (error, _) => _buildErrorState('Error loading suppliers: $error'),
     );
   }
 
@@ -540,9 +610,8 @@ class _POFormScreenState extends ConsumerState<POFormScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildStepHeader('2', 'Delivery Information'),
+            _buildStepHeader('4', 'Delivery Information'),
             const SizedBox(height: 16),
-            
             InkWell(
               onTap: _selectDeliveryDate,
               child: InputDecorator(
@@ -553,7 +622,8 @@ class _POFormScreenState extends ConsumerState<POFormScreen> {
                 ),
                 child: Text(
                   _expectedDeliveryDate != null
-                      ? DateFormat('dd MMMM yyyy').format(_expectedDeliveryDate!)
+                      ? DateFormat('dd MMMM yyyy')
+                          .format(_expectedDeliveryDate!)
                       : 'Select date',
                   style: TextStyle(
                     color: _expectedDeliveryDate != null
@@ -576,13 +646,130 @@ class _POFormScreenState extends ConsumerState<POFormScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildStepHeader('3', 'Items & Pricing'),
+            _buildStepHeader('5', 'Items & Pricing'),
             const SizedBox(height: 16),
             ..._items.asMap().entries.map((entry) {
               final index = entry.key;
               final item = entry.value;
               return _buildItemCard(index, item);
             }),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildItemCard(int index, POItemForm item) {
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Item ${index + 1}',
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 14,
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextFormField(
+              controller: item.itemNameController,
+              readOnly: true,
+              decoration: const InputDecoration(
+                labelText: 'Item Name',
+                border: OutlineInputBorder(),
+                filled: true,
+                fillColor: Color(0xFFF5F7FA),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  flex: 2,
+                  child: TextFormField(
+                    controller: item.quantityController,
+                    keyboardType: TextInputType.number,
+                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                    decoration: const InputDecoration(
+                      labelText: 'Quantity *',
+                      border: OutlineInputBorder(),
+                    ),
+                    validator: (value) {
+                      if (value == null || value.isEmpty) return 'Required';
+                      if (int.tryParse(value) == null ||
+                          int.parse(value) <= 0) {
+                        return 'Invalid';
+                      }
+                      return null;
+                    },
+                    onChanged: (_) => setState(() {}),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: TextFormField(
+                    controller: item.unitController,
+                    readOnly: true,
+                    decoration: const InputDecoration(
+                      labelText: 'Unit',
+                      border: OutlineInputBorder(),
+                      filled: true,
+                      fillColor: Color(0xFFF5F7FA),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            TextFormField(
+              controller: item.priceController,
+              keyboardType: TextInputType.number,
+              inputFormatters: [
+                FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d{0,2}')),
+              ],
+              decoration: const InputDecoration(
+                labelText: 'Unit Price *',
+                border: OutlineInputBorder(),
+                prefixText: 'Rp ',
+              ),
+              validator: (value) {
+                if (value == null || value.isEmpty) return 'Required';
+                if (double.tryParse(value) == null ||
+                    double.parse(value) <= 0) {
+                  return 'Invalid price';
+                }
+                return null;
+              },
+              onChanged: (_) => setState(() {}),
+            ),
+            if (item.priceController.text.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    Text(
+                      'Subtotal: ',
+                      style: TextStyle(
+                        color: Colors.grey.shade700,
+                        fontSize: 13,
+                      ),
+                    ),
+                    Text(
+                      'Rp ${NumberFormat('#,###').format((int.tryParse(item.quantityController.text) ?? 0) * (double.tryParse(item.priceController.text) ?? 0))}',
+                      style: TextStyle(
+                        color: Colors.blue.shade700,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
           ],
         ),
       ),
@@ -596,9 +783,8 @@ class _POFormScreenState extends ConsumerState<POFormScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildStepHeader('4', 'Additional Notes'),
+            _buildStepHeader('6', 'Additional Notes'),
             const SizedBox(height: 16),
-            
             TextFormField(
               controller: _notesController,
               maxLines: 3,
@@ -615,55 +801,28 @@ class _POFormScreenState extends ConsumerState<POFormScreen> {
   }
 
   Widget _buildSummaryCard() {
-    final supplierName = _isGroupMode 
-        ? _selectedGrouping?.supplierName 
-        : _allGroupings.firstWhere(
-            (g) => g.supplierId == _manualSupplierId,
-            orElse: () => _allGroupings.first,
-          ).supplierName;
-    
-    final prCount = _isGroupMode 
-        ? _selectedGrouping?.prIds.length 
-        : _selectedPRIds.length;
-
     return Card(
       color: Colors.blue.shade50,
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text(
-                  'Supplier:',
-                  style: TextStyle(fontWeight: FontWeight.w600),
-                ),
-                Text(supplierName ?? '-'),
-              ],
+            const Text(
+              'Order Summary',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+              ),
             ),
+            const Divider(height: 20),
+            _buildSummaryRow('Category:', _selectedCategoryName ?? '-'),
             const Divider(height: 16),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text(
-                  'Related PRs:',
-                  style: TextStyle(fontWeight: FontWeight.w600),
-                ),
-                Text('$prCount PR(s)'),
-              ],
-            ),
+            _buildSummaryRow('Supplier:', _selectedSupplierName ?? '-'),
             const Divider(height: 16),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text(
-                  'Total Items:',
-                  style: TextStyle(fontWeight: FontWeight.w600),
-                ),
-                Text('${_items.length}'),
-              ],
-            ),
+            _buildSummaryRow('Related PRs:', '${_selectedPRIds.length} PR(s)'),
+            const Divider(height: 16),
+            _buildSummaryRow('Total Items:', '${_items.length}'),
             const Divider(height: 16),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -691,7 +850,24 @@ class _POFormScreenState extends ConsumerState<POFormScreen> {
     );
   }
 
+  Widget _buildSummaryRow(String label, String value) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(fontWeight: FontWeight.w600),
+        ),
+        Text(value),
+      ],
+    );
+  }
+
   Widget _buildSubmitButton() {
+    final canSubmit = _selectedSupplierId != null &&
+        _selectedPRIds.isNotEmpty &&
+        _items.isNotEmpty;
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -708,11 +884,7 @@ class _POFormScreenState extends ConsumerState<POFormScreen> {
         width: double.infinity,
         height: 50,
         child: ElevatedButton(
-          onPressed: _isLoading || 
-              (_isGroupMode && _selectedGrouping == null) ||
-              (!_isGroupMode && _selectedPRIds.isEmpty)
-              ? null 
-              : _handleSubmit,
+          onPressed: _isLoading || !canSubmit ? null : _handleSubmit,
           style: ElevatedButton.styleFrom(
             backgroundColor: const Color(0xFF1ABC9C),
             shape: RoundedRectangleBorder(
@@ -772,130 +944,32 @@ class _POFormScreenState extends ConsumerState<POFormScreen> {
     );
   }
 
-  Widget _buildItemCard(int index, POItemForm item) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Item ${index + 1}',
-              style: const TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 14,
-              ),
-            ),
-            const SizedBox(height: 12),
-
-            // Item Name (readonly)
-            TextFormField(
-              controller: item.itemNameController,
-              readOnly: true,
-              decoration: const InputDecoration(
-                labelText: 'Item Name',
-                border: OutlineInputBorder(),
-                filled: true,
-                fillColor: Color(0xFFF5F7FA),
-              ),
-            ),
-            const SizedBox(height: 12),
-
-            // Quantity and Unit
-            Row(
-              children: [
-                Expanded(
-                  flex: 2,
-                  child: TextFormField(
-                    controller: item.quantityController,
-                    keyboardType: TextInputType.number,
-                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                    decoration: const InputDecoration(
-                      labelText: 'Quantity *',
-                      border: OutlineInputBorder(),
-                    ),
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Required';
-                      }
-                      if (int.tryParse(value) == null || int.parse(value) <= 0) {
-                        return 'Invalid';
-                      }
-                      return null;
-                    },
-                    onChanged: (_) => setState(() {}),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: TextFormField(
-                    controller: item.unitController,
-                    readOnly: true,
-                    decoration: const InputDecoration(
-                      labelText: 'Unit',
-                      border: OutlineInputBorder(),
-                      filled: true,
-                      fillColor: Color(0xFFF5F7FA),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-
-            // Unit Price
-            TextFormField(
-              controller: item.priceController,
-              keyboardType: TextInputType.number,
-              inputFormatters: [
-                FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d{0,2}')),
-              ],
-              decoration: const InputDecoration(
-                labelText: 'Unit Price *',
-                border: OutlineInputBorder(),
-                prefixText: 'Rp ',
-              ),
-              validator: (value) {
-                if (value == null || value.isEmpty) {
-                  return 'Required';
-                }
-                if (double.tryParse(value) == null || double.parse(value) <= 0) {
-                  return 'Invalid price';
-                }
-                return null;
-              },
-              onChanged: (_) => setState(() {}),
-            ),
-
-            // Subtotal
-            if (item.priceController.text.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.only(top: 8),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    Text(
-                      'Subtotal: ',
-                      style: TextStyle(
-                        color: Colors.grey.shade700,
-                        fontSize: 13,
-                      ),
-                    ),
-                    Text(
-                      'Rp ${NumberFormat('#,###').format((int.tryParse(item.quantityController.text) ?? 0) * (double.tryParse(item.priceController.text) ?? 0))}',
-                      style: TextStyle(
-                        color: Colors.blue.shade700,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 14,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-          ],
-        ),
+  Widget _buildEmptyState(String message) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.orange.shade50,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.orange.shade200),
       ),
+      child: Row(
+        children: [
+          const Icon(Icons.info_outline, color: Colors.orange),
+          const SizedBox(width: 12),
+          Expanded(child: Text(message)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildErrorState(String message) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.red.shade50,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Text(message),
     );
   }
 }

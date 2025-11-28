@@ -18,7 +18,7 @@ class SupplierShipmentListScreen extends ConsumerStatefulWidget {
 class _SupplierShipmentListScreenState
     extends ConsumerState<SupplierShipmentListScreen> {
   final ApiService _apiService = ApiService();
-  
+
   List<ShipmentModel> _shipments = [];
   bool _isLoading = true;
   String _filterStatus = 'all';
@@ -35,21 +35,20 @@ class _SupplierShipmentListScreenState
     setState(() => _isLoading = true);
 
     try {
-      // ✅ Call supplier-specific endpoint
       final response = await _apiService.get(
         ApiEndpoints.supplierShipments,
-        queryParameters: _filterStatus != 'all' 
-            ? {'status': _filterStatus}
-            : null,
+        queryParameters:
+            _filterStatus != 'all' ? {'status': _filterStatus} : null,
       );
 
       if (response.success && response.data != null) {
         final List<dynamic> data = response.data as List<dynamic>;
-        
+
         if (mounted) {
           setState(() {
             _shipments = data
-                .map((json) => ShipmentModel.fromJson(json as Map<String, dynamic>))
+                .map((json) =>
+                    ShipmentModel.fromJson(json as Map<String, dynamic>))
                 .toList();
             _isLoading = false;
           });
@@ -63,6 +62,29 @@ class _SupplierShipmentListScreenState
         );
         setState(() => _isLoading = false);
       }
+    }
+  }
+
+  // ✅ TAMBAHKAN METHOD UNTUK LOAD DETAIL
+  Future<ShipmentModel?> _loadShipmentDetail(String shipmentId) async {
+    try {
+      final response = await _apiService.get<Map<String, dynamic>>(
+        ApiEndpoints.supplierShipmentById(shipmentId),
+        fromJson: (json) => json as Map<String, dynamic>,
+      );
+
+      if (response.success && response.data != null) {
+        return ShipmentModel.fromJson(response.data!);
+      }
+      return null;
+    } catch (e) {
+      print('❌ Error loading shipment detail: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error loading detail: $e')),
+        );
+      }
+      return null;
     }
   }
 
@@ -305,110 +327,158 @@ class _SupplierShipmentListScreenState
     );
   }
 
-  void _showShipmentDetail(ShipmentModel shipment) {
+  // ✅ PERBAIKI METHOD INI - LOAD DETAIL DULU
+  void _showShipmentDetail(ShipmentModel shipment) async {
+    // Show loading dialog
     showDialog(
       context: context,
-      builder: (context) => Dialog(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 600, maxHeight: 700),
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'Shipment Detail',
-                      style: Theme.of(context)
-                          .textTheme
-                          .titleLarge
-                          ?.copyWith(fontWeight: FontWeight.bold),
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.close),
-                      onPressed: () => Navigator.pop(context),
-                    )
-                  ],
-                ),
-                const Divider(),
-                const SizedBox(height: 16),
-                Text(
-                  shipment.shipmentNumber,
-                  style: const TextStyle(
-                      fontSize: 18, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 8),
-                Text('Status: ${shipment.status.toUpperCase()}'),
-                if (shipment.poNumber != null) Text('PO: ${shipment.poNumber}'),
-                Text('Delivery Note: ${shipment.deliveryNoteNumber}'),
-                Text(
-                    'Date: ${DateFormat('dd MMM yyyy').format(shipment.shipmentDate)}'),
-                if (shipment.notes != null && shipment.notes!.isNotEmpty)
-                  Text('Notes: ${shipment.notes}'),
-                const SizedBox(height: 24),
-                Text(
-                  'Items:',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
+      barrierDismissible: false,
+      builder: (context) => const Center(
+        child: CircularProgressIndicator(),
+      ),
+    );
+
+    // Load full detail
+    final detailShipment = await _loadShipmentDetail(shipment.id);
+
+    // Close loading dialog
+    if (mounted) Navigator.pop(context);
+
+    if (detailShipment == null) {
+      return;
+    }
+
+    // Show detail dialog
+    if (mounted) {
+      showDialog(
+        context: context,
+        builder: (context) => Dialog(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 600, maxHeight: 700),
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Shipment Detail',
+                        style: Theme.of(context)
+                            .textTheme
+                            .titleLarge
+                            ?.copyWith(fontWeight: FontWeight.bold),
                       ),
-                ),
-                const SizedBox(height: 12),
-                Expanded(
-                  child: ListView.builder(
-                    shrinkWrap: true,
-                    itemCount: shipment.items?.length ?? 0,
-                    itemBuilder: (context, index) {
-                      final item = shipment.items![index];
-                      return Card(
-                        margin: const EdgeInsets.only(bottom: 8),
-                        child: Padding(
-                          padding: const EdgeInsets.all(12),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                item.itemName,
-                                style: const TextStyle(
-                                    fontWeight: FontWeight.bold),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                  'Shipped: ${item.quantityShipped} ${item.unit}'),
-                              if (item.notes != null && item.notes!.isNotEmpty)
-                                Text(
-                                  'Notes: ${item.notes}',
-                                  style: TextStyle(
-                                      fontSize: 12,
-                                      color: Colors.grey.shade600),
-                                )
-                            ],
-                          ),
-                        ),
-                      );
-                    },
+                      IconButton(
+                        icon: const Icon(Icons.close),
+                        onPressed: () => Navigator.pop(context),
+                      )
+                    ],
                   ),
-                ),
-                const SizedBox(height: 16),
-                if (shipment.status == 'pending')
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton.icon(
-                      onPressed: () {
-                        Navigator.pop(context);
-                        _showQRCode(shipment);
-                      },
-                      icon: const Icon(Icons.qr_code),
-                      label: const Text('View QR Code'),
-                    ),
-                  )
-              ],
+                  const Divider(),
+                  const SizedBox(height: 16),
+                  Text(
+                    detailShipment.shipmentNumber,
+                    style: const TextStyle(
+                        fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 8),
+                  Text('Status: ${detailShipment.status.toUpperCase()}'),
+                  if (detailShipment.poNumber != null)
+                    Text('PO: ${detailShipment.poNumber}'),
+                  Text('Delivery Note: ${detailShipment.deliveryNoteNumber}'),
+                  Text(
+                      'Date: ${DateFormat('dd MMM yyyy').format(detailShipment.shipmentDate)}'),
+                  if (detailShipment.notes != null &&
+                      detailShipment.notes!.isNotEmpty)
+                    Text('Notes: ${detailShipment.notes}'),
+                  const SizedBox(height: 24),
+                  Text(
+                    'Items:',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                  ),
+                  const SizedBox(height: 12),
+
+                  // ✅ TAMBAHKAN PENGECEKAN ITEMS
+                  Expanded(
+                    child: (detailShipment.items == null ||
+                            detailShipment.items!.isEmpty)
+                        ? Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.inventory_2,
+                                    size: 48, color: Colors.grey.shade400),
+                                const SizedBox(height: 8),
+                                Text(
+                                  'No items found',
+                                  style: TextStyle(
+                                    color: Colors.grey.shade600,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          )
+                        : ListView.builder(
+                            shrinkWrap: true,
+                            itemCount: detailShipment.items!.length,
+                            itemBuilder: (context, index) {
+                              final item = detailShipment.items![index];
+                              return Card(
+                                margin: const EdgeInsets.only(bottom: 8),
+                                child: Padding(
+                                  padding: const EdgeInsets.all(12),
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        item.itemName,
+                                        style: const TextStyle(
+                                            fontWeight: FontWeight.bold),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                          'Shipped: ${item.quantityShipped} ${item.unit}'),
+                                      if (item.notes != null &&
+                                          item.notes!.isNotEmpty)
+                                        Text(
+                                          'Notes: ${item.notes}',
+                                          style: TextStyle(
+                                              fontSize: 12,
+                                              color: Colors.grey.shade600),
+                                        )
+                                    ],
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                  ),
+                  const SizedBox(height: 16),
+                  if (detailShipment.status == 'pending')
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        onPressed: () {
+                          Navigator.pop(context);
+                          _showQRCode(detailShipment);
+                        },
+                        icon: const Icon(Icons.qr_code),
+                        label: const Text('View QR Code'),
+                      ),
+                    )
+                ],
+              ),
             ),
           ),
         ),
-      ),
-    );
+      );
+    }
   }
 
   void _showQRCode(ShipmentModel shipment) {

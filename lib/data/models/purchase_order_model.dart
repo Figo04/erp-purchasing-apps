@@ -1,4 +1,5 @@
 import 'package:equatable/equatable.dart';
+import 'package:erp_purchasing_apps/data/models/purchase_requisition_model.dart';
 
 /// Purchase Order Model
 class PurchaseOrderModel extends Equatable {
@@ -191,7 +192,9 @@ class CreatePORequest {
   Map<String, dynamic> toJson() {
     return {
       'supplier_id': supplierId,
-      'expected_delivery_date': expectedDeliveryDate?.toIso8601String(),
+      'expected_delivery_date': expectedDeliveryDate != null
+          ? expectedDeliveryDate!.toUtc().toIso8601String()
+          : null,
       'pr_ids': prIds,
       'items': items.map((item) => item.toJson()).toList(),
       'notes': notes,
@@ -274,10 +277,10 @@ class UpdatePOItemRequest {
   }
 }
 
-/// PR Grouping Helper (from backend)S
+/// PR Grouping Helper (from backend)
 class PRGrouping {
-  final String supplierId; // Will be empty UUID
-  final String supplierName; // Will use category name as fallback
+  final String supplierId;
+  final String supplierName;
   final String? categoryId;
   final String? categoryName;
   final List<String> prIds;
@@ -293,6 +296,8 @@ class PRGrouping {
   });
 
   factory PRGrouping.fromJson(Map<String, dynamic> json) {
+    print('🔧 Parsing PRGrouping: ${json.toString()}'); // Debug
+
     // Extract PR IDs and items from prs array
     List<String> prIds = [];
     List<PRGroupingItem> items = [];
@@ -313,16 +318,13 @@ class PRGrouping {
       }
     }
 
-    // Use category_name as fallback for supplier_name
-    String displayName = json['supplier_name']?.toString() ?? '';
-    if (displayName.isEmpty) {
-      displayName = json['category_name']?.toString() ?? 'Unknown';
-    }
+    // Use category_name as display name (since supplier not assigned yet)
+    String displayName = json['category_name']?.toString() ?? 'Unknown';
 
     return PRGrouping(
       supplierId: json['supplier_id']?.toString() ??
           '00000000-0000-0000-0000-000000000000',
-      supplierName: displayName,
+      supplierName: displayName, // ⭐ Use category name as supplier name for now
       categoryId: json['category_id']?.toString(),
       categoryName: json['category_name']?.toString(),
       prIds: prIds,
@@ -350,11 +352,57 @@ class PRGroupingItem {
     return PRGroupingItem(
       productId: json['product_id'] as String?,
       itemName: json['item_name'] as String,
-      totalQuantity: json['total_quantity'] as int,
+      totalQuantity: (json['quantity'] as num?)?.toInt() ??
+          0, // ⭐ Backend uses 'quantity', not 'total_quantity'
       unit: json['unit'] as String,
       estimatedPrice: json['estimated_price'] != null
           ? (json['estimated_price'] as num).toDouble()
           : null,
+    );
+  }
+}
+
+/// PR Category Group (New structure from backend)
+class PRCategoryGroup {
+  final String categoryId;
+  final String categoryName;
+  final String categoryCode;
+  final List<PRWithItems> prs;
+
+  const PRCategoryGroup({
+    required this.categoryId,
+    required this.categoryName,
+    required this.categoryCode,
+    required this.prs,
+  });
+
+  factory PRCategoryGroup.fromJson(Map<String, dynamic> json) {
+    return PRCategoryGroup(
+      categoryId: json['category_id'] as String,
+      categoryName: json['category_name'] as String,
+      categoryCode: json['category_code'] as String,
+      prs: (json['prs'] as List<dynamic>)
+          .map((e) => PRWithItems.fromJson(e))
+          .toList(),
+    );
+  }
+}
+
+class PRWithItems {
+  final PurchaseRequisitionModel pr;
+  final List<PRItemModel> items;
+
+  const PRWithItems({
+    required this.pr,
+    required this.items,
+  });
+
+  factory PRWithItems.fromJson(Map<String, dynamic> json) {
+    return PRWithItems(
+      pr: PurchaseRequisitionModel.fromJson(json['pr']),
+      items: (json['items'] as List<dynamic>)
+          .map((e) => PRItemModel.fromJson(e))
+          .toList(),
     );
   }
 }

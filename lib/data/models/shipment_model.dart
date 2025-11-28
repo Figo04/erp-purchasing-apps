@@ -35,7 +35,7 @@ class ShipmentModel extends Equatable {
     this.supplierName,
   });
 
-  // From JSON (Backend Response)
+  // ✅ FIXED: Changed from 'shipment_item' to 'items'
   factory ShipmentModel.fromJson(Map<String, dynamic> json) {
     return ShipmentModel(
       id: json['id'],
@@ -51,8 +51,9 @@ class ShipmentModel extends Equatable {
       updatedAt: DateTime.parse(json['updated_at']),
       poNumber: json['po_number'],
       supplierName: json['supplier_name'],
-      items: json['shipment_item'] != null
-          ? (json['shipment_item'] as List)
+      // ✅ FIXED: Changed from 'shipment_item' to 'items'
+      items: json['items'] != null
+          ? (json['items'] as List)
               .map((item) => ShipmentItemModel.fromJson(item))
               .toList()
           : null,
@@ -68,7 +69,6 @@ class ShipmentModel extends Equatable {
       'items': items?.map((item) => item.toJson()).toList(),
     };
   }
-
 
   // Copy with
   ShipmentModel copyWith({
@@ -123,6 +123,7 @@ class ShipmentModel extends Equatable {
         items,
       ];
 }
+
 class ShipmentItemModel extends Equatable {
   final String id;
   final String shipmentId;
