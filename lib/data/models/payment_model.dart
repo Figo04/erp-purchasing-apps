@@ -56,8 +56,11 @@ class PaymentModel extends Equatable {
       supplierId: json['supplier_id'] ?? '',
       supplierName: json['supplier_name'],
       amount: (json['amount'] ?? 0).toDouble(),
-      dueDate: json['due_date'] != null ? DateTime.parse(json['due_date']) : null,
-      paymentDate: json['payment_date'] != null ? DateTime.parse(json['payment_date']) : null,
+      dueDate:
+          json['due_date'] != null ? DateTime.parse(json['due_date']) : null,
+      paymentDate: json['payment_date'] != null
+          ? DateTime.parse(json['payment_date'])
+          : null,
       status: json['status'] ?? 'pending',
       method: json['method'],
       referenceNumber: json['reference_number'],
@@ -65,7 +68,9 @@ class PaymentModel extends Equatable {
       paidByName: json['paid_by_name'],
       verifiedBy: json['verified_by'],
       verifiedByName: json['verified_by_name'],
-      verifiedAt: json['verified_at'] != null ? DateTime.parse(json['verified_at']) : null,
+      verifiedAt: json['verified_at'] != null
+          ? DateTime.parse(json['verified_at'])
+          : null,
       notes: json['notes'],
       createdAt: DateTime.parse(json['created_at']),
       updatedAt: DateTime.parse(json['updated_at']),
@@ -141,8 +146,8 @@ class UnpaidLPBInfo extends Equatable {
   final String lpbId;
   final String lpbNumber;
   final String poNumber;
-  final String invoiceNumber;
-  final double amount;
+  final String? invoiceNumber; // ✅ Nullable
+  final double amount; // ✅ Tetap required (karena sudah difilter di backend)
   final DateTime? dueDate;
   final DateTime receiptDate;
 
@@ -150,7 +155,7 @@ class UnpaidLPBInfo extends Equatable {
     required this.lpbId,
     required this.lpbNumber,
     required this.poNumber,
-    required this.invoiceNumber,
+    this.invoiceNumber,
     required this.amount,
     this.dueDate,
     required this.receiptDate,
@@ -161,9 +166,10 @@ class UnpaidLPBInfo extends Equatable {
       lpbId: json['lpb_id'] ?? '',
       lpbNumber: json['lpb_number'] ?? '',
       poNumber: json['po_number'] ?? '',
-      invoiceNumber: json['invoice_number'] ?? '',
+      invoiceNumber: json['invoice_number'],
       amount: (json['amount'] ?? 0).toDouble(),
-      dueDate: json['due_date'] != null ? DateTime.parse(json['due_date']) : null,
+      dueDate:
+          json['due_date'] != null ? DateTime.parse(json['due_date']) : null,
       receiptDate: DateTime.parse(json['receipt_date']),
     );
   }
@@ -233,7 +239,7 @@ class CreatePaymentRequest {
     return {
       'supplier_id': supplierId,
       'lpb_ids': lpbIds,
-      if (dueDate != null) 'due_date': dueDate!.toIso8601String(),
+      if (dueDate != null) 'due_date': dueDate!.toUtc().toIso8601String(),
       if (method != null) 'method': method,
       if (referenceNumber != null) 'reference_number': referenceNumber,
       if (notes != null) 'notes': notes,
@@ -256,7 +262,7 @@ class UpdatePaymentRequest {
 
   Map<String, dynamic> toJson() {
     return {
-      if (dueDate != null) 'due_date': dueDate!.toIso8601String(),
+      if (dueDate != null) 'due_date': dueDate!.toUtc().toIso8601String(),
       if (method != null) 'method': method,
       if (referenceNumber != null) 'reference_number': referenceNumber,
       if (notes != null) 'notes': notes,
@@ -279,7 +285,7 @@ class ProcessPaymentRequest {
 
   Map<String, dynamic> toJson() {
     return {
-      'payment_date': paymentDate.toIso8601String(),
+      'payment_date': paymentDate.toUtc().toIso8601String(),
       'method': method,
       'reference_number': referenceNumber,
       if (notes != null) 'notes': notes,

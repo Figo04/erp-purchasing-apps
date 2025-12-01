@@ -25,6 +25,8 @@ class _SupplierShipmentFormScreenState
   final _formKey = GlobalKey<FormState>();
   final _deliveryNoteController = TextEditingController();
   final _notesController = TextEditingController();
+  final _invoiceNumberController = TextEditingController();
+  final _invoiceAmountController = TextEditingController();
 
   String? _selectedPOId;
   PurchaseOrderModel? _selectedPO;
@@ -57,8 +59,8 @@ class _SupplierShipmentFormScreenState
       );
 
       if (response.success && response.data != null) {
-        final po = PurchaseOrderModel.fromJson(
-            response.data as Map<String, dynamic>);
+        final po =
+            PurchaseOrderModel.fromJson(response.data as Map<String, dynamic>);
 
         if (mounted) {
           setState(() {
@@ -130,6 +132,8 @@ class _SupplierShipmentFormScreenState
         body: {
           'po_id': _selectedPOId,
           'delivery_note_number': _deliveryNoteController.text.trim(),
+          'invoice_number': _invoiceNumberController.text.trim(),
+          'invoice_amount': double.parse(_invoiceAmountController.text.trim()),
           'shipment_date': _shipmentDate.toIso8601String(),
           'items': itemsData,
           'notes': _notesController.text.trim().isNotEmpty
@@ -139,8 +143,8 @@ class _SupplierShipmentFormScreenState
       );
 
       if (response.success && response.data != null) {
-        final shipment = ShipmentModel.fromJson(
-            response.data as Map<String, dynamic>);
+        final shipment =
+            ShipmentModel.fromJson(response.data as Map<String, dynamic>);
 
         if (mounted) {
           setState(() {
@@ -410,6 +414,45 @@ class _SupplierShipmentFormScreenState
                       },
                     ),
                     const SizedBox(height: 16),
+
+                    TextFormField(
+                      controller: _invoiceNumberController,
+                      decoration: const InputDecoration(
+                        labelText: 'Invoice Number *',
+                        border: OutlineInputBorder(),
+                        prefixIcon: Icon(Icons.receipt),
+                        helperText: 'Invoice number from your billing system',
+                      ),
+                      validator: (value) {
+                        if (value == null || value.trim().isEmpty) {
+                          return 'Please enter invoice number';
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 16),
+
+                    TextFormField(
+                      controller: _invoiceAmountController,
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(
+                        labelText: 'Invoice Amount *',
+                        border: OutlineInputBorder(),
+                        prefixIcon: Icon(Icons.attach_money),
+                        helperText: 'Total invoice amount in Rupiah',
+                        prefixText: 'Rp ',
+                      ),
+                      validator: (value) {
+                        if (value == null || value.trim().isEmpty) {
+                          return 'Please enter invoice amount';
+                        }
+                        final amount = double.tryParse(value);
+                        if (amount == null || amount <= 0) {
+                          return 'Please enter valid amount';
+                        }
+                        return null;
+                      },
+                    ),
 
                     // Shipment Date
                     ListTile(

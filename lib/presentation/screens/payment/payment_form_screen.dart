@@ -49,7 +49,8 @@ class _PaymentFormScreenState extends ConsumerState<PaymentFormScreen> {
 
     try {
       final repository = ref.read(paymentRepositoryProvider);
-      final lpbs = await repository.getUnpaidLPBsBySupplier(_selectedSupplierId!);
+      final lpbs =
+          await repository.getUnpaidLPBsBySupplier(_selectedSupplierId!);
 
       setState(() {
         _availableLPBs = lpbs;
@@ -78,7 +79,8 @@ class _PaymentFormScreenState extends ConsumerState<PaymentFormScreen> {
   Future<void> _selectDueDate() async {
     final DateTime? picked = await showDatePicker(
       context: context,
-      initialDate: _selectedDueDate ?? DateTime.now().add(const Duration(days: 30)),
+      initialDate:
+          _selectedDueDate ?? DateTime.now().add(const Duration(days: 30)),
       firstDate: DateTime.now(),
       lastDate: DateTime.now().add(const Duration(days: 365)),
     );
@@ -117,12 +119,14 @@ class _PaymentFormScreenState extends ConsumerState<PaymentFormScreen> {
 
     try {
       final repository = ref.read(paymentRepositoryProvider);
-      
+
       final request = CreatePaymentRequest(
         supplierId: _selectedSupplierId!,
         lpbIds: _selectedLPBIds.toList(),
         dueDate: _selectedDueDate,
-        notes: _notesController.text.trim().isEmpty ? null : _notesController.text.trim(),
+        notes: _notesController.text.trim().isEmpty
+            ? null
+            : _notesController.text.trim(),
       );
 
       await repository.createPayment(request);
@@ -177,12 +181,14 @@ class _PaymentFormScreenState extends ConsumerState<PaymentFormScreen> {
                         padding: const EdgeInsets.all(12),
                         child: Row(
                           children: [
-                            Icon(Icons.info_outline, color: Colors.blue.shade700),
+                            Icon(Icons.info_outline,
+                                color: Colors.blue.shade700),
                             const SizedBox(width: 8),
                             Expanded(
                               child: Text(
                                 'Select supplier and choose multiple LPBs to create a combined payment',
-                                style: TextStyle(fontSize: 12, color: Colors.blue.shade700),
+                                style: TextStyle(
+                                    fontSize: 12, color: Colors.blue.shade700),
                               ),
                             ),
                           ],
@@ -222,22 +228,14 @@ class _PaymentFormScreenState extends ConsumerState<PaymentFormScreen> {
                             border: OutlineInputBorder(),
                             prefixIcon: Icon(Icons.business),
                           ),
+                          isExpanded: true,
                           items: summaries.map((summary) {
                             return DropdownMenuItem(
                               value: summary.supplierId,
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Text(
-                                    summary.supplierName,
-                                    style: const TextStyle(fontWeight: FontWeight.bold),
-                                  ),
-                                  Text(
-                                    '${summary.lpbCount} LPBs - Rp ${NumberFormat('#,###').format(summary.totalAmount)}',
-                                    style: const TextStyle(fontSize: 12, color: Colors.grey),
-                                  ),
-                                ],
+                              child: Text(
+                                '${summary.supplierName} (${summary.lpbCount} LPBs - Rp ${NumberFormat('#,###').format(summary.totalAmount)})',
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(fontSize: 14),
                               ),
                             );
                           }).toList(),
@@ -258,7 +256,8 @@ class _PaymentFormScreenState extends ConsumerState<PaymentFormScreen> {
                           },
                         );
                       },
-                      loading: () => const Center(child: CircularProgressIndicator()),
+                      loading: () =>
+                          const Center(child: CircularProgressIndicator()),
                       error: (error, _) => Text('Error: $error'),
                     ),
                     const SizedBox(height: 24),
@@ -267,9 +266,33 @@ class _PaymentFormScreenState extends ConsumerState<PaymentFormScreen> {
                     if (_selectedSupplierId != null) ...[
                       Text(
                         'Step 2: Select LPBs to Pay',
-                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                              fontWeight: FontWeight.bold,
-                            ),
+                        style:
+                            Theme.of(context).textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                ),
+                      ),
+                      const SizedBox(height: 8),
+
+                      Card(
+                        color: Colors.blue.shade50,
+                        child: Padding(
+                          padding: const EdgeInsets.all(12),
+                          child: Row(
+                            children: [
+                              Icon(Icons.info_outline,
+                                  color: Colors.blue.shade700, size: 20),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  'Only LPBs with invoice number and amount are shown here',
+                                  style: TextStyle(
+                                      fontSize: 11,
+                                      color: Colors.blue.shade700),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                       ),
                       const SizedBox(height: 8),
 
@@ -283,7 +306,8 @@ class _PaymentFormScreenState extends ConsumerState<PaymentFormScreen> {
                       else
                         Column(
                           children: _availableLPBs.map((lpb) {
-                            final isSelected = _selectedLPBIds.contains(lpb.lpbId);
+                            final isSelected =
+                                _selectedLPBIds.contains(lpb.lpbId);
 
                             return Card(
                               color: isSelected ? Colors.green.shade50 : null,
@@ -300,13 +324,15 @@ class _PaymentFormScreenState extends ConsumerState<PaymentFormScreen> {
                                 },
                                 title: Text(
                                   lpb.lpbNumber,
-                                  style: const TextStyle(fontWeight: FontWeight.bold),
+                                  style: const TextStyle(
+                                      fontWeight: FontWeight.bold),
                                 ),
                                 subtitle: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Text('PO: ${lpb.poNumber}'),
-                                    Text('Invoice: ${lpb.invoiceNumber}'),
+                                    Text(
+                                        'Invoice: ${lpb.invoiceNumber ?? "Not set"}'),
                                     Text(
                                       'Amount: Rp ${NumberFormat('#,###').format(lpb.amount)}',
                                       style: const TextStyle(
@@ -351,7 +377,8 @@ class _PaymentFormScreenState extends ConsumerState<PaymentFormScreen> {
                                   ),
                                   Text(
                                     '${_selectedLPBIds.length} LPB(s) selected',
-                                    style: const TextStyle(fontSize: 12, color: Colors.grey),
+                                    style: const TextStyle(
+                                        fontSize: 12, color: Colors.grey),
                                   ),
                                 ],
                               ),
@@ -371,9 +398,10 @@ class _PaymentFormScreenState extends ConsumerState<PaymentFormScreen> {
                       // STEP 3: Payment Details
                       Text(
                         'Step 3: Payment Details (Optional)',
-                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                              fontWeight: FontWeight.bold,
-                            ),
+                        style:
+                            Theme.of(context).textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                ),
                       ),
                       const SizedBox(height: 8),
 
@@ -389,10 +417,13 @@ class _PaymentFormScreenState extends ConsumerState<PaymentFormScreen> {
                           ),
                           child: Text(
                             _selectedDueDate != null
-                                ? DateFormat('dd MMMM yyyy').format(_selectedDueDate!)
+                                ? DateFormat('dd MMMM yyyy')
+                                    .format(_selectedDueDate!)
                                 : 'Select due date (optional)',
                             style: TextStyle(
-                              color: _selectedDueDate != null ? Colors.black : Colors.grey,
+                              color: _selectedDueDate != null
+                                  ? Colors.black
+                                  : Colors.grey,
                             ),
                           ),
                         ),

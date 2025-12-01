@@ -1,4 +1,5 @@
 import 'package:equatable/equatable.dart';
+import 'package:erp_purchasing_apps/core/utils/date_time_helper.dart';
 
 /// LPB (Laporan Penerimaan Barang) Model
 class LPBModel extends Equatable {
@@ -74,18 +75,19 @@ class LPBModel extends Equatable {
       receivedByName: json['received_by_name'] as String?,
       items: json['items'] != null
           ? (json['items'] as List)
-              .map((item) => LPBItemModel.fromJson(item as Map<String, dynamic>))
+              .map(
+                  (item) => LPBItemModel.fromJson(item as Map<String, dynamic>))
               .toList()
           : null,
     );
   }
 
-  /// To JSON 
+  /// To JSON
   Map<String, dynamic> toJson() {
     return {
       'po_id': poId,
       'shipment_id': shipmentId,
-      'receipt_date': receiptDate.toIso8601String(),
+      'receipt_date': DateTimeHelper.formatForBackend(receiptDate),
       'invoice_number': invoiceNumber,
       'invoice_amount': invoiceAmount,
       'notes': notes,

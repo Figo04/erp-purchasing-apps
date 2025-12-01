@@ -1,12 +1,13 @@
 import 'package:erp_purchasing_apps/core/service/api_service.dart';
 import 'package:erp_purchasing_apps/core/constants/api_constants.dart';
+import 'package:erp_purchasing_apps/core/utils/date_time_helper.dart';
 import 'package:erp_purchasing_apps/data/models/lpb_model.dart';
 
 /// LPB Repository
 class LPBRepository {
   final ApiService _apiService = ApiService();
 
-   /// Get all LPBs with optional filters
+  /// Get all LPBs with optional filters
   Future<List<LPBModel>> getAllLPBs({
     String? poId,
     String? supplierId,
@@ -43,7 +44,7 @@ class LPBRepository {
     }
   }
 
- /// Get LPB by ID
+  /// Get LPB by ID
   Future<LPBModel> getLPBById(String id) async {
     try {
       final response = await _apiService.get<Map<String, dynamic>>(
@@ -79,7 +80,7 @@ class LPBRepository {
     }
   }
 
- /// Create LPB (manual entry)
+  /// Create LPB (manual entry)
   Future<LPBModel> createLPB({
     required String poId,
     String? shipmentId,
@@ -95,7 +96,9 @@ class LPBRepository {
         body: {
           'po_id': poId,
           'shipment_id': shipmentId,
-          'receipt_date': receiptDate?.toIso8601String(),
+          'receipt_date': receiptDate != null
+              ? DateTimeHelper.formatForBackend(receiptDate)
+              : null,
           'invoice_number': invoiceNumber,
           'invoice_amount': invoiceAmount,
           'notes': notes,
@@ -161,7 +164,8 @@ class LPBRepository {
       throw Exception('Failed to update LPB: $e');
     }
   }
- /// Complete LPB (finalize and update inventory)
+
+  /// Complete LPB (finalize and update inventory)
   Future<LPBModel> completeLPB(String lpbId, {String? notes}) async {
     try {
       final response = await _apiService.post<Map<String, dynamic>>(

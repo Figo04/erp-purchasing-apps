@@ -61,6 +61,12 @@ class _ShipmentVerificationScreenState
     }).toList();
   }
 
+  // File: shipment_verification_screen.dart
+// Line: 76-115 (Method _handleSubmit)
+
+  // File: shipment_verification_screen.dart
+// Line: 76-115 (Method _handleSubmit)
+
   Future<void> _handleSubmit() async {
     if (!_formKey.currentState!.validate()) return;
 
@@ -88,11 +94,22 @@ class _ShipmentVerificationScreenState
         }
       }
 
-      // Create LPB via backend
+      // ✅ FIX: INCLUDE INVOICE DATA FROM SHIPMENT
       final lpb = await ref.read(lpbDetailProvider.notifier).createLPB(
             poId: widget.shipment.poId,
             shipmentId: widget.shipment.id,
-            receiptDate: _receiptDate,
+            receiptDate: DateTime(
+              _receiptDate.year,
+              _receiptDate.month,
+              _receiptDate.day,
+              DateTime.now().hour,
+              DateTime.now().minute,
+              DateTime.now().second,
+            ),
+            // ✅ ADD THESE TWO LINES
+            invoiceNumber: widget.shipment.invoiceNumber,
+            invoiceAmount: widget.shipment.invoiceAmount,
+            // ✅ END OF FIX
             notes: _notesController.text.trim().isNotEmpty
                 ? _notesController.text.trim()
                 : null,

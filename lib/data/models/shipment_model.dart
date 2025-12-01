@@ -10,6 +10,8 @@ class ShipmentModel extends Equatable {
   final String? notes;
   final String? qrCodeData;
   final String status;
+  final String? invoiceNumber;
+  final double? invoiceAmount;
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -28,6 +30,8 @@ class ShipmentModel extends Equatable {
     this.notes,
     this.qrCodeData,
     required this.status,
+    this.invoiceNumber,
+    this.invoiceAmount,
     required this.createdAt,
     required this.updatedAt,
     this.items,
@@ -47,11 +51,14 @@ class ShipmentModel extends Equatable {
       notes: json['notes'],
       qrCodeData: json['qr_code_data'],
       status: json['status'],
+      invoiceNumber: json['invoice_number'],
+      invoiceAmount: json['invoice_amount'] != null
+          ? (json['invoice_amount'] as num).toDouble()
+          : null,
       createdAt: DateTime.parse(json['created_at']),
       updatedAt: DateTime.parse(json['updated_at']),
       poNumber: json['po_number'],
       supplierName: json['supplier_name'],
-      // ✅ FIXED: Changed from 'shipment_item' to 'items'
       items: json['items'] != null
           ? (json['items'] as List)
               .map((item) => ShipmentItemModel.fromJson(item))
@@ -60,12 +67,13 @@ class ShipmentModel extends Equatable {
     );
   }
 
-  // To JSON (untuk request body)
   Map<String, dynamic> toJson() {
     return {
       'po_id': poId,
       'delivery_note_number': deliveryNoteNumber,
       'notes': notes,
+      'invoice_number': invoiceNumber,
+      'invoice_amount': invoiceAmount,
       'items': items?.map((item) => item.toJson()).toList(),
     };
   }
@@ -81,6 +89,8 @@ class ShipmentModel extends Equatable {
     String? notes,
     String? qrCodeData,
     String? status,
+    String? invoiceNumber,
+    double? invoiceAmount,
     DateTime? createdAt,
     DateTime? updatedAt,
     String? poNumber,
@@ -97,6 +107,8 @@ class ShipmentModel extends Equatable {
       notes: notes ?? this.notes,
       qrCodeData: qrCodeData ?? this.qrCodeData,
       status: status ?? this.status,
+      invoiceNumber: invoiceNumber ?? this.invoiceNumber,
+      invoiceAmount: invoiceAmount ?? this.invoiceAmount,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       poNumber: poNumber ?? this.poNumber,
@@ -116,6 +128,8 @@ class ShipmentModel extends Equatable {
         notes,
         qrCodeData,
         status,
+        invoiceNumber,
+        invoiceAmount,
         createdAt,
         updatedAt,
         poNumber,
