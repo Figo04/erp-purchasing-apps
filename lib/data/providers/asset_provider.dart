@@ -157,3 +157,46 @@ final filteredAssetListProvider = FutureProvider<List<AssetModel>>((ref) async {
     search: filter.search,
   );
 });
+
+/// Beacukai Search Filter for Assets
+class BeacukaiAssetFilter {
+  final String? beacukaiNo;
+  final String? beacukaiNoAju;
+
+  const BeacukaiAssetFilter({
+    this.beacukaiNo,
+    this.beacukaiNoAju,
+  });
+
+  static const empty = BeacukaiAssetFilter();
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    return other is BeacukaiAssetFilter &&
+        other.beacukaiNo == beacukaiNo &&
+        other.beacukaiNoAju == beacukaiNoAju;
+  }
+
+  @override
+  int get hashCode => Object.hash(beacukaiNo, beacukaiNoAju);
+}
+
+/// Search Assets by Beacukai Provider
+final searchAssetsByBeacukaiProvider = FutureProvider.family<
+    List<AssetModel>, 
+    BeacukaiAssetFilter
+>((ref, filter) async {
+  final repository = ref.watch(assetRepositoryProvider);
+  return await repository.searchByBeacukai(
+    beacukaiNo: filter.beacukaiNo,
+    beacukaiNoAju: filter.beacukaiNoAju,
+  );
+});
+
+/// Count assets with beacukai
+final assetsWithBeacukaiCountProvider = FutureProvider<int>((ref) async {
+  final repository = ref.watch(assetRepositoryProvider);
+  final allAssets = await repository.getAllAssets();
+  return allAssets.where((asset) => asset.hasBeacukai).length;
+});

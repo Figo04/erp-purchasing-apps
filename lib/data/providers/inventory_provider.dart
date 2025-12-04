@@ -7,7 +7,8 @@ final inventoryRepositoryProvider = Provider<InventoryRepository>((ref) {
   return InventoryRepository();
 });
 
-final inventoryListProvider = FutureProvider.family<List<InventoryModel>, InventoryFilter>(
+final inventoryListProvider =
+    FutureProvider.family<List<InventoryModel>, InventoryFilter>(
   (ref, filter) async {
     final repository = ref.watch(inventoryRepositoryProvider);
     return await repository.getAllInventory(
@@ -38,7 +39,8 @@ final lowStockItemsProvider = FutureProvider<List<InventoryModel>>((ref) async {
   return await repository.getLowStockItems();
 });
 
-final inventoryTransactionProvider = FutureProvider.family<List<InventoryTransactionModel>, String>(
+final inventoryTransactionProvider =
+    FutureProvider.family<List<InventoryTransactionModel>, String>(
   (ref, inventoryId) async {
     final repository = ref.watch(inventoryRepositoryProvider);
     return await repository.getTransactionHistory(inventoryId);
@@ -74,7 +76,8 @@ class InventoryFilter {
   }
 
   @override
-  int get hashCode => Object.hash(productId, categoryId, status, location, search);
+  int get hashCode =>
+      Object.hash(productId, categoryId, status, location, search);
 
   InventoryFilter copyWith({
     String? productId,
@@ -99,18 +102,21 @@ class InventoryFilterNotifier extends StateNotifier<InventoryFilter> {
   void setFilter(InventoryFilter filter) => state = filter;
   void updateStatus(String? status) => state = state.copyWith(status: status);
   void updateSearch(String? search) => state = state.copyWith(search: search);
-  void updateLocation(String? location) => state = state.copyWith(location: location);
+  void updateLocation(String? location) =>
+      state = state.copyWith(location: location);
   void reset() => state = InventoryFilter.empty;
 }
 
-final inventoryFilterProvider = StateNotifierProvider<InventoryFilterNotifier, InventoryFilter>(
+final inventoryFilterProvider =
+    StateNotifierProvider<InventoryFilterNotifier, InventoryFilter>(
   (ref) => InventoryFilterNotifier(),
 );
 
-final filteredInventoryListProvider = FutureProvider<List<InventoryModel>>((ref) async {
+final filteredInventoryListProvider =
+    FutureProvider<List<InventoryModel>>((ref) async {
   final filter = ref.watch(inventoryFilterProvider);
   final repository = ref.watch(inventoryRepositoryProvider);
-  
+
   return await repository.getAllInventory(
     productId: filter.productId,
     categoryId: filter.categoryId,
@@ -118,4 +124,54 @@ final filteredInventoryListProvider = FutureProvider<List<InventoryModel>>((ref)
     location: filter.location,
     search: filter.search,
   );
+});
+
+/// Beacukai Search Filter
+class BeacukaiInventoryFilter {
+  final String? beacukaiNo;
+  final String? beacukaiNoAju;
+  final DateTime? fromDate;
+  final DateTime? toDate;
+
+  const BeacukaiInventoryFilter({
+    this.beacukaiNo,
+    this.beacukaiNoAju,
+    this.fromDate,
+    this.toDate,
+  });
+
+  static const empty = BeacukaiInventoryFilter();
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    return other is BeacukaiInventoryFilter &&
+        other.beacukaiNo == beacukaiNo &&
+        other.beacukaiNoAju == beacukaiNoAju &&
+        other.fromDate == fromDate &&
+        other.toDate == toDate;
+  }
+
+  @override
+  int get hashCode => Object.hash(beacukaiNo, beacukaiNoAju, fromDate, toDate);
+}
+
+/// Search Inventory by Beacukai Provider
+final searchInventoryByBeacukaiProvider =
+    FutureProvider.family<List<InventoryModel>, BeacukaiInventoryFilter>(
+        (ref, filter) async {
+  final repository = ref.watch(inventoryRepositoryProvider);
+  return await repository.searchByBeacukai(
+    beacukaiNo: filter.beacukaiNo,
+    beacukaiNoAju: filter.beacukaiNoAju,
+    fromDate: filter.fromDate,
+    toDate: filter.toDate,
+  );
+});
+
+/// Count inventory with beacukai
+final inventoryWithBeacukaiCountProvider = FutureProvider<int>((ref) async {
+  final repository = ref.watch(inventoryRepositoryProvider);
+  final allInventory = await repository.getAllInventory();
+  return allInventory.where((inv) => inv.hasBeacukai).length;
 });

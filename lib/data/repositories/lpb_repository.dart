@@ -16,6 +16,11 @@ class LPBRepository {
     String? search,
     String? fromDate,
     String? toDate,
+    // ✅ TAMBAHKAN PARAMETER BEACUKAI (NEW)
+    String? beacukaiNo,
+    String? beacukaiNoAju,
+    String? beacukaiFrom,
+    String? beacukaiTo,
   }) async {
     try {
       final queryParams = <String, dynamic>{};
@@ -27,6 +32,12 @@ class LPBRepository {
       if (search != null) queryParams['search'] = search;
       if (fromDate != null) queryParams['from_date'] = fromDate;
       if (toDate != null) queryParams['to_date'] = toDate;
+
+      // ✅ TAMBAHKAN BEACUKAI PARAMS (NEW)
+      if (beacukaiNo != null) queryParams['beacukai_no'] = beacukaiNo;
+      if (beacukaiNoAju != null) queryParams['beacukai_no_aju'] = beacukaiNoAju;
+      if (beacukaiFrom != null) queryParams['beacukai_from'] = beacukaiFrom;
+      if (beacukaiTo != null) queryParams['beacukai_to'] = beacukaiTo;
 
       final response = await _apiService.get<List<dynamic>>(
         ApiEndpoints.lpbs,
@@ -88,6 +99,11 @@ class LPBRepository {
     String? invoiceNumber,
     double? invoiceAmount,
     String? notes,
+    // ✅ TAMBAHKAN PARAMETER BEACUKAI
+    String? beacukaiDoc,
+    DateTime? beacukaiTgl,
+    String? beacukaiNo,
+    String? beacukaiNoAju,
     required List<Map<String, dynamic>> items,
   }) async {
     try {
@@ -102,6 +118,13 @@ class LPBRepository {
           'invoice_number': invoiceNumber,
           'invoice_amount': invoiceAmount,
           'notes': notes,
+          // ✅ TAMBAHKAN BEACUKAI KE REQUEST BODY
+          'beacukai_doc': beacukaiDoc,
+          'beacukai_tgl': beacukaiTgl != null
+              ? DateTimeHelper.formatForBackend(beacukaiTgl)
+              : null,
+          'beacukai_no': beacukaiNo,
+          'beacukai_no_aju': beacukaiNoAju,
           'items': items,
         },
         fromJson: (json) => json as Map<String, dynamic>,
@@ -192,6 +215,41 @@ class LPBRepository {
       );
     } catch (e) {
       throw Exception('Failed to delete LPB: $e');
+    }
+  }
+
+  /// Search LPB by Beacukai
+  Future<List<LPBModel>> searchByBeacukai({
+    String? beacukaiNo,
+    String? beacukaiNoAju,
+    DateTime? fromDate,
+    DateTime? toDate,
+  }) async {
+    try {
+      final queryParams = <String, dynamic>{};
+
+      if (beacukaiNo != null) queryParams['beacukai_no'] = beacukaiNo;
+      if (beacukaiNoAju != null) queryParams['beacukai_no_aju'] = beacukaiNoAju;
+      if (fromDate != null) {
+        queryParams['from_date'] = fromDate.toIso8601String().split('T')[0];
+      }
+      if (toDate != null) {
+        queryParams['to_date'] = toDate.toIso8601String().split('T')[0];
+      }
+
+      final response = await _apiService.get<List<dynamic>>(
+        '${ApiEndpoints.lpbs}/search-beacukai',
+        queryParameters: queryParams.isNotEmpty ? queryParams : null,
+        fromJson: (json) => json as List<dynamic>,
+      );
+
+      if (response.data == null) return [];
+
+      return response.data!
+          .map((item) => LPBModel.fromJson(item as Map<String, dynamic>))
+          .toList();
+    } catch (e) {
+      throw Exception('Failed to search LPB by beacukai: $e');
     }
   }
 }

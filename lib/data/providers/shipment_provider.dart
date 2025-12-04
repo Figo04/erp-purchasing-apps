@@ -231,3 +231,44 @@ final autoLoadShipmentsProvider = Provider<void>((ref) {
     ref.read(shipmentListProvider.notifier).loadShipments();
   });
 });
+
+// Beacukai Search Filter for Shipment
+class BeacukaiShipmentFilter {
+  final String? beacukaiNo;
+  final String? beacukaiNoAju;
+
+  const BeacukaiShipmentFilter({
+    this.beacukaiNo,
+    this.beacukaiNoAju,
+  });
+
+  static const empty = BeacukaiShipmentFilter();
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    return other is BeacukaiShipmentFilter &&
+        other.beacukaiNo == beacukaiNo &&
+        other.beacukaiNoAju == beacukaiNoAju;
+  }
+
+  @override
+  int get hashCode => Object.hash(beacukaiNo, beacukaiNoAju);
+}
+
+/// Search Shipments by Beacukai Provider
+final searchShipmentsByBeacukaiProvider =
+    FutureProvider.family<List<ShipmentModel>, BeacukaiShipmentFilter>(
+        (ref, filter) async {
+  final repository = ref.watch(shipmentRepositoryProvider);
+  return await repository.searchByBeacukai(
+    beacukaiNo: filter.beacukaiNo,
+    beacukaiNoAju: filter.beacukaiNoAju,
+  );
+});
+
+/// Count shipments with beacukai
+final shipmentsWithBeacukaiCountProvider = FutureProvider<int>((ref) async {
+  final state = ref.watch(shipmentListProvider);
+  return state.shipments.where((shipment) => shipment.hasBeacukai).length;
+});

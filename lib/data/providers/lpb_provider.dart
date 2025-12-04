@@ -77,38 +77,47 @@ class LPBListNotifier extends StateNotifier<LPBListState> {
 
   /// Load all LPBs with filters
   Future<void> loadLPBs({
-    String? poId,
-    String? supplierId,
-    String? receivedBy,
-    String? status,
-    String? search,
-    String? fromDate,
-    String? toDate,
-  }) async {
-    state = state.copyWith(isLoading: true, error: null);
+  String? poId,
+  String? supplierId,
+  String? receivedBy,
+  String? status,
+  String? search,
+  String? fromDate,
+  String? toDate, 
+  String? beacukaiNo,
+  String? beacukaiNoAju,
+  String? beacukaiFrom,
+  String? beacukaiTo,
+}) async {
+  state = state.copyWith(isLoading: true, error: null);
 
-    try {
-      final lpbs = await _repository.getAllLPBs(
-        poId: poId,
-        supplierId: supplierId,
-        receivedBy: receivedBy,
-        status: status,
-        search: search,
-        fromDate: fromDate,
-        toDate: toDate,
-      );
+  try {
+    final lpbs = await _repository.getAllLPBs(
+      poId: poId,
+      supplierId: supplierId,
+      receivedBy: receivedBy,
+      status: status,
+      search: search,
+      fromDate: fromDate,
+      toDate: toDate,
+      // ✅ PASS BEACUKAI KE REPOSITORY (NEW)
+      beacukaiNo: beacukaiNo,
+      beacukaiNoAju: beacukaiNoAju,
+      beacukaiFrom: beacukaiFrom,
+      beacukaiTo: beacukaiTo,
+    );
 
-      state = state.copyWith(
-        lpbs: lpbs,
-        isLoading: false,
-      );
-    } catch (e) {
-      state = state.copyWith(
-        isLoading: false,
-        error: e.toString(),
-      );
-    }
+    state = state.copyWith(
+      lpbs: lpbs,
+      isLoading: false,
+    );
+  } catch (e) {
+    state = state.copyWith(
+      isLoading: false,
+      error: e.toString(),
+    );
   }
+}
 
   /// Refresh LPBs (manual reload)
   Future<void> refresh() async {
@@ -185,6 +194,11 @@ class LPBDetailNotifier extends StateNotifier<LPBDetailState> {
     String? invoiceNumber,
     double? invoiceAmount,
     String? notes,
+    // ✅ TAMBAHKAN PARAMETER BEACUKAI
+    String? beacukaiDoc,
+    DateTime? beacukaiTgl,
+    String? beacukaiNo,
+    String? beacukaiNoAju,
     required List<Map<String, dynamic>> items,
   }) async {
     state = state.copyWith(isLoading: true, error: null);
@@ -197,6 +211,11 @@ class LPBDetailNotifier extends StateNotifier<LPBDetailState> {
         invoiceNumber: invoiceNumber,
         invoiceAmount: invoiceAmount,
         notes: notes,
+        // ✅ PASS BEACUKAI KE REPOSITORY
+        beacukaiDoc: beacukaiDoc,
+        beacukaiTgl: beacukaiTgl,
+        beacukaiNo: beacukaiNo,
+        beacukaiNoAju: beacukaiNoAju,
         items: items,
       );
 
@@ -288,7 +307,8 @@ final completedLPBsCountProvider = Provider<int>((ref) {
 final unpaidLPBsCountProvider = Provider<int>((ref) {
   final state = ref.watch(lpbListProvider);
   return state.lpbs
-      .where((lpb) => lpb.paymentStatus == 'unpaid' && lpb.status == 'completed')
+      .where(
+          (lpb) => lpb.paymentStatus == 'unpaid' && lpb.status == 'completed')
       .length;
 });
 
@@ -302,4 +322,53 @@ final autoLoadLPBsProvider = Provider<void>((ref) {
   Future.microtask(() {
     ref.read(lpbListProvider.notifier).loadLPBs();
   });
+});
+
+/// Beacukai Search Filter for LPB
+class BeacukaiLPBFilter {
+  final String? beacukaiNo;
+  final String? beacukaiNoAju;
+  final DateTime? fromDate;
+  final DateTime? toDate;
+
+  const BeacukaiLPBFilter({
+    this.beacukaiNo,
+    this.beacukaiNoAju,
+    this.fromDate,
+    this.toDate,
+  });
+
+  static const empty = BeacukaiLPBFilter();
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    return other is BeacukaiLPBFilter &&
+        other.beacukaiNo == beacukaiNo &&
+        other.beacukaiNoAju == beacukaiNoAju &&
+        other.fromDate == fromDate &&
+        other.toDate == toDate;
+  }
+
+  @override
+  int get hashCode => Object.hash(beacukaiNo, beacukaiNoAju, fromDate, toDate);
+}
+
+/// Search LPB by Beacukai Provider
+final searchLPBByBeacukaiProvider =
+    FutureProvider.family<List<LPBModel>, BeacukaiLPBFilter>(
+        (ref, filter) async {
+  final repository = ref.watch(lpbRepositoryProvider);
+  return await repository.searchByBeacukai(
+    beacukaiNo: filter.beacukaiNo,
+    beacukaiNoAju: filter.beacukaiNoAju,
+    fromDate: filter.fromDate,
+    toDate: filter.toDate,
+  );
+});
+
+/// Count LPBs with beacukai
+final lpbsWithBeacukaiCountProvider = FutureProvider<int>((ref) async {
+  final state = ref.watch(lpbListProvider);
+  return state.lpbs.where((lpb) => lpb.hasBeacukai).length;
 });

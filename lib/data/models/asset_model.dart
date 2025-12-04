@@ -18,6 +18,13 @@ class AssetModel extends Equatable {
   final String? notes;
   final DateTime createdAt;
   final DateTime updatedAt;
+  
+  // ✅ BEACUKAI FIELDS (NEW)
+  final String? beacukaiDoc;
+  final DateTime? beacukaiTgl;
+  final String? beacukaiNo;
+  final String? beacukaiNoAju;
+  final String? lpbId;
 
   const AssetModel({
     required this.id,
@@ -37,6 +44,11 @@ class AssetModel extends Equatable {
     this.notes,
     required this.createdAt,
     required this.updatedAt,
+    this.beacukaiDoc,
+    this.beacukaiTgl,
+    this.beacukaiNo,
+    this.beacukaiNoAju,
+    this.lpbId,
   });
 
   /// From JSON (Backend Response)
@@ -63,6 +75,14 @@ class AssetModel extends Equatable {
       notes: json['notes'] as String?,
       createdAt: DateTime.parse(json['created_at'] as String),
       updatedAt: DateTime.parse(json['updated_at'] as String),
+      // ✅ BEACUKAI FIELDS
+      beacukaiDoc: json['beacukai_doc'] as String?,
+      beacukaiTgl: json['beacukai_tgl'] != null
+          ? DateTime.parse(json['beacukai_tgl'] as String)
+          : null,
+      beacukaiNo: json['beacukai_no'] as String?,
+      beacukaiNoAju: json['beacukai_no_aju'] as String?,
+      lpbId: json['lpb_id'] as String?,
     );
   }
 
@@ -98,6 +118,11 @@ class AssetModel extends Equatable {
     String? notes,
     DateTime? createdAt,
     DateTime? updatedAt,
+    String? beacukaiDoc,
+    DateTime? beacukaiTgl,
+    String? beacukaiNo,
+    String? beacukaiNoAju,
+    String? lpbId,
   }) {
     return AssetModel(
       id: id ?? this.id,
@@ -117,6 +142,11 @@ class AssetModel extends Equatable {
       notes: notes ?? this.notes,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
+      beacukaiDoc: beacukaiDoc ?? this.beacukaiDoc,
+      beacukaiTgl: beacukaiTgl ?? this.beacukaiTgl,
+      beacukaiNo: beacukaiNo ?? this.beacukaiNo,
+      beacukaiNoAju: beacukaiNoAju ?? this.beacukaiNoAju,
+      lpbId: lpbId ?? this.lpbId,
     );
   }
 
@@ -125,6 +155,9 @@ class AssetModel extends Equatable {
 
   /// Helper: Check if asset is available
   bool get isAvailable => status == 'available';
+
+  /// Helper: Check if has beacukai
+  bool get hasBeacukai => beacukaiNo != null && beacukaiNo!.isNotEmpty;
 
   /// Helper: Category display name
   String get categoryDisplayName {
@@ -175,11 +208,15 @@ class AssetModel extends Equatable {
         notes,
         createdAt,
         updatedAt,
+        beacukaiDoc,
+        beacukaiTgl,
+        beacukaiNo,
+        beacukaiNoAju,
+        lpbId,
       ];
 }
 
-/// Asset Transaction Model
-/// For transaction history (shared with Inventory)
+/// Asset Transaction Model (shared with Inventory)
 class AssetTransactionModel extends Equatable {
   final String id;
   final String? inventoryId;

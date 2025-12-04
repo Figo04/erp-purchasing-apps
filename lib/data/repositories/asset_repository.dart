@@ -213,6 +213,35 @@ class AssetRepository {
     return await getAllAssets(search: query);
   }
 
+  /// Search assets by Beacukai
+  Future<List<AssetModel>> searchByBeacukai({
+    String? beacukaiNo,
+    String? beacukaiNoAju,
+  }) async {
+    try {
+      final queryParams = <String, dynamic>{};
+
+      if (beacukaiNo != null) queryParams['beacukai_no'] = beacukaiNo;
+      if (beacukaiNoAju != null) queryParams['beacukai_no_aju'] = beacukaiNoAju;
+
+      final response = await _apiService.get(
+        ApiEndpoints.assets,
+        queryParameters: queryParams,
+      );
+
+      if (response.data == null) return [];
+
+      final List<dynamic> dataList =
+          response.data is List ? response.data as List : [response.data];
+
+      return dataList
+          .map((json) => AssetModel.fromJson(json as Map<String, dynamic>))
+          .toList();
+    } catch (e) {
+      throw Exception('Failed to search assets by beacukai: $e');
+    }
+  }
+
   // HELPER: DECREASE QUANTITY (Consumable only)
   Future<AssetModel> decreaseQuantity({
     required String id,

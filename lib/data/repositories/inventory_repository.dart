@@ -223,4 +223,41 @@ class InventoryRepository {
           : current.notes,
     );
   }
+
+  /// Search inventory by Beacukai
+  Future<List<InventoryModel>> searchByBeacukai({
+    String? beacukaiNo,
+    String? beacukaiNoAju,
+    DateTime? fromDate,
+    DateTime? toDate,
+  }) async {
+    try {
+      final queryParams = <String, dynamic>{};
+
+      if (beacukaiNo != null) queryParams['beacukai_no'] = beacukaiNo;
+      if (beacukaiNoAju != null) queryParams['beacukai_no_aju'] = beacukaiNoAju;
+      if (fromDate != null) {
+        queryParams['beacukai_from'] = fromDate.toIso8601String().split('T')[0];
+      }
+      if (toDate != null) {
+        queryParams['beacukai_to'] = toDate.toIso8601String().split('T')[0];
+      }
+
+      final response = await _apiService.get(
+        ApiEndpoints.inventory,
+        queryParameters: queryParams,
+      );
+
+      if (response.data == null) return [];
+
+      final List<dynamic> dataList =
+          response.data is List ? response.data as List : [response.data];
+
+      return dataList
+          .map((json) => InventoryModel.fromJson(json as Map<String, dynamic>))
+          .toList();
+    } catch (e) {
+      throw Exception('Failed to search inventory by beacukai: $e');
+    }
+  }
 }

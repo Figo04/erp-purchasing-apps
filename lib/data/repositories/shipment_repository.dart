@@ -216,4 +216,31 @@ class ShipmentRepository {
       throw Exception('Failed to delete shipment: $e');
     }
   }
+
+  /// Search shipments by Beacukai
+  Future<List<ShipmentModel>> searchByBeacukai({
+    String? beacukaiNo,
+    String? beacukaiNoAju,
+  }) async {
+    try {
+      final queryParams = <String, dynamic>{};
+
+      if (beacukaiNo != null) queryParams['beacukai_no'] = beacukaiNo;
+      if (beacukaiNoAju != null) queryParams['beacukai_no_aju'] = beacukaiNoAju;
+
+      final response = await _apiService.get<List<dynamic>>(
+        ApiEndpoints.shipments,
+        queryParameters: queryParams.isNotEmpty ? queryParams : null,
+        fromJson: (json) => json as List<dynamic>,
+      );
+
+      if (response.data == null) return [];
+
+      return response.data!
+          .map((item) => ShipmentModel.fromJson(item as Map<String, dynamic>))
+          .toList();
+    } catch (e) {
+      throw Exception('Failed to search shipments by beacukai: $e');
+    }
+  }
 }

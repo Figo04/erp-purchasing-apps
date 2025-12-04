@@ -253,6 +253,95 @@ class LPBDetailScreen extends ConsumerWidget {
                             ),
                           ],
 
+                          // ✅ BEACUKAI INFORMATION (NEW)
+                          if (lpb.hasBeacukai) ...[
+                            const Divider(height: 32),
+                            Row(
+                              children: [
+                                Icon(Icons.description,
+                                    size: 20, color: Colors.blue.shade700),
+                                const SizedBox(width: 8),
+                                Text(
+                                  'BEACUKAI INFORMATION',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.blue.shade700,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 16),
+                            Container(
+                              padding: const EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                color: Colors.blue.shade50,
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(
+                                  color: Colors.blue.shade200,
+                                  width: 1,
+                                ),
+                              ),
+                              child: Column(
+                                children: [
+                                  // First Row
+                                  Row(
+                                    children: [
+                                      if (lpb.beacukaiDoc != null)
+                                        Expanded(
+                                          child: _buildBeacukaiInfoItem(
+                                            'Document',
+                                            lpb.beacukaiDoc!,
+                                            Icons.folder_outlined,
+                                          ),
+                                        ),
+                                      if (lpb.beacukaiDoc != null &&
+                                          lpb.beacukaiTgl != null)
+                                        const SizedBox(width: 24),
+                                      if (lpb.beacukaiTgl != null)
+                                        Expanded(
+                                          child: _buildBeacukaiInfoItem(
+                                            'Date',
+                                            DateFormat('dd MMM yyyy')
+                                                .format(lpb.beacukaiTgl!),
+                                            Icons.calendar_today,
+                                          ),
+                                        ),
+                                    ],
+                                  ),
+                                  if (lpb.beacukaiNo != null ||
+                                      lpb.beacukaiNoAju != null) ...[
+                                    const SizedBox(height: 16),
+                                    // Second Row
+                                    Row(
+                                      children: [
+                                        if (lpb.beacukaiNo != null)
+                                          Expanded(
+                                            child: _buildBeacukaiInfoItem(
+                                              'Beacukai Number',
+                                              lpb.beacukaiNo!,
+                                              Icons.numbers,
+                                            ),
+                                          ),
+                                        if (lpb.beacukaiNo != null &&
+                                            lpb.beacukaiNoAju != null)
+                                          const SizedBox(width: 24),
+                                        if (lpb.beacukaiNoAju != null)
+                                          Expanded(
+                                            child: _buildBeacukaiInfoItem(
+                                              'No. Aju',
+                                              lpb.beacukaiNoAju!,
+                                              Icons.assignment_outlined,
+                                            ),
+                                          ),
+                                      ],
+                                    ),
+                                  ],
+                                ],
+                              ),
+                            ),
+                          ],
+
                           // Notes (if exists)
                           if (lpb.notes != null && lpb.notes!.isNotEmpty) ...[
                             const Divider(height: 32),
@@ -596,6 +685,36 @@ class LPBDetailScreen extends ConsumerWidget {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildBeacukaiInfoItem(String label, String value, IconData icon) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(icon, size: 14, color: Colors.blue.shade700),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 11,
+                color: Colors.blue.shade700,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 4),
+        Text(
+          value,
+          style: const TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      ],
     );
   }
 }

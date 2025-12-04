@@ -4,64 +4,80 @@ class ShipmentModel extends Equatable {
   final String id;
   final String shipmentNumber;
   final String poId;
+  final String? poNumber;
   final String supplierId;
+  final String? supplierName;
   final String deliveryNoteNumber;
   final DateTime shipmentDate;
-  final String? notes;
   final String? qrCodeData;
-  final String status;
-  final String? invoiceNumber;
-  final double? invoiceAmount;
+  final String status; // pending, received, partial
+  final String? notes;
   final DateTime createdAt;
   final DateTime updatedAt;
+  final String? invoiceNumber;
+  final double? invoiceAmount;
 
-  // Additional fields for display
-  final String? poNumber;
-  final String? supplierName;
+  // ✅ BEACUKAI FIELDS (NEW)
+  final String? beacukaiDoc;
+  final DateTime? beacukaiTgl;
+  final String? beacukaiNo;
+  final String? beacukaiNoAju;
+
   final List<ShipmentItemModel>? items;
 
   const ShipmentModel({
     required this.id,
     required this.shipmentNumber,
     required this.poId,
+    this.poNumber,
     required this.supplierId,
+    this.supplierName,
     required this.deliveryNoteNumber,
     required this.shipmentDate,
-    this.notes,
     this.qrCodeData,
     required this.status,
-    this.invoiceNumber,
-    this.invoiceAmount,
+    this.notes,
     required this.createdAt,
     required this.updatedAt,
+    this.invoiceNumber,
+    this.invoiceAmount,
+    this.beacukaiDoc,
+    this.beacukaiTgl,
+    this.beacukaiNo,
+    this.beacukaiNoAju,
     this.items,
-    this.poNumber,
-    this.supplierName,
   });
 
-  // ✅ FIXED: Changed from 'shipment_item' to 'items'
   factory ShipmentModel.fromJson(Map<String, dynamic> json) {
     return ShipmentModel(
-      id: json['id'],
-      shipmentNumber: json['shipment_number'],
-      poId: json['po_id'],
-      supplierId: json['supplier_id'],
-      deliveryNoteNumber: json['delivery_note_number'],
-      shipmentDate: DateTime.parse(json['shipment_date']),
-      notes: json['notes'],
-      qrCodeData: json['qr_code_data'],
-      status: json['status'],
-      invoiceNumber: json['invoice_number'],
+      id: json['id'] as String,
+      shipmentNumber: json['shipment_number'] as String,
+      poId: json['po_id'] as String,
+      poNumber: json['po_number'] as String?,
+      supplierId: json['supplier_id'] as String,
+      supplierName: json['supplier_name'] as String?,
+      deliveryNoteNumber: json['delivery_note_number'] as String,
+      shipmentDate: DateTime.parse(json['shipment_date'] as String),
+      qrCodeData: json['qr_code_data'] as String?,
+      status: json['status'] as String,
+      notes: json['notes'] as String?,
+      createdAt: DateTime.parse(json['created_at'] as String),
+      updatedAt: DateTime.parse(json['updated_at'] as String),
+      invoiceNumber: json['invoice_number'] as String?,
       invoiceAmount: json['invoice_amount'] != null
           ? (json['invoice_amount'] as num).toDouble()
           : null,
-      createdAt: DateTime.parse(json['created_at']),
-      updatedAt: DateTime.parse(json['updated_at']),
-      poNumber: json['po_number'],
-      supplierName: json['supplier_name'],
+      // ✅ BEACUKAI FIELDS
+      beacukaiDoc: json['beacukai_doc'] as String?,
+      beacukaiTgl: json['beacukai_tgl'] != null
+          ? DateTime.parse(json['beacukai_tgl'] as String)
+          : null,
+      beacukaiNo: json['beacukai_no'] as String?,
+      beacukaiNoAju: json['beacukai_no_aju'] as String?,
       items: json['items'] != null
           ? (json['items'] as List)
-              .map((item) => ShipmentItemModel.fromJson(item))
+              .map((item) =>
+                  ShipmentItemModel.fromJson(item as Map<String, dynamic>))
               .toList()
           : null,
     );
@@ -71,69 +87,43 @@ class ShipmentModel extends Equatable {
     return {
       'po_id': poId,
       'delivery_note_number': deliveryNoteNumber,
-      'notes': notes,
+      'shipment_date': shipmentDate.toIso8601String(),
       'invoice_number': invoiceNumber,
       'invoice_amount': invoiceAmount,
+      'notes': notes,
+      // ✅ BEACUKAI FIELDS
+      'beacukai_doc': beacukaiDoc,
+      'beacukai_tgl': beacukaiTgl?.toIso8601String(),
+      'beacukai_no': beacukaiNo,
+      'beacukai_no_aju': beacukaiNoAju,
       'items': items?.map((item) => item.toJson()).toList(),
     };
   }
 
-  // Copy with
-  ShipmentModel copyWith({
-    String? id,
-    String? shipmentNumber,
-    String? poId,
-    String? supplierId,
-    String? deliveryNoteNumber,
-    DateTime? shipmentDate,
-    String? notes,
-    String? qrCodeData,
-    String? status,
-    String? invoiceNumber,
-    double? invoiceAmount,
-    DateTime? createdAt,
-    DateTime? updatedAt,
-    String? poNumber,
-    String? supplierName,
-    List<ShipmentItemModel>? items,
-  }) {
-    return ShipmentModel(
-      id: id ?? this.id,
-      shipmentNumber: shipmentNumber ?? this.shipmentNumber,
-      poId: poId ?? this.poId,
-      supplierId: supplierId ?? this.supplierId,
-      deliveryNoteNumber: deliveryNoteNumber ?? this.deliveryNoteNumber,
-      shipmentDate: shipmentDate ?? this.shipmentDate,
-      notes: notes ?? this.notes,
-      qrCodeData: qrCodeData ?? this.qrCodeData,
-      status: status ?? this.status,
-      invoiceNumber: invoiceNumber ?? this.invoiceNumber,
-      invoiceAmount: invoiceAmount ?? this.invoiceAmount,
-      createdAt: createdAt ?? this.createdAt,
-      updatedAt: updatedAt ?? this.updatedAt,
-      poNumber: poNumber ?? this.poNumber,
-      supplierName: supplierName ?? this.supplierName,
-      items: items ?? this.items,
-    );
-  }
+  /// Helper: Check if has beacukai
+  bool get hasBeacukai => beacukaiNo != null && beacukaiNo!.isNotEmpty;
 
   @override
   List<Object?> get props => [
         id,
         shipmentNumber,
         poId,
+        poNumber,
         supplierId,
+        supplierName,
         deliveryNoteNumber,
         shipmentDate,
-        notes,
         qrCodeData,
         status,
-        invoiceNumber,
-        invoiceAmount,
+        notes,
         createdAt,
         updatedAt,
-        poNumber,
-        supplierName,
+        invoiceNumber,
+        invoiceAmount,
+        beacukaiDoc,
+        beacukaiTgl,
+        beacukaiNo,
+        beacukaiNoAju,
         items,
       ];
 }
@@ -148,8 +138,6 @@ class ShipmentItemModel extends Equatable {
   final String unit;
   final String? notes;
   final DateTime createdAt;
-
-  // Additional fields from backend (JOIN)
   final String? productId;
   final String? productCode;
   final String? categoryId;
@@ -189,7 +177,6 @@ class ShipmentItemModel extends Equatable {
     );
   }
 
-  /// To JSON (untuk request body)
   Map<String, dynamic> toJson() {
     return {
       'po_item_id': poItemId,
@@ -214,27 +201,4 @@ class ShipmentItemModel extends Equatable {
         categoryId,
         categoryName,
       ];
-}
-
-/// QR Code Scan Result (dari backend scan-qr endpoint)
-class QRScanResult {
-  final ShipmentModel? shipment;
-  final bool valid;
-  final String message;
-
-  QRScanResult({
-    this.shipment,
-    required this.valid,
-    required this.message,
-  });
-
-  factory QRScanResult.fromJson(Map<String, dynamic> json) {
-    return QRScanResult(
-      shipment: json['shipment'] != null
-          ? ShipmentModel.fromJson(json['shipment'] as Map<String, dynamic>)
-          : null,
-      valid: json['valid'] as bool,
-      message: json['message'] as String,
-    );
-  }
 }

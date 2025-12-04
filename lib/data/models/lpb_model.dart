@@ -18,6 +18,12 @@ class LPBModel extends Equatable {
   final String paymentStatus; // unpaid, pending, paid, partial
   final String? paymentId;
 
+  // ✅ BEACUKAI FIELDS (NEW)
+  final String? beacukaiDoc;
+  final DateTime? beacukaiTgl;
+  final String? beacukaiNo;
+  final String? beacukaiNoAju;
+
   // Related data (populated by backend)
   final String? poNumber;
   final String? shipmentNumber;
@@ -41,6 +47,10 @@ class LPBModel extends Equatable {
     this.invoiceAmount,
     required this.paymentStatus,
     this.paymentId,
+    this.beacukaiDoc,
+    this.beacukaiTgl,
+    this.beacukaiNo,
+    this.beacukaiNoAju,
     this.poNumber,
     this.shipmentNumber,
     this.supplierId,
@@ -68,6 +78,13 @@ class LPBModel extends Equatable {
           : null,
       paymentStatus: json['payment_status'] as String? ?? 'unpaid',
       paymentId: json['payment_id'] as String?,
+      // ✅ BEACUKAI FIELDS
+      beacukaiDoc: json['beacukai_doc'] as String?,
+      beacukaiTgl: json['beacukai_tgl'] != null
+          ? DateTime.parse(json['beacukai_tgl'] as String)
+          : null,
+      beacukaiNo: json['beacukai_no'] as String?,
+      beacukaiNoAju: json['beacukai_no_aju'] as String?,
       poNumber: json['po_number'] as String?,
       shipmentNumber: json['shipment_number'] as String?,
       supplierId: json['supplier_id'] as String?,
@@ -91,6 +108,13 @@ class LPBModel extends Equatable {
       'invoice_number': invoiceNumber,
       'invoice_amount': invoiceAmount,
       'notes': notes,
+      // ✅ BEACUKAI FIELDS
+      'beacukai_doc': beacukaiDoc,
+      'beacukai_tgl': beacukaiTgl != null
+          ? DateTimeHelper.formatForBackend(beacukaiTgl!)
+          : null,
+      'beacukai_no': beacukaiNo,
+      'beacukai_no_aju': beacukaiNoAju,
       'items': items?.map((item) => item.toJson()).toList(),
     };
   }
@@ -111,6 +135,10 @@ class LPBModel extends Equatable {
     double? invoiceAmount,
     String? paymentStatus,
     String? paymentId,
+    String? beacukaiDoc,
+    DateTime? beacukaiTgl,
+    String? beacukaiNo,
+    String? beacukaiNoAju,
     String? poNumber,
     String? shipmentNumber,
     String? supplierId,
@@ -133,6 +161,10 @@ class LPBModel extends Equatable {
       invoiceAmount: invoiceAmount ?? this.invoiceAmount,
       paymentStatus: paymentStatus ?? this.paymentStatus,
       paymentId: paymentId ?? this.paymentId,
+      beacukaiDoc: beacukaiDoc ?? this.beacukaiDoc,
+      beacukaiTgl: beacukaiTgl ?? this.beacukaiTgl,
+      beacukaiNo: beacukaiNo ?? this.beacukaiNo,
+      beacukaiNoAju: beacukaiNoAju ?? this.beacukaiNoAju,
       poNumber: poNumber ?? this.poNumber,
       shipmentNumber: shipmentNumber ?? this.shipmentNumber,
       supplierId: supplierId ?? this.supplierId,
@@ -141,6 +173,9 @@ class LPBModel extends Equatable {
       items: items ?? this.items,
     );
   }
+
+  /// Helper: Check if has beacukai
+  bool get hasBeacukai => beacukaiNo != null && beacukaiNo!.isNotEmpty;
 
   @override
   List<Object?> get props => [
@@ -158,6 +193,10 @@ class LPBModel extends Equatable {
         invoiceAmount,
         paymentStatus,
         paymentId,
+        beacukaiDoc,
+        beacukaiTgl,
+        beacukaiNo,
+        beacukaiNoAju,
         poNumber,
         shipmentNumber,
         supplierId,
@@ -179,6 +218,12 @@ class LPBItemModel extends Equatable {
   final String? notes;
   final DateTime createdAt;
 
+  // ✅ BEACUKAI FIELDS PER ITEM (NEW)
+  final String? beacukaiDoc;
+  final DateTime? beacukaiTgl;
+  final String? beacukaiNo;
+  final String? beacukaiNoAju;
+
   // Additional fields from backend (JOIN)
   final String? productId;
   final String? productCode;
@@ -195,6 +240,10 @@ class LPBItemModel extends Equatable {
     required this.unit,
     this.notes,
     required this.createdAt,
+    this.beacukaiDoc,
+    this.beacukaiTgl,
+    this.beacukaiNo,
+    this.beacukaiNoAju,
     this.productId,
     this.productCode,
     this.categoryId,
@@ -213,6 +262,13 @@ class LPBItemModel extends Equatable {
       unit: json['unit'] as String? ?? 'pcs',
       notes: json['notes'] as String?,
       createdAt: DateTime.parse(json['created_at'] as String),
+      // ✅ BEACUKAI FIELDS
+      beacukaiDoc: json['beacukai_doc'] as String?,
+      beacukaiTgl: json['beacukai_tgl'] != null
+          ? DateTime.parse(json['beacukai_tgl'] as String)
+          : null,
+      beacukaiNo: json['beacukai_no'] as String?,
+      beacukaiNoAju: json['beacukai_no_aju'] as String?,
       productId: json['product_id'] as String?,
       productCode: json['product_code'] as String?,
       categoryId: json['category_id'] as String?,
@@ -226,6 +282,13 @@ class LPBItemModel extends Equatable {
       'po_item_id': poItemId,
       'quantity_received': quantityReceived,
       'notes': notes,
+      // ✅ BEACUKAI FIELDS
+      'beacukai_doc': beacukaiDoc,
+      'beacukai_tgl': beacukaiTgl != null
+          ? beacukaiTgl!.toIso8601String()
+          : null,
+      'beacukai_no': beacukaiNo,
+      'beacukai_no_aju': beacukaiNoAju,
     };
   }
 
@@ -238,6 +301,9 @@ class LPBItemModel extends Equatable {
   /// Has discrepancy
   bool get hasDiscrepancy => quantityReceived != quantityOrdered;
 
+  /// Helper: Check if has beacukai
+  bool get hasBeacukai => beacukaiNo != null && beacukaiNo!.isNotEmpty;
+
   @override
   List<Object?> get props => [
         id,
@@ -249,6 +315,10 @@ class LPBItemModel extends Equatable {
         unit,
         notes,
         createdAt,
+        beacukaiDoc,
+        beacukaiTgl,
+        beacukaiNo,
+        beacukaiNoAju,
         productId,
         productCode,
         categoryId,

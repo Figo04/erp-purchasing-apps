@@ -1,6 +1,5 @@
 import 'package:equatable/equatable.dart';
 
-/// Inventory Model
 class InventoryModel extends Equatable {
   final String id;
   final String productId;
@@ -19,6 +18,13 @@ class InventoryModel extends Equatable {
   final String? notes;
   final DateTime createdAt;
   final DateTime updatedAt;
+  
+  // ✅ BEACUKAI FIELDS (NEW)
+  final String? beacukaiDoc;
+  final DateTime? beacukaiTgl;
+  final String? beacukaiNo;
+  final String? beacukaiNoAju;
+  final String? lpbId;
 
   const InventoryModel({
     required this.id,
@@ -38,9 +44,13 @@ class InventoryModel extends Equatable {
     this.notes,
     required this.createdAt,
     required this.updatedAt,
+    this.beacukaiDoc,
+    this.beacukaiTgl,
+    this.beacukaiNo,
+    this.beacukaiNoAju,
+    this.lpbId,
   });
 
-  /// From JSON (Backend Response)
   factory InventoryModel.fromJson(Map<String, dynamic> json) {
     return InventoryModel(
       id: json['id'] as String,
@@ -55,17 +65,24 @@ class InventoryModel extends Equatable {
       quantity: json['quantity'] as int,
       unit: json['unit'] as String? ?? 'pcs',
       location: json['location'] as String?,
-      status: json['status'] as String,
+      status: json['status'] as String? ?? 'available',
       receivedDate: json['received_date'] != null
           ? DateTime.parse(json['received_date'] as String)
           : null,
       notes: json['notes'] as String?,
       createdAt: DateTime.parse(json['created_at'] as String),
       updatedAt: DateTime.parse(json['updated_at'] as String),
+      // ✅ BEACUKAI FIELDS
+      beacukaiDoc: json['beacukai_doc'] as String?,
+      beacukaiTgl: json['beacukai_tgl'] != null
+          ? DateTime.parse(json['beacukai_tgl'] as String)
+          : null,
+      beacukaiNo: json['beacukai_no'] as String?,
+      beacukaiNoAju: json['beacukai_no_aju'] as String?,
+      lpbId: json['lpb_id'] as String?,
     );
   }
 
-  /// To JSON (untuk request body)
   Map<String, dynamic> toJson() {
     return {
       'product_id': productId,
@@ -76,57 +93,8 @@ class InventoryModel extends Equatable {
     };
   }
 
-  /// Copy with
-  InventoryModel copyWith({
-    String? id,
-    String? productId,
-    String? productCode,
-    String? itemName,
-    String? productName,
-    String? categoryId,
-    String? categoryName,
-    String? poItemId,
-    String? lpbItemId,
-    int? quantity,
-    String? unit,
-    String? location,
-    String? status,
-    DateTime? receivedDate,
-    String? notes,
-    DateTime? createdAt,
-    DateTime? updatedAt,
-  }) {
-    return InventoryModel(
-      id: id ?? this.id,
-      productId: productId ?? this.productId,
-      productCode: productCode ?? this.productCode,
-      itemName: itemName ?? this.itemName,
-      productName: productName ?? this.productName,
-      categoryId: categoryId ?? this.categoryId,
-      categoryName: categoryName ?? this.categoryName,
-      poItemId: poItemId ?? this.poItemId,
-      lpbItemId: lpbItemId ?? this.lpbItemId,
-      quantity: quantity ?? this.quantity,
-      unit: unit ?? this.unit,
-      location: location ?? this.location,
-      status: status ?? this.status,
-      receivedDate: receivedDate ?? this.receivedDate,
-      notes: notes ?? this.notes,
-      createdAt: createdAt ?? this.createdAt,
-      updatedAt: updatedAt ?? this.updatedAt,
-    );
-  }
-
-  /// Helper: Check if low stock
-  bool get isLowStock => quantity < 10 && status == 'available';
-
-  /// Helper: Stock level color indicator
-  String get stockLevel {
-    if (quantity == 0) return 'critical';
-    if (quantity < 10) return 'low';
-    if (quantity < 50) return 'medium';
-    return 'good';
-  }
+  /// Helper: Check if has beacukai
+  bool get hasBeacukai => beacukaiNo != null && beacukaiNo!.isNotEmpty;
 
   @override
   List<Object?> get props => [
@@ -147,11 +115,14 @@ class InventoryModel extends Equatable {
         notes,
         createdAt,
         updatedAt,
+        beacukaiDoc,
+        beacukaiTgl,
+        beacukaiNo,
+        beacukaiNoAju,
+        lpbId,
       ];
 }
 
-/// Inventory Transaction Model
-/// For transaction history
 class InventoryTransactionModel extends Equatable {
   final String id;
   final String? inventoryId;
@@ -160,7 +131,7 @@ class InventoryTransactionModel extends Equatable {
   final int quantity;
   final String? fromLocation;
   final String? toLocation;
-  final String? referenceType; // lpb, po, adjustment, manual
+  final String? referenceType;
   final String? referenceId;
   final String performedBy;
   final String? performedByName;

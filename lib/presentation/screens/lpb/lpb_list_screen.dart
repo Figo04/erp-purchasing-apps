@@ -19,6 +19,11 @@ class LPBListScreen extends ConsumerStatefulWidget {
 class _LPBListScreenState extends ConsumerState<LPBListScreen> {
   final _searchController = TextEditingController();
   String? _selectedStatusFilter;
+  final _beacukaiNoController = TextEditingController();
+  final _beacukaiNoAjuController = TextEditingController();
+  DateTime? _beacukaiFromDate;
+  DateTime? _beacukaiToDate;
+  bool _showBeacukaiSearch = false;
 
   @override
   void initState() {
@@ -32,6 +37,8 @@ class _LPBListScreenState extends ConsumerState<LPBListScreen> {
   @override
   void dispose() {
     _searchController.dispose();
+    _beacukaiNoController.dispose();
+    _beacukaiNoAjuController.dispose();
     super.dispose();
   }
 
@@ -236,6 +243,46 @@ class _LPBListScreenState extends ConsumerState<LPBListScreen> {
     return filtered;
   }
 
+  Future<void> _searchByBeacukai() async {
+    // Validate at least one field
+    if (_beacukaiNoController.text.isEmpty &&
+        _beacukaiNoAjuController.text.isEmpty &&
+        _beacukaiFromDate == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please fill at least one search field'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    setState(() => _showBeacukaiSearch = false);
+
+    await ref.read(lpbListProvider.notifier).loadLPBs(
+          beacukaiNo: _beacukaiNoController.text.isEmpty
+              ? null
+              : _beacukaiNoController.text,
+          beacukaiNoAju: _beacukaiNoAjuController.text.isEmpty
+              ? null
+              : _beacukaiNoAjuController.text,
+          fromDate: _beacukaiFromDate?.toIso8601String().split('T')[0],
+          toDate: _beacukaiToDate?.toIso8601String().split('T')[0],
+        );
+  }
+
+  // ✅ CLEAR BEACUKAI SEARCH (NEW)
+  void _clearBeacukaiSearch() {
+    setState(() {
+      _beacukaiNoController.clear();
+      _beacukaiNoAjuController.clear();
+      _beacukaiFromDate = null;
+      _beacukaiToDate = null;
+      _showBeacukaiSearch = false;
+    });
+    ref.read(lpbListProvider.notifier).refresh();
+  }
+
   // ============================================
   // BUILD METHOD
   // ============================================
@@ -313,54 +360,40 @@ class _LPBListScreenState extends ConsumerState<LPBListScreen> {
           Row(
             children: [
               Expanded(
-                child: TextField(
-                  controller: _searchController,
-                  decoration: InputDecoration(
-                    hintText: 'Search LPB or PO number...',
-                    prefixIcon: const Icon(Icons.search, size: 20),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      borderSide: BorderSide(color: Colors.grey.shade300),
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      borderSide: BorderSide(color: Colors.grey.shade300),
-                    ),
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 12,
-                    ),
-                    suffixIcon: _searchController.text.isNotEmpty
-                        ? IconButton(
-                            icon: const Icon(Icons.clear, size: 20),
-                            onPressed: () {
-                              setState(() {
-                                _searchController.clear();
-                              });
-                            },
-                          )
-                        : null,
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: [
+                      _buildFilterChip('all', 'All', lpbState.lpbs.length),
+                      const SizedBox(width: 8),
+                      _buildFilterChip(
+                          'draft', 'Draft', ref.watch(draftLPBsCountProvider)),
+                      const SizedBox(width: 8),
+                      _buildFilterChip('completed', 'Completed',
+                          ref.watch(completedLPBsCountProvider)),
+                      const SizedBox(width: 8),
+                      _buildFilterChip('unpaid', 'Unpaid',
+                          ref.watch(unpaidLPBsCountProvider)),
+                    ],
                   ),
-                  onChanged: (value) {
-                    setState(() {});
-                  },
                 ),
               ),
               const SizedBox(width: 12),
-              ElevatedButton.icon(
-                onPressed: _navigateToQRScanner,
-                icon: const Icon(Icons.qr_code_scanner, size: 20),
-                label: const Text('Scan QR'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF1ABC9C),
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 24,
-                    vertical: 16,
-                  ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
+              // ✅ BEACUKAI SEARCH BUTTON (NEW)
+              OutlinedButton.icon(
+                onPressed: () {
+                  setState(() => _showBeacukaiSearch = !_showBeacukaiSearch);
+                },
+                icon: Icon(
+                  _showBeacukaiSearch ? Icons.close : Icons.search,
+                  size: 18,
+                ),
+                label: const Text('Beacukai Search'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: Colors.blue.shade700,
+                  side: BorderSide(color: Colors.blue.shade300),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 ),
               ),
             ],
@@ -398,6 +431,193 @@ class _LPBListScreenState extends ConsumerState<LPBListScreen> {
               ],
             ),
           ),
+
+          if (_showBeacukaiSearch) ...[
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.blue.shade50,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.blue.shade200),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(Icons.description,
+                          size: 20, color: Colors.blue.shade700),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Search by Beacukai',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.blue.shade700,
+                        ),
+                      ),
+                      const Spacer(),
+                      if (_beacukaiNoController.text.isNotEmpty ||
+                          _beacukaiNoAjuController.text.isNotEmpty ||
+                          _beacukaiFromDate != null)
+                        TextButton.icon(
+                          onPressed: _clearBeacukaiSearch,
+                          icon: const Icon(Icons.clear_all, size: 16),
+                          label: const Text('Clear'),
+                          style: TextButton.styleFrom(
+                            foregroundColor: Colors.red,
+                          ),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: _beacukaiNoController,
+                          decoration: InputDecoration(
+                            labelText: 'Beacukai Number',
+                            hintText: 'Enter beacukai no',
+                            border: const OutlineInputBorder(),
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 12,
+                            ),
+                            filled: true,
+                            fillColor: Colors.white,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: TextField(
+                          controller: _beacukaiNoAjuController,
+                          decoration: InputDecoration(
+                            labelText: 'Beacukai No. Aju',
+                            hintText: 'Enter no aju',
+                            border: const OutlineInputBorder(),
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 12,
+                            ),
+                            filled: true,
+                            fillColor: Colors.white,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: InkWell(
+                          onTap: () async {
+                            final date = await showDatePicker(
+                              context: context,
+                              initialDate: _beacukaiFromDate ?? DateTime.now(),
+                              firstDate: DateTime(2020),
+                              lastDate: DateTime.now(),
+                            );
+                            if (date != null) {
+                              setState(() => _beacukaiFromDate = date);
+                            }
+                          },
+                          child: InputDecorator(
+                            decoration: InputDecoration(
+                              labelText: 'From Date',
+                              border: const OutlineInputBorder(),
+                              filled: true,
+                              fillColor: Colors.white,
+                              suffixIcon: _beacukaiFromDate != null
+                                  ? IconButton(
+                                      icon: const Icon(Icons.clear, size: 18),
+                                      onPressed: () {
+                                        setState(
+                                            () => _beacukaiFromDate = null);
+                                      },
+                                    )
+                                  : const Icon(Icons.calendar_today),
+                            ),
+                            child: Text(
+                              _beacukaiFromDate != null
+                                  ? DateFormat('dd MMM yyyy')
+                                      .format(_beacukaiFromDate!)
+                                  : 'Select date',
+                              style: TextStyle(
+                                color: _beacukaiFromDate != null
+                                    ? Colors.black
+                                    : Colors.grey,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: InkWell(
+                          onTap: () async {
+                            final date = await showDatePicker(
+                              context: context,
+                              initialDate: _beacukaiToDate ?? DateTime.now(),
+                              firstDate: _beacukaiFromDate ?? DateTime(2020),
+                              lastDate: DateTime.now(),
+                            );
+                            if (date != null) {
+                              setState(() => _beacukaiToDate = date);
+                            }
+                          },
+                          child: InputDecorator(
+                            decoration: InputDecoration(
+                              labelText: 'To Date',
+                              border: const OutlineInputBorder(),
+                              filled: true,
+                              fillColor: Colors.white,
+                              suffixIcon: _beacukaiToDate != null
+                                  ? IconButton(
+                                      icon: const Icon(Icons.clear, size: 18),
+                                      onPressed: () {
+                                        setState(() => _beacukaiToDate = null);
+                                      },
+                                    )
+                                  : const Icon(Icons.calendar_today),
+                            ),
+                            child: Text(
+                              _beacukaiToDate != null
+                                  ? DateFormat('dd MMM yyyy')
+                                      .format(_beacukaiToDate!)
+                                  : 'Select date',
+                              style: TextStyle(
+                                color: _beacukaiToDate != null
+                                    ? Colors.black
+                                    : Colors.grey,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: _searchByBeacukai,
+                      icon: const Icon(Icons.search),
+                      label: const Text('Search'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.blue.shade700,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ],
       ),
     );
@@ -539,6 +759,15 @@ class _LPBListScreenState extends ConsumerState<LPBListScreen> {
                 DataColumn(
                   label: Text(
                     'PAYMENT',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13,
+                    ),
+                  ),
+                ),
+                DataColumn(
+                  label: Text(
+                    'BEACUKAI',
                     style: TextStyle(
                       fontWeight: FontWeight.bold,
                       fontSize: 13,
@@ -719,6 +948,40 @@ class _LPBListScreenState extends ConsumerState<LPBListScreen> {
                           fontSize: 12,
                           fontWeight: FontWeight.w600,
                           color: _getPaymentStatusColor(lpb.paymentStatus),
+                        ),
+                      ),
+                    ],
+                  ),
+                )
+              : const Text(
+                  '-',
+                  style: TextStyle(color: Colors.grey),
+                ),
+        ),
+
+        DataCell(
+          lpb.hasBeacukai
+              ? Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.shade100,
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.check_circle,
+                          size: 14, color: Colors.blue.shade700),
+                      const SizedBox(width: 4),
+                      Text(
+                        'HAS BEACUKAI',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.blue.shade700,
                         ),
                       ),
                     ],
