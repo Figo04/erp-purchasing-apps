@@ -23,21 +23,16 @@ class _POFormScreenState extends ConsumerState<POFormScreen> {
   final _notesController = TextEditingController();
   DateTime? _expectedDeliveryDate;
 
-  // Step 1: Category selection
-  String? _selectedCategoryId;
-  String? _selectedCategoryName;
-  String? _selectedCategoryCode;
+  // supplier selection
+  String? _selectedSupplierId;
+  String? _selectedSupplierName;
+  String? _selectedSupplierCode;
 
   // Step 2: PR selection (multiple or single)
   bool _isGroupMode = true;
   Set<String> _selectedPRIds = {};
   Map<String, PRWithItems> _availablePRs = {}; // prId -> PRWithItems
 
-  // Step 3: Supplier selection
-  String? _selectedSupplierId;
-  String? _selectedSupplierName;
-
-  // Step 4: Items with pricing
   List<POItemForm> _items = [];
 
   bool _isLoading = false;
@@ -59,15 +54,13 @@ class _POFormScreenState extends ConsumerState<POFormScreen> {
     });
   }
 
-  void _selectCategory(
-      String categoryId, String categoryName, String categoryCode) {
+  void _selectSupplier(
+      String supplierId, String supplierName, String supplierCode) {
     setState(() {
-      _selectedCategoryId = categoryId;
-      _selectedCategoryName = categoryName;
-      _selectedCategoryCode = categoryCode;
+      _selectedSupplierId = supplierId;
+      _selectedSupplierName = supplierName;
+      _selectedSupplierCode = supplierCode;
       _selectedPRIds.clear();
-      _selectedSupplierId = null;
-      _selectedSupplierName = null;
       _items.clear();
     });
   }
@@ -85,13 +78,6 @@ class _POFormScreenState extends ConsumerState<POFormScreen> {
         _selectedPRIds.add(prId);
       }
       _rebuildItemsFromSelection();
-    });
-  }
-
-  void _selectSupplier(String supplierId, String supplierName) {
-    setState(() {
-      _selectedSupplierId = supplierId;
-      _selectedSupplierName = supplierName;
     });
   }
 
@@ -124,7 +110,8 @@ class _POFormScreenState extends ConsumerState<POFormScreen> {
                 TextEditingController(text: item.quantity.toString()),
             unitController: TextEditingController(text: item.unit),
             priceController: TextEditingController(
-              text: item.estimatedPrice?.toStringAsFixed(0) ?? '',
+              text: item.unitPrice.toStringAsFixed(
+                  0), // ✅ Changed to unitPrice (always exists now)
             ),
           );
         }
@@ -199,10 +186,7 @@ class _POFormScreenState extends ConsumerState<POFormScreen> {
       await ref.read(poNotifierProvider.notifier).createPO(request);
 
       if (mounted) {
-        // ⭐ FIX: Navigate FIRST before showing snackbar
         context.go('/po');
-
-        // ⭐ FIX: Show snackbar AFTER navigation with delay
         Future.delayed(const Duration(milliseconds: 200), () {
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
@@ -235,7 +219,7 @@ class _POFormScreenState extends ConsumerState<POFormScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final prCategoryGroupingsAsync = ref.watch(prCategoryGroupingsProvider);
+    final prSupplierGroupingsAsync = ref.watch(prSupplierGroupingsProvider);
 
     return Scaffold(
       backgroundColor: const Color(0xFFF5F7FA),
@@ -306,114 +290,165 @@ class _POFormScreenState extends ConsumerState<POFormScreen> {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     // Step 1: Select Category
+
                     Card(
                       child: Padding(
                         padding: const EdgeInsets.all(16),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            _buildStepHeader('1', 'Select Category'),
+                            _buildStepHeader('1', 'Select Supplier'),
                             const SizedBox(height: 16),
-                            prCategoryGroupingsAsync.when(
+                            prSupplierGroupingsAsync.when(
                               data: (groups) {
+                                // ✅ FILTER OUT INVALID SUPPLIERS
+                                final validGroups = groups.where((group) {
+                                  // Filter: supplier_id tidak boleh NULL UUID
+                                  return group.supplierId !=
+                                          '00000000-0000-0000-0000-000000000000' &&
+                                      group.supplierName.isNotEmpty;
+                                }).toList();
+
+                                // ✅ CHECK: Ada invalid suppliers?
+                                final invalidGroups =
+                                    groups.length - validGroups.length;
+
                                 if (groups.isEmpty) {
                                   return _buildEmptyState(
                                       'No approved PRs available');
                                 }
 
+                                if (validGroups.isEmpty) {
+                                  return _buildErrorState(
+                                      '⚠️ All PRs have invalid supplier data.\n\n'
+                                      'Please check master product data:\n'
+                                      '• Make sure all products have valid suppliers assigned\n'
+                                      '• Products must have supplier_id set in master_product table\n\n'
+                                      'Contact admin to fix product data.');
+                                }
+
                                 return Column(
-                                  children: groups.map((group) {
-                                    final isSelected =
-                                        _selectedCategoryId == group.categoryId;
-
-                                    // ⭐ Extract parent name from category code
-                                    String parentName = 'Other';
-                                    if (group.categoryCode.startsWith('1')) {
-                                      parentName = 'Material';
-                                    } else if (group.categoryCode
-                                        .startsWith('2')) {
-                                      parentName = 'Asset';
-                                    } else if (group.categoryCode
-                                            .startsWith('3') ||
-                                        group.categoryCode.startsWith('4')) {
-                                      parentName = 'Logistik';
-                                    }
-
-                                    return Card(
-                                      margin: const EdgeInsets.only(bottom: 8),
-                                      color: isSelected
-                                          ? Colors.blue.shade50
-                                          : null,
-                                      child: InkWell(
-                                        onTap: () {
-                                          _selectCategory(
-                                            group.categoryId,
-                                            group.categoryName,
-                                            group.categoryCode,
-                                          );
-                                          // Store available PRs for this category
-                                          _availablePRs.clear();
-                                          for (var prWithItems in group.prs) {
-                                            _availablePRs[prWithItems.pr.id] =
-                                                prWithItems;
-                                          }
-                                        },
-                                        child: Padding(
-                                          padding: const EdgeInsets.all(12),
-                                          child: Row(
-                                            children: [
-                                              Radio<String>(
-                                                value: group.categoryId,
-                                                groupValue: _selectedCategoryId,
-                                                onChanged: (value) {
-                                                  if (value != null) {
-                                                    _selectCategory(
-                                                      group.categoryId,
-                                                      group.categoryName,
-                                                      group.categoryCode,
-                                                    );
-                                                    _availablePRs.clear();
-                                                    for (var prWithItems
-                                                        in group.prs) {
-                                                      _availablePRs[prWithItems
-                                                          .pr.id] = prWithItems;
-                                                    }
-                                                  }
-                                                },
-                                              ),
-                                              Expanded(
-                                                child: Column(
-                                                  crossAxisAlignment:
-                                                      CrossAxisAlignment.start,
-                                                  children: [
-                                                    // ⭐ DISPLAY FORMAT: Parent > Child
-                                                    Text(
-                                                      '$parentName > ${group.categoryName}',
-                                                      style: TextStyle(
-                                                        fontWeight: isSelected
-                                                            ? FontWeight.bold
-                                                            : FontWeight.normal,
-                                                        fontSize: 15,
-                                                      ),
-                                                    ),
-                                                    const SizedBox(height: 4),
-                                                    Text(
-                                                      '${group.prs.length} PR(s) available',
-                                                      style: TextStyle(
-                                                        fontSize: 12,
-                                                        color: Colors
-                                                            .grey.shade600,
-                                                      ),
-                                                    ),
-                                                  ],
+                                  children: [
+                                    // ✅ SHOW WARNING if some PRs are invalid
+                                    if (invalidGroups > 0)
+                                      Container(
+                                        margin:
+                                            const EdgeInsets.only(bottom: 12),
+                                        padding: const EdgeInsets.all(12),
+                                        decoration: BoxDecoration(
+                                          color: Colors.orange.shade50,
+                                          borderRadius:
+                                              BorderRadius.circular(8),
+                                          border: Border.all(
+                                              color: Colors.orange.shade300),
+                                        ),
+                                        child: Row(
+                                          children: [
+                                            Icon(
+                                              Icons.warning_amber,
+                                              color: Colors.orange.shade700,
+                                              size: 20,
+                                            ),
+                                            const SizedBox(width: 12),
+                                            Expanded(
+                                              child: Text(
+                                                'Warning: $invalidGroups PR(s) skipped due to invalid supplier data',
+                                                style: TextStyle(
+                                                  fontSize: 12,
+                                                  color: Colors.orange.shade900,
+                                                  fontWeight: FontWeight.w600,
                                                 ),
                                               ),
-                                            ],
-                                          ),
+                                            ),
+                                          ],
                                         ),
                                       ),
-                                    );
-                                  }).toList(),
+
+                                    // ✅ SHOW VALID SUPPLIERS ONLY
+                                    ...validGroups.map((group) {
+                                      final isSelected = _selectedSupplierId ==
+                                          group.supplierId;
+
+                                      return Card(
+                                        margin:
+                                            const EdgeInsets.only(bottom: 8),
+                                        color: isSelected
+                                            ? Colors.blue.shade50
+                                            : null,
+                                        child: InkWell(
+                                          onTap: () {
+                                            _selectSupplier(
+                                              group.supplierId,
+                                              group.supplierName,
+                                              group.supplierCode,
+                                            );
+                                            _availablePRs.clear();
+                                            for (var prWithItems in group.prs) {
+                                              _availablePRs[prWithItems.pr.id] =
+                                                  prWithItems;
+                                            }
+                                          },
+                                          child: Padding(
+                                            padding: const EdgeInsets.all(12),
+                                            child: Row(
+                                              children: [
+                                                Radio<String>(
+                                                  value: group.supplierId,
+                                                  groupValue:
+                                                      _selectedSupplierId,
+                                                  onChanged: (value) {
+                                                    if (value != null) {
+                                                      _selectSupplier(
+                                                        group.supplierId,
+                                                        group.supplierName,
+                                                        group.supplierCode,
+                                                      );
+                                                      _availablePRs.clear();
+                                                      for (var prWithItems
+                                                          in group.prs) {
+                                                        _availablePRs[
+                                                                prWithItems
+                                                                    .pr.id] =
+                                                            prWithItems;
+                                                      }
+                                                    }
+                                                  },
+                                                ),
+                                                Expanded(
+                                                  child: Column(
+                                                    crossAxisAlignment:
+                                                        CrossAxisAlignment
+                                                            .start,
+                                                    children: [
+                                                      Text(
+                                                        group.supplierName,
+                                                        style: TextStyle(
+                                                          fontWeight: isSelected
+                                                              ? FontWeight.bold
+                                                              : FontWeight
+                                                                  .normal,
+                                                          fontSize: 15,
+                                                        ),
+                                                      ),
+                                                      const SizedBox(height: 4),
+                                                      Text(
+                                                        'Code: ${group.supplierCode} • ${group.totalPRs} PR(s)',
+                                                        style: TextStyle(
+                                                          fontSize: 12,
+                                                          color: Colors
+                                                              .grey.shade600,
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        ),
+                                      );
+                                    }),
+                                  ],
                                 );
                               },
                               loading: () => const Center(
@@ -422,8 +457,8 @@ class _POFormScreenState extends ConsumerState<POFormScreen> {
                                   child: CircularProgressIndicator(),
                                 ),
                               ),
-                              error: (error, _) =>
-                                  _buildErrorState('Error: $error'),
+                              error: (error, _) => _buildErrorState(
+                                  'Error loading suppliers: $error'),
                             ),
                           ],
                         ),
@@ -431,7 +466,7 @@ class _POFormScreenState extends ConsumerState<POFormScreen> {
                     ),
 
                     // Step 2: Select PRs
-                    if (_selectedCategoryId != null) ...[
+                    if (_selectedSupplierId != null) ...[
                       const SizedBox(height: 16),
                       Card(
                         child: Padding(
@@ -589,7 +624,11 @@ class _POFormScreenState extends ConsumerState<POFormScreen> {
           onChanged: (value) {
             if (value != null) {
               final supplier = suppliers.firstWhere((s) => s.id == value);
-              _selectSupplier(value, supplier.name);
+              _selectSupplier(
+                value,
+                supplier.name,
+                supplier.supplierCode ?? '',
+              );
             }
           },
           validator: (value) {
@@ -816,9 +855,9 @@ class _POFormScreenState extends ConsumerState<POFormScreen> {
               ),
             ),
             const Divider(height: 20),
-            _buildSummaryRow('Category:', _selectedCategoryName ?? '-'),
-            const Divider(height: 16),
             _buildSummaryRow('Supplier:', _selectedSupplierName ?? '-'),
+            const Divider(height: 16),
+            _buildSummaryRow('Supplier Code:', _selectedSupplierCode ?? '-'),
             const Divider(height: 16),
             _buildSummaryRow('Related PRs:', '${_selectedPRIds.length} PR(s)'),
             const Divider(height: 16),

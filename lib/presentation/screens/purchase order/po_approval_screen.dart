@@ -25,7 +25,8 @@ class _POApprovalScreenState extends ConsumerState<POApprovalScreen> {
     final currentUser = ref.watch(currentUserProvider);
 
     // Check permission
-    final canApprove = currentUser?.role == 'admin' || currentUser?.role == 'kadiv';
+    final canApprove =
+        currentUser?.role == 'admin' || currentUser?.role == 'kadiv';
 
     if (!canApprove) {
       return Scaffold(
@@ -39,7 +40,8 @@ class _POApprovalScreenState extends ConsumerState<POApprovalScreen> {
           ),
           title: const Text(
             'PO Approval',
-            style: TextStyle(color: Colors.black87, fontWeight: FontWeight.bold),
+            style:
+                TextStyle(color: Colors.black87, fontWeight: FontWeight.bold),
           ),
         ),
         body: const Center(
@@ -131,9 +133,12 @@ class _POApprovalScreenState extends ConsumerState<POApprovalScreen> {
                       isDense: true,
                     ),
                     items: const [
-                      DropdownMenuItem(value: 'date', child: Text('Order Date')),
-                      DropdownMenuItem(value: 'total', child: Text('Total Amount')),
-                      DropdownMenuItem(value: 'supplier', child: Text('Supplier')),
+                      DropdownMenuItem(
+                          value: 'date', child: Text('Order Date')),
+                      DropdownMenuItem(
+                          value: 'total', child: Text('Total Amount')),
+                      DropdownMenuItem(
+                          value: 'supplier', child: Text('Supplier')),
                     ],
                     onChanged: (value) {
                       setState(() {
@@ -153,27 +158,33 @@ class _POApprovalScreenState extends ConsumerState<POApprovalScreen> {
             child: posState.when(
               data: (pos) {
                 // Filter pending POs
-                var pendingPOs = pos.where((po) => po.status == 'pending').toList();
+                var pendingPOs =
+                    pos.where((po) => po.status == 'pending').toList();
 
                 // Apply search filter
                 if (_searchQuery.isNotEmpty) {
                   pendingPOs = pendingPOs.where((po) {
                     return po.poNumber.toLowerCase().contains(_searchQuery) ||
-                        (po.supplierName?.toLowerCase().contains(_searchQuery) ?? false);
+                        (po.supplierName
+                                ?.toLowerCase()
+                                .contains(_searchQuery) ??
+                            false);
                   }).toList();
                 }
 
                 // Sort data
                 switch (_sortBy) {
                   case 'date':
-                    pendingPOs.sort((a, b) => b.orderDate.compareTo(a.orderDate));
+                    pendingPOs
+                        .sort((a, b) => b.orderDate.compareTo(a.orderDate));
                     break;
                   case 'total':
-                    pendingPOs.sort((a, b) => b.totalAmount.compareTo(a.totalAmount));
+                    pendingPOs
+                        .sort((a, b) => b.totalAmount.compareTo(a.totalAmount));
                     break;
                   case 'supplier':
-                    pendingPOs.sort((a, b) => 
-                      (a.supplierName ?? '').compareTo(b.supplierName ?? ''));
+                    pendingPOs.sort((a, b) =>
+                        (a.supplierName ?? '').compareTo(b.supplierName ?? ''));
                     break;
                 }
 
@@ -182,19 +193,22 @@ class _POApprovalScreenState extends ConsumerState<POApprovalScreen> {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.check_circle_outline, 
-                          size: 80, 
+                        Icon(
+                          Icons.check_circle_outline,
+                          size: 80,
                           color: Colors.green.shade300,
                         ),
                         const SizedBox(height: 16),
                         const Text(
                           'No Pending POs',
-                          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                          style: TextStyle(
+                              fontSize: 18, fontWeight: FontWeight.bold),
                         ),
                         const SizedBox(height: 8),
                         Text(
                           'All POs have been processed',
-                          style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
+                          style: TextStyle(
+                              fontSize: 14, color: Colors.grey.shade600),
                         ),
                       ],
                     ),
@@ -207,7 +221,8 @@ class _POApprovalScreenState extends ConsumerState<POApprovalScreen> {
                   },
                   child: GridView.builder(
                     padding: const EdgeInsets.all(16),
-                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    gridDelegate:
+                        const SliverGridDelegateWithFixedCrossAxisCount(
                       crossAxisCount: 2, // 2 cards per row for desktop
                       childAspectRatio: 1.4,
                       crossAxisSpacing: 16,
@@ -226,7 +241,8 @@ class _POApprovalScreenState extends ConsumerState<POApprovalScreen> {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Icon(Icons.error_outline, size: 64, color: Colors.red),
+                    const Icon(Icons.error_outline,
+                        size: 64, color: Colors.red),
                     const SizedBox(height: 16),
                     Text(
                       'Error: $error',
@@ -269,7 +285,8 @@ class _POApprovalScreenState extends ConsumerState<POApprovalScreen> {
               Row(
                 children: [
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
                       color: Colors.orange.shade100,
                       borderRadius: BorderRadius.circular(4),
@@ -316,7 +333,8 @@ class _POApprovalScreenState extends ConsumerState<POApprovalScreen> {
                   Expanded(
                     child: Text(
                       po.supplierName ?? 'Unknown Supplier',
-                      style: TextStyle(fontSize: 13, color: Colors.grey.shade700),
+                      style:
+                          TextStyle(fontSize: 13, color: Colors.grey.shade700),
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
@@ -456,7 +474,8 @@ class _POApprovalScreenState extends ConsumerState<POApprovalScreen> {
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.shopping_cart, color: Colors.blue, size: 28),
+                    const Icon(Icons.shopping_cart,
+                        color: Colors.blue, size: 28),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Column(
@@ -498,14 +517,62 @@ class _POApprovalScreenState extends ConsumerState<POApprovalScreen> {
                       _buildInfoRow('PO Number', po.poNumber),
                       _buildInfoRow('Supplier', po.supplierName ?? 'Unknown'),
                       _buildInfoRow('Status', po.status.toUpperCase()),
-                      _buildInfoRow('Order Date', 
-                        DateFormat('dd MMMM yyyy').format(po.orderDate)),
+                      _buildInfoRow('Order Date',
+                          DateFormat('dd MMMM yyyy').format(po.orderDate)),
                       if (po.expectedDeliveryDate != null)
-                        _buildInfoRow('Expected Delivery', 
-                          DateFormat('dd MMMM yyyy').format(po.expectedDeliveryDate!)),
+                        _buildInfoRow(
+                            'Expected Delivery',
+                            DateFormat('dd MMMM yyyy')
+                                .format(po.expectedDeliveryDate!)),
                       _buildInfoRow('Total Items', '${po.items?.length ?? 0}'),
-                      _buildInfoRow('Total Amount', 
-                        'Rp ${NumberFormat('#,###').format(po.totalAmount)}'),
+                      _buildInfoRow('Total Amount',
+                          'Rp ${NumberFormat('#,###').format(po.totalAmount)}'),
+
+                      if (po.prNumbers != null && po.prNumbers!.isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 8),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const SizedBox(
+                                width: 140,
+                                child: Text(
+                                  'Related PRs:',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                              ),
+                              Expanded(
+                                child: Wrap(
+                                  spacing: 4,
+                                  runSpacing: 4,
+                                  children: po.prNumbers!.map((prNumber) {
+                                    return Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 8,
+                                        vertical: 4,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: Colors.blue.shade100,
+                                        borderRadius: BorderRadius.circular(4),
+                                      ),
+                                      child: Text(
+                                        prNumber,
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w600,
+                                          color: Colors.blue.shade800,
+                                        ),
+                                      ),
+                                    );
+                                  }).toList(),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
 
                       if (po.notes != null && po.notes!.isNotEmpty) ...[
                         const SizedBox(height: 16),
@@ -558,7 +625,8 @@ class _POApprovalScreenState extends ConsumerState<POApprovalScreen> {
                                         height: 24,
                                         decoration: BoxDecoration(
                                           color: Colors.blue,
-                                          borderRadius: BorderRadius.circular(4),
+                                          borderRadius:
+                                              BorderRadius.circular(4),
                                         ),
                                         child: Center(
                                           child: Text(
@@ -715,7 +783,8 @@ class _POApprovalScreenState extends ConsumerState<POApprovalScreen> {
                   ),
                   const SizedBox(height: 4),
                   Text('Supplier: ${po.supplierName ?? "Unknown"}'),
-                  Text('Total: Rp ${NumberFormat('#,###').format(po.totalAmount)}'),
+                  Text(
+                      'Total: Rp ${NumberFormat('#,###').format(po.totalAmount)}'),
                 ],
               ),
             ),
@@ -773,7 +842,8 @@ class _POApprovalScreenState extends ConsumerState<POApprovalScreen> {
                     style: const TextStyle(fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 4),
-                  Text('Total: Rp ${NumberFormat('#,###').format(po.totalAmount)}'),
+                  Text(
+                      'Total: Rp ${NumberFormat('#,###').format(po.totalAmount)}'),
                 ],
               ),
             ),

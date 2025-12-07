@@ -23,17 +23,26 @@ final poSearchQueryProvider = StateProvider<String>((ref) => '');
 /// PO Status Filter Provider
 final poStatusFilterProvider = StateProvider<String?>((ref) => null);
 
-/// PR Groupings Provider (for PO creation)
-final prGroupingsProvider = FutureProvider<List<PRGrouping>>((ref) async {
+/// This is the CORRECT provider that matches backend logic
+final prSupplierGroupingsProvider =
+    FutureProvider<List<PRSupplierGroup>>((ref) async {
   final repo = ref.watch(poRepositoryProvider);
-  return await repo.getPRGroupings();
+  return await repo.getPRGroupingsBySupplier();
 });
 
-/// PR Category Groupings Provider (NEW - Better structure)
+/// Keep for backward compatibility but should not be used
+@Deprecated('Use prSupplierGroupingsProvider instead')
 final prCategoryGroupingsProvider =
     FutureProvider<List<PRCategoryGroup>>((ref) async {
   final repo = ref.watch(poRepositoryProvider);
   return await repo.getPRGroupingsByCategory();
+});
+
+/// ⚠️ DEPRECATED: Old PR Groupings Provider
+@Deprecated('Use prSupplierGroupingsProvider instead')
+final prGroupingsProvider = FutureProvider<List<dynamic>>((ref) async {
+  final repo = ref.watch(poRepositoryProvider);
+  return await repo.getPRGroupings();
 });
 
 /// Filtered POs Provider
@@ -49,7 +58,10 @@ final filteredPOsProvider =
   );
 });
 
-/// PO State Notifier
+/// ============================================
+/// PO STATE NOTIFIER (NO CHANGES)
+/// ============================================
+
 class PONotifier extends StateNotifier<AsyncValue<List<PurchaseOrderModel>>> {
   final PurchaseOrderRepository _repository;
   final Ref ref;

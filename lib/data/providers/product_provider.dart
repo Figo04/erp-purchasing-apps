@@ -21,6 +21,9 @@ final productSearchQueryProvider = StateProvider<String>((ref) => '');
 /// Selected Category Filter
 final productCategoryFilterProvider = StateProvider<String?>((ref) => null);
 
+/// ✅ NEW: Selected Supplier Filter
+final productSupplierFilterProvider = StateProvider<String?>((ref) => null);
+
 /// Selected Product (for detail view)
 final selectedProductProvider = StateProvider<ProductModel?>((ref) => null);
 
@@ -34,16 +37,18 @@ class ProductNotifier extends AsyncNotifier<List<ProductModel>> {
     // Watch filters - auto rebuild when changed
     final searchQuery = ref.watch(productSearchQueryProvider);
     final categoryFilter = ref.watch(productCategoryFilterProvider);
+    final supplierFilter = ref.watch(productSupplierFilterProvider); // ✅ NEW
 
     // Fetch with filters applied
     final repo = ref.read(productRepositoryProvider);
     final products = await repo.getAllProducts(
       search: searchQuery.isEmpty ? null : searchQuery,
-      categoryId: null,
+      categoryId: categoryFilter,
+      supplierId: supplierFilter, // ✅ NEW
       isActive: true,
     );
 
-    return products ?? [];
+    return products;
   }
 
   /// Create new product
@@ -80,7 +85,7 @@ final productNotifierProvider =
 });
 
 // ============================================
-// LEGACY PROVIDERS (Keep for backward compatibility)
+// ADDITIONAL PROVIDERS
 // ============================================
 
 /// Simple Product List (without filters)
@@ -88,7 +93,14 @@ final productListProvider =
     FutureProvider.autoDispose<List<ProductModel>>((ref) async {
   final repo = ref.read(productRepositoryProvider);
   final products = await repo.getAllProducts(isActive: true);
-  return products ?? [];
+  return products;
+});
+
+/// ✅ NEW: Products by Supplier
+final productsBySupplierProvider = FutureProvider.autoDispose
+    .family<List<ProductModel>, String>((ref, supplierId) async {
+  final repo = ref.read(productRepositoryProvider);
+  return await repo.getProductsBySupplier(supplierId);
 });
 
 /// Filtered Products (alternative approach)
@@ -97,12 +109,14 @@ final filteredProductsProvider =
   final repo = ref.read(productRepositoryProvider);
   final searchQuery = ref.watch(productSearchQueryProvider);
   final categoryFilter = ref.watch(productCategoryFilterProvider);
+  final supplierFilter = ref.watch(productSupplierFilterProvider); // ✅ NEW
 
   final products = await repo.getAllProducts(
     search: searchQuery.isEmpty ? null : searchQuery,
     categoryId: categoryFilter,
+    supplierId: supplierFilter, // ✅ NEW
     isActive: true,
   );
 
-  return products ?? [];
+  return products;
 });

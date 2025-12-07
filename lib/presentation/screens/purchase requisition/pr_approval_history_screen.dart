@@ -374,14 +374,21 @@ class _PRApprovalHistoryScreenState
                               ),
                               const SizedBox(height: 4),
                               Text('Qty: ${item.quantity} ${item.unit}'),
-                              if (item.estimatedPrice != null)
-                                Text(
-                                  'Subtotal: Rp ${NumberFormat('#,###').format(item.subtotal)}',
-                                  style: const TextStyle(
-                                    color: Colors.blue,
-                                    fontWeight: FontWeight.w600,
-                                  ),
+                              // ✅ FIX: Ganti estimatedPrice dengan unitPrice
+                              Text(
+                                'Unit Price: Rp ${NumberFormat('#,###').format(item.unitPrice)}',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  color: Colors.grey.shade700,
                                 ),
+                              ),
+                              Text(
+                                'Subtotal: Rp ${NumberFormat('#,###').format(item.subtotal)}',
+                                style: const TextStyle(
+                                  color: Colors.blue,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
                             ],
                           ),
                         ),

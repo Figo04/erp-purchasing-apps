@@ -5,7 +5,7 @@ import 'package:intl/intl.dart';
 import 'package:erp_purchasing_apps/data/providers/pr_provider.dart';
 import 'package:erp_purchasing_apps/data/providers/auth_providers.dart';
 import 'package:erp_purchasing_apps/data/models/purchase_requisition_model.dart';
-import 'package:erp_purchasing_apps/presentation/screens/purchase order/po_form_screen.dart';
+//import 'package:erp_purchasing_apps/presentation/screens/purchase order/po_form_screen.dart';
 
 class PRApprovalScreen extends ConsumerStatefulWidget {
   const PRApprovalScreen({super.key});
@@ -318,6 +318,8 @@ class _PrApprovalScreenState extends ConsumerState<PRApprovalScreen> {
   }
 
   Widget _buildPRCard(PurchaseRequisitionModel pr) {
+    final supplierName =
+        pr.items?.isNotEmpty == true ? pr.items!.first.supplierName : 'N/A';
     return Card(
       elevation: 2,
       shape: RoundedRectangleBorder(
@@ -392,6 +394,27 @@ class _PrApprovalScreenState extends ConsumerState<PRApprovalScreen> {
               ),
 
               const SizedBox(height: 8),
+
+              // Supplier Info
+              Row(
+                children: [
+                  const Icon(Icons.store, size: 16, color: Colors.blue),
+                  const SizedBox(width: 4),
+                  Expanded(
+                    child: Text(
+                      supplierName,
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: Colors.blue.shade700,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: 4),
 
               // Division & Requester
               Row(
@@ -540,6 +563,9 @@ class _PrApprovalScreenState extends ConsumerState<PRApprovalScreen> {
   }
 
   void _showDetailDialog(PurchaseRequisitionModel pr) {
+    final supplierName =
+        pr.items?.isNotEmpty == true ? pr.items!.first.supplierName : 'N/A';
+
     showDialog(
       context: context,
       builder: (context) => Dialog(
@@ -602,6 +628,7 @@ class _PrApprovalScreenState extends ConsumerState<PRApprovalScreen> {
                       _buildInfoRow('PR Number', pr.prNumber),
                       _buildInfoRow(
                           'Division', pr.divisionName ?? pr.divisionId),
+                      _buildInfoRow('Supplier', supplierName),
                       _buildInfoRow(
                           'Processing Type', pr.processingType.toUpperCase()),
                       _buildInfoRow('Status', pr.status.toUpperCase()),
@@ -694,21 +721,21 @@ class _PrApprovalScreenState extends ConsumerState<PRApprovalScreen> {
                                     ],
                                   ),
                                   const SizedBox(height: 8),
-                                  Row(
-                                    children: [
-                                      Text(
-                                          'Qty: ${item.quantity} ${item.unit}'),
-                                      if (item.estimatedPrice != null) ...[
-                                        const SizedBox(width: 16),
-                                        Text(
-                                          'Price: Rp ${NumberFormat('#,###').format(item.estimatedPrice)}',
-                                          style: TextStyle(
-                                            color: Colors.blue.shade700,
-                                            fontWeight: FontWeight.w600,
-                                          ),
-                                        ),
-                                      ],
-                                    ],
+                                  // ✅ Show unit_price & subtotal
+                                  Text(
+                                    'Qty: ${item.quantity} ${item.unit} × Rp ${NumberFormat('#,###').format(item.unitPrice)}',
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      color: Colors.grey.shade700,
+                                    ),
+                                  ),
+                                  Text(
+                                    'Subtotal: Rp ${NumberFormat('#,###').format(item.subtotal)}',
+                                    style: TextStyle(
+                                      color: Colors.blue.shade700,
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 14,
+                                    ),
                                   ),
                                   if (item.notes != null &&
                                       item.notes!.isNotEmpty) ...[

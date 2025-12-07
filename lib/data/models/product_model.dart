@@ -1,13 +1,21 @@
 import 'package:equatable/equatable.dart';
 
-/// Product Model
-/// Master product/item in the system
+/// Product Model - WITH SUPPLIER & PRICE
 class ProductModel extends Equatable {
   final String id;
   final String productCode;
   final String name;
   final String categoryId;
   final String? categoryName;
+  
+  // ✅ NEW: Supplier fields
+  final String supplierId;
+  final String? supplierCode;
+  final String? supplierName;
+  
+  // ✅ NEW: Price field
+  final double unitPrice;
+  
   final String unit;
   final String? description;
   final String? specifications;
@@ -21,6 +29,10 @@ class ProductModel extends Equatable {
     required this.name,
     required this.categoryId,
     this.categoryName,
+    required this.supplierId,      // ✅ REQUIRED
+    this.supplierCode,
+    this.supplierName,
+    required this.unitPrice,        // ✅ REQUIRED
     required this.unit,
     this.description,
     this.specifications,
@@ -36,6 +48,13 @@ class ProductModel extends Equatable {
       name: json['name'] as String,
       categoryId: json['category_id'] as String,
       categoryName: json['category_name'] as String?,
+      
+      // ✅ NEW: Parse supplier & price
+      supplierId: json['supplier_id'] as String,
+      supplierCode: json['supplier_code'] as String?,
+      supplierName: json['supplier_name'] as String?,
+      unitPrice: (json['unit_price'] as num?)?.toDouble() ?? 0.0,
+      
       unit: json['unit'] as String? ?? 'pcs',
       description: json['description'] as String?,
       specifications: json['specifications'] as String?,
@@ -52,6 +71,13 @@ class ProductModel extends Equatable {
       'name': name,
       'category_id': categoryId,
       'category_name': categoryName,
+      
+      // ✅ NEW: Include supplier & price
+      'supplier_id': supplierId,
+      'supplier_code': supplierCode,
+      'supplier_name': supplierName,
+      'unit_price': unitPrice,
+      
       'unit': unit,
       'description': description,
       'specifications': specifications,
@@ -63,6 +89,9 @@ class ProductModel extends Equatable {
 
   /// Get display name with code
   String get displayName => '[$productCode] $name';
+  
+  /// ✅ NEW: Get display name with supplier
+  String get displayNameWithSupplier => '[$productCode] $name - ${supplierName ?? "Unknown Supplier"}';
 
   /// Get product type based on category
   String get productType {
@@ -73,6 +102,9 @@ class ProductModel extends Equatable {
     }
     return 'Unknown';
   }
+  
+  /// ✅ NEW: Format price
+  String get formattedPrice => 'Rp ${unitPrice.toStringAsFixed(0)}';
 
   @override
   List<Object?> get props => [
@@ -81,6 +113,10 @@ class ProductModel extends Equatable {
         name,
         categoryId,
         categoryName,
+        supplierId,        // ✅ NEW
+        supplierCode,      // ✅ NEW
+        supplierName,      // ✅ NEW
+        unitPrice,         // ✅ NEW
         unit,
         description,
         specifications,
@@ -90,11 +126,13 @@ class ProductModel extends Equatable {
       ];
 }
 
-/// Create Product Request DTO
+/// Create Product Request DTO - WITH SUPPLIER & PRICE
 class CreateProductRequest {
   final String productCode;
   final String name;
   final String categoryId;
+  final String supplierId;    // ✅ NEW
+  final double unitPrice;     // ✅ NEW
   final String unit;
   final String? description;
   final String? specifications;
@@ -103,6 +141,8 @@ class CreateProductRequest {
     required this.productCode,
     required this.name,
     required this.categoryId,
+    required this.supplierId,      // ✅ REQUIRED
+    required this.unitPrice,       // ✅ REQUIRED
     this.unit = 'pcs',
     this.description,
     this.specifications,
@@ -113,6 +153,8 @@ class CreateProductRequest {
       'product_code': productCode,
       'name': name,
       'category_id': categoryId,
+      'supplier_id': supplierId,    // ✅ NEW
+      'unit_price': unitPrice,      // ✅ NEW
       'unit': unit,
       'description': description,
       'specifications': specifications,
@@ -120,20 +162,22 @@ class CreateProductRequest {
   }
 }
 
-/// Update Product Request DTO
+/// Update Product Request DTO - WITH SUPPLIER & PRICE
 class UpdateProductRequest {
-  final String productCode;
   final String name;
   final String categoryId;
+  final String supplierId;    // ✅ NEW
+  final double unitPrice;     // ✅ NEW
   final String unit;
   final String? description;
   final String? specifications;
   final bool isActive;
 
   const UpdateProductRequest({
-    required this.productCode,
     required this.name,
     required this.categoryId,
+    required this.supplierId,      // ✅ REQUIRED
+    required this.unitPrice,       // ✅ REQUIRED
     required this.unit,
     this.description,
     this.specifications,
@@ -142,9 +186,10 @@ class UpdateProductRequest {
 
   Map<String, dynamic> toJson() {
     return {
-      'product_code': productCode,
       'name': name,
       'category_id': categoryId,
+      'supplier_id': supplierId,    // ✅ NEW
+      'unit_price': unitPrice,      // ✅ NEW
       'unit': unit,
       'description': description,
       'specifications': specifications,

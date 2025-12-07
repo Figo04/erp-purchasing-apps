@@ -74,9 +74,7 @@ class _PRListScreenState extends ConsumerState<PRListScreen> {
           )
         ],
       ),
-      body: //Stack(
-          //children: [
-          Column(
+      body: Column(
         children: [
           // Filter Tabs
           Container(
@@ -109,19 +107,6 @@ class _PRListScreenState extends ConsumerState<PRListScreen> {
                     ],
                   );
                 },
-                // loading: () => Row(
-                //   children: [
-                //     _buildFilterChip('all', 'All', 0),
-                //     const SizedBox(width: 8),
-                //     _buildFilterChip('draft', 'Draft', 0),
-                //     const SizedBox(width: 8),
-                //     _buildFilterChip('pending', 'Pending', 0),
-                //     const SizedBox(width: 8),
-                //     _buildFilterChip('approved', 'Approved', 0),
-                //     const SizedBox(width: 8),
-                //     _buildFilterChip('rejected', 'Rejected', 0),
-                //   ],
-                // ),
                 loading: () => const SizedBox.shrink(),
                 error: (_, __) => const SizedBox.shrink(),
               ),
@@ -146,8 +131,8 @@ class _PRListScreenState extends ConsumerState<PRListScreen> {
                       children: [
                         Icon(Icons.request_page,
                             size: 64, color: Colors.grey.shade400),
-                        SizedBox(height: 16),
-                        Text(
+                        const SizedBox(height: 16),
+                        const Text(
                           'No PRs found',
                           style: TextStyle(fontSize: 16, color: Colors.grey),
                         )
@@ -161,8 +146,6 @@ class _PRListScreenState extends ConsumerState<PRListScreen> {
                     await ref.read(prNotifierProvider.notifier).refresh();
                   },
                   child: ListView.builder(
-                    // key: ValueKey(
-                    //     'pr-list-${prs.length}'), // Key untuk tracking
                     itemCount: filteredPRs.length,
                     padding: const EdgeInsets.all(16),
                     itemBuilder: (context, index) {
@@ -174,14 +157,18 @@ class _PRListScreenState extends ConsumerState<PRListScreen> {
                           (pr.status == 'draft' &&
                               pr.requesterId == currentUser?.id);
 
+                      // ✅ Get supplier from first item (if exists)
+                      final supplierName = pr.items?.isNotEmpty == true
+                          ? pr.items!.first.supplierName
+                          : null;
+
                       return Card(
-                        // key: ValueKey(pr.id), // Key unik per item
                         margin: const EdgeInsets.only(bottom: 8),
                         child: ListTile(
                           leading: CircleAvatar(
                             backgroundColor: _getStatusColor(pr.status),
                             child: Text(
-                              pr.prNumber.split('_').last.substring(0, 2),
+                              pr.prNumber.split('-').last.substring(0, 2),
                               style: const TextStyle(
                                 color: Colors.white,
                                 fontSize: 12,
@@ -196,6 +183,16 @@ class _PRListScreenState extends ConsumerState<PRListScreen> {
                           subtitle: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
+                              // ✅ Show supplier name
+                              if (supplierName != null)
+                                Text(
+                                  'Supplier: $supplierName',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.blue.shade700,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
                               Text('Items: $itemCount'),
                               Text(
                                   'Total: Rp ${NumberFormat('#,###').format(pr.totalEstimated)}'),
@@ -221,8 +218,6 @@ class _PRListScreenState extends ConsumerState<PRListScreen> {
                                       color: Colors.red),
                                   onPressed: () =>
                                       _confirmDelete(pr.id, pr.prNumber),
-                                  // tooltip:
-                                  //     isAdmin ? 'Delete (Admin)' : 'Delete',
                                 ),
                               ],
                             ],
@@ -263,8 +258,6 @@ class _PRListScreenState extends ConsumerState<PRListScreen> {
           ),
         ],
       ),
-      //],
-      //),
       floatingActionButton: FloatingActionButton(
         onPressed: () => _navigateToForm(),
         backgroundColor: const Color(0xFF1ABC9C),
@@ -310,6 +303,11 @@ class _PRListScreenState extends ConsumerState<PRListScreen> {
   }
 
   void _showPRDetail(PurchaseRequisitionModel pr) {
+    // ✅ Get supplier from first item
+    final supplierName = pr.items?.isNotEmpty == true
+        ? pr.items!.first.supplierName
+        : 'N/A';
+
     showDialog(
       context: context,
       builder: (dialogContext) => Dialog(
@@ -331,7 +329,7 @@ class _PRListScreenState extends ConsumerState<PRListScreen> {
                 const Divider(height: 24),
                 Text('Status: ${pr.status.toUpperCase()}'),
                 Text('Division: ${pr.divisionName ?? pr.divisionId}'),
-                Text('Processing Type: ${pr.processingType}'),
+                Text('Supplier: $supplierName'), // ✅ Show supplier
                 Text('Items: ${pr.items?.length ?? 0}'),
                 Text(
                     'Total: Rp ${NumberFormat('#,###').format(pr.totalEstimated)}'),
@@ -343,9 +341,23 @@ class _PRListScreenState extends ConsumerState<PRListScreen> {
                   const SizedBox(height: 8),
                   ...pr.items!.map(
                     (item) => Padding(
-                      padding: const EdgeInsets.only(bottom: 4),
-                      child: Text(
-                          '• ${item.itemName} (${item.quantity} ${item.unit})'),
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            '• ${item.itemName}',
+                            style: const TextStyle(fontWeight: FontWeight.w600),
+                          ),
+                          Text(
+                            '  Qty: ${item.quantity} ${item.unit} × Rp ${NumberFormat('#,###').format(item.unitPrice)} = Rp ${NumberFormat('#,###').format(item.subtotal)}',
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: Colors.grey.shade700,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ],
@@ -363,7 +375,7 @@ class _PRListScreenState extends ConsumerState<PRListScreen> {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (context) => POFormScreen(),
+                              builder: (context) => const POFormScreen(),
                             ),
                           );
                         },

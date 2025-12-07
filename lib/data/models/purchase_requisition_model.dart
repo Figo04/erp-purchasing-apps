@@ -90,12 +90,10 @@ class PurchaseRequisitionModel extends Equatable {
     };
   }
 
-  /// Calculate total estimated cost
+  /// ✅ CHANGED: Calculate total from unit_price (not estimated_price)
   double get totalEstimated {
     if (items == null || items!.isEmpty) return 0;
-    return items!.fold(0, (sum, item) {
-      return sum + ((item.estimatedPrice ?? 0) * item.quantity);
-    });
+    return items!.fold(0, (sum, item) => sum + item.subtotal);
   }
 
   @override
@@ -117,26 +115,38 @@ class PurchaseRequisitionModel extends Equatable {
       ];
 }
 
-/// PR Item Model
+/// ✅ UPDATED: PR Item Model with supplier info & unit_price
 class PRItemModel extends Equatable {
   final String id;
   final String prId;
-  final String? productId;
+  final String productId;          // ✅ WAJIB (tidak boleh null)
+  final String productCode;
   final String itemName;
+  final String categoryId;
+  final String categoryName;
+  final String supplierId;         // ✅ NEW
+  final String supplierName;       // ✅ NEW
   final int quantity;
   final String unit;
-  final double? estimatedPrice;
+  final double unitPrice;          // ✅ CHANGED (dari estimated_price)
+  final double subtotal;           // ✅ NEW (auto-calculated: qty * price)
   final String? notes;
   final DateTime createdAt;
 
   const PRItemModel({
     required this.id,
     required this.prId,
-    this.productId,
+    required this.productId,
+    required this.productCode,
     required this.itemName,
+    required this.categoryId,
+    required this.categoryName,
+    required this.supplierId,
+    required this.supplierName,
     required this.quantity,
     required this.unit,
-    this.estimatedPrice,
+    required this.unitPrice,
+    required this.subtotal,
     this.notes,
     required this.createdAt,
   });
@@ -145,13 +155,17 @@ class PRItemModel extends Equatable {
     return PRItemModel(
       id: json['id'] as String,
       prId: json['pr_id'] as String,
-      productId: json['product_id'] as String?,
+      productId: json['product_id'] as String,
+      productCode: json['product_code'] as String? ?? '',
       itemName: json['item_name'] as String,
+      categoryId: json['category_id'] as String,
+      categoryName: json['category_name'] as String? ?? '',
+      supplierId: json['supplier_id'] as String,
+      supplierName: json['supplier_name'] as String? ?? '',
       quantity: json['quantity'] as int,
       unit: json['unit'] as String? ?? 'pcs',
-      estimatedPrice: json['estimated_price'] != null
-          ? (json['estimated_price'] as num).toDouble()
-          : null,
+      unitPrice: (json['unit_price'] as num).toDouble(),
+      subtotal: (json['subtotal'] as num).toDouble(),
       notes: json['notes'] as String?,
       createdAt: DateTime.parse(json['created_at'] as String),
     );
@@ -162,41 +176,47 @@ class PRItemModel extends Equatable {
       'id': id,
       'pr_id': prId,
       'product_id': productId,
+      'product_code': productCode,
       'item_name': itemName,
+      'category_id': categoryId,
+      'category_name': categoryName,
+      'supplier_id': supplierId,
+      'supplier_name': supplierName,
       'quantity': quantity,
       'unit': unit,
-      'estimated_price': estimatedPrice,
+      'unit_price': unitPrice,
+      'subtotal': subtotal,
       'notes': notes,
       'created_at': createdAt.toIso8601String(),
     };
   }
-
-  double get subtotal => (estimatedPrice ?? 0) * quantity;
 
   @override
   List<Object?> get props => [
         id,
         prId,
         productId,
+        productCode,
         itemName,
+        categoryId,
+        supplierId,
         quantity,
         unit,
-        estimatedPrice,
+        unitPrice,
+        subtotal,
         notes,
         createdAt,
       ];
 }
 
-/// Create PR Request DTO
+/// ✅ UPDATED: Create PR Request DTO (Simplified)
 class CreatePRRequest {
   final String divisionId;
-  final String processingType;
   final List<CreatePRItemRequest> items;
   final String? notes;
 
   const CreatePRRequest({
     required this.divisionId,
-    required this.processingType,
     required this.items,
     this.notes,
   });
@@ -204,44 +224,34 @@ class CreatePRRequest {
   Map<String, dynamic> toJson() {
     return {
       'division_id': divisionId,
-      'processing_type': processingType,
       'items': items.map((item) => item.toJson()).toList(),
       'notes': notes,
     };
   }
 }
 
-/// Create PR Item Request DTO
+/// ✅ SIMPLIFIED: Create PR Item Request (Only product_id & quantity)
 class CreatePRItemRequest {
-  final String? productId;
-  final String itemName;
-  final int quantity;
-  final String unit;
-  final double? estimatedPrice;
+  final String productId;  // ✅ WAJIB
+  final int quantity;      // ✅ WAJIB
   final String? notes;
 
   const CreatePRItemRequest({
-    this.productId,
-    required this.itemName,
+    required this.productId,
     required this.quantity,
-    required this.unit,
-    this.estimatedPrice,
     this.notes,
   });
 
   Map<String, dynamic> toJson() {
     return {
       'product_id': productId,
-      'item_name': itemName,
       'quantity': quantity,
-      'unit': unit,
-      'estimated_price': estimatedPrice,
       'notes': notes,
     };
   }
 }
 
-/// Update PR Request DTO
+/// ✅ SIMPLIFIED: Update PR Request
 class UpdatePRRequest {
   final List<UpdatePRItemRequest> items;
   final String? notes;
@@ -259,31 +269,22 @@ class UpdatePRRequest {
   }
 }
 
-/// Update PR Item Request DTO
+/// ✅ SIMPLIFIED: Update PR Item Request
 class UpdatePRItemRequest {
-  final String? productId;
-  final String itemName;
-  final int quantity;
-  final String unit;
-  final double? estimatedPrice;
+  final String productId;  // ✅ WAJIB
+  final int quantity;      // ✅ WAJIB
   final String? notes;
 
   const UpdatePRItemRequest({
-    this.productId,
-    required this.itemName,
+    required this.productId,
     required this.quantity,
-    required this.unit,
-    this.estimatedPrice,
     this.notes,
   });
 
   Map<String, dynamic> toJson() {
     return {
       'product_id': productId,
-      'item_name': itemName,
       'quantity': quantity,
-      'unit': unit,
-      'estimated_price': estimatedPrice,
       'notes': notes,
     };
   }

@@ -4,9 +4,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:erp_purchasing_apps/data/providers/product_provider.dart';
 import 'package:erp_purchasing_apps/data/providers/category_provider.dart';
+import 'package:erp_purchasing_apps/data/providers/supplier_provider.dart';
 import 'package:erp_purchasing_apps/data/models/product_model.dart';
 
-// Product List Screen with Modern DataTable
+/// Product List Screen with Modern DataTable
 class ProductListScreen extends ConsumerStatefulWidget {
   const ProductListScreen({super.key});
 
@@ -17,6 +18,7 @@ class ProductListScreen extends ConsumerStatefulWidget {
 class _ProductListScreenState extends ConsumerState<ProductListScreen> {
   final _searchController = TextEditingController();
   String? _selectedCategoryFilter;
+  String? _selectedSupplierFilter;
   bool _showInactiveOnly = false;
 
   @override
@@ -102,8 +104,10 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
   Widget build(BuildContext context) {
     final productsState = ref.watch(productNotifierProvider);
     final categoriesAsync = ref.watch(categoryListProvider);
+    final suppliersAsync = ref.watch(supplierListProvider);
     final searchQuery = ref.watch(productSearchQueryProvider);
     final categoryFilter = ref.watch(productCategoryFilterProvider);
+    final supplierFilter = ref.watch(productSupplierFilterProvider);
 
     return Scaffold(
       backgroundColor: const Color(0xFFF5F7FA),
@@ -199,6 +203,7 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
                   scrollDirection: Axis.horizontal,
                   child: Row(
                     children: [
+                      // Category Filters
                       categoriesAsync.when(
                         data: (categories) {
                           return Wrap(
@@ -244,6 +249,54 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
                         loading: () => const SizedBox.shrink(),
                         error: (_, __) => const SizedBox.shrink(),
                       ),
+                      
+                      const SizedBox(width: 8),
+                      
+                      // Supplier Filters
+                      suppliersAsync.when(
+                        data: (suppliers) {
+                          return Wrap(
+                            spacing: 8,
+                            children: [
+                              FilterChip(
+                                label: const Text('All Suppliers'),
+                                selected: _selectedSupplierFilter == null,
+                                onSelected: (selected) {
+                                  setState(() {
+                                    _selectedSupplierFilter = null;
+                                    ref
+                                        .read(productSupplierFilterProvider
+                                            .notifier)
+                                        .state = null;
+                                  });
+                                },
+                              ),
+                              ...suppliers.take(5).map((supplier) {
+                                return FilterChip(
+                                  label: Text(supplier.name),
+                                  selected:
+                                      _selectedSupplierFilter == supplier.id,
+                                  onSelected: (selected) {
+                                    setState(() {
+                                      _selectedSupplierFilter =
+                                          selected ? supplier.id : null;
+                                      ref
+                                              .read(
+                                                  productSupplierFilterProvider
+                                                      .notifier)
+                                              .state =
+                                          selected ? supplier.id : null;
+                                    });
+                                  },
+                                );
+                              })
+                            ],
+                          );
+                        },
+                        loading: () => const SizedBox.shrink(),
+                        error: (_, __) => const SizedBox.shrink(),
+                      ),
+                      
                       const SizedBox(width: 8),
                       FilterChip(
                         label: const Text('Inactive Only'),
@@ -266,12 +319,10 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
 
           const Divider(height: 1),
 
-          // Product Table
+          // DataTable Section
           Expanded(
             child: productsState.when(
               data: (products) {
-                // Di screen, tambah listen
-
                 // Apply filters
                 var filteredProducts = products;
 
@@ -283,23 +334,32 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
                             .contains(searchQuery.toLowerCase()) ||
                         p.productCode
                             .toLowerCase()
-                            .contains(searchQuery.toLowerCase());
+                            .contains(searchQuery.toLowerCase()) ||
+                        (p.supplierName
+                                ?.toLowerCase()
+                                .contains(searchQuery.toLowerCase()) ??
+                            false);
                   }).toList();
                 }
 
                 if (_selectedCategoryFilter != null) {
-                  // Get all child categories of selected category
                   final categories = categoriesAsync.value ?? [];
                   final childCategoryIds = categories
                       .where((c) => c.parentId == _selectedCategoryFilter)
                       .map((c) => c.id)
                       .toList();
 
-                  // Filter: include products from selected category OR its children
                   filteredProducts = filteredProducts.where((p) {
                     return p.categoryId == _selectedCategoryFilter ||
                         childCategoryIds.contains(p.categoryId);
                   }).toList();
+                }
+
+                // Filter by supplier
+                if (_selectedSupplierFilter != null) {
+                  filteredProducts = filteredProducts
+                      .where((p) => p.supplierId == _selectedSupplierFilter)
+                      .toList();
                 }
 
                 if (_showInactiveOnly) {
@@ -388,6 +448,24 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
                             ),
                             DataColumn(
                               label: Text(
+                                'SUPPLIER',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 13,
+                                ),
+                              ),
+                            ),
+                            DataColumn(
+                              label: Text(
+                                'UNIT PRICE',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 13,
+                                ),
+                              ),
+                            ),
+                            DataColumn(
+                              label: Text(
                                 'UNIT',
                                 style: TextStyle(
                                   fontWeight: FontWeight.bold,
@@ -417,6 +495,7 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
                           rows: filteredProducts.map((product) {
                             return DataRow(
                               cells: [
+                                // Code
                                 DataCell(
                                   Container(
                                     padding: const EdgeInsets.symmetric(
@@ -438,6 +517,8 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
                                     ),
                                   ),
                                 ),
+                                
+                                // Product Name
                                 DataCell(
                                   Column(
                                     crossAxisAlignment:
@@ -463,6 +544,8 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
                                     ],
                                   ),
                                 ),
+                                
+                                // Category
                                 DataCell(
                                   Container(
                                     padding: const EdgeInsets.symmetric(
@@ -483,6 +566,55 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
                                     ),
                                   ),
                                 ),
+                                
+                                // Supplier
+                                DataCell(
+                                  Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Text(
+                                        product.supplierName ?? 'Unknown',
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.w600,
+                                          fontSize: 13,
+                                        ),
+                                      ),
+                                      if (product.supplierCode != null)
+                                        Text(
+                                          product.supplierCode!,
+                                          style: TextStyle(
+                                            fontSize: 11,
+                                            color: Colors.grey.shade600,
+                                          ),
+                                        ),
+                                    ],
+                                  ),
+                                ),
+                                
+                                // Unit Price
+                                DataCell(
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 12,
+                                      vertical: 6,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: Colors.green.shade50,
+                                      borderRadius: BorderRadius.circular(6),
+                                    ),
+                                    child: Text(
+                                      product.formattedPrice,
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        color: Colors.green.shade700,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                
+                                // Unit
                                 DataCell(
                                   Text(
                                     product.unit.toUpperCase(),
@@ -492,6 +624,8 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
                                     ),
                                   ),
                                 ),
+                                
+                                // Status
                                 DataCell(
                                   Container(
                                     padding: const EdgeInsets.symmetric(
@@ -533,6 +667,8 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
                                     ),
                                   ),
                                 ),
+                                
+                                // Actions
                                 DataCell(
                                   Row(
                                     mainAxisSize: MainAxisSize.min,
@@ -588,7 +724,7 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
                 ),
               ),
             ),
-          )
+          ),
         ],
       ),
     );

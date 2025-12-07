@@ -1,13 +1,15 @@
 import 'package:erp_purchasing_apps/data/models/product_assessment_model.dart';
 import 'package:erp_purchasing_apps/data/providers/auth_providers.dart';
 import 'package:erp_purchasing_apps/data/providers/product_assessment_provider.dart';
+import 'package:erp_purchasing_apps/data/providers/supplier_provider.dart'; // ✅ NEW
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart'; // ✅ NEW for number input
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:erp_purchasing_apps/data/providers/product_provider.dart';
 import 'package:erp_purchasing_apps/data/providers/category_provider.dart';
 import 'package:erp_purchasing_apps/data/models/product_model.dart';
 
-/// Product Form Dialog (Create/Edit)
+/// Product Form Dialog (Create/Edit) - WITH SUPPLIER & PRICE
 class ProductFormDialog extends ConsumerStatefulWidget {
   final ProductModel? product;
 
@@ -23,7 +25,10 @@ class _ProductFormDialogState extends ConsumerState<ProductFormDialog> {
   late TextEditingController _nameController;
   late TextEditingController _descriptionController;
   late TextEditingController _specificationsController;
+  late TextEditingController _priceController; // ✅ NEW
+
   String? _selectedCategoryId;
+  String? _selectedSupplierId; // ✅ NEW
   String _selectedUnit = 'pcs';
   bool _isActive = true;
   bool _isLoading = false;
@@ -43,7 +48,13 @@ class _ProductFormDialogState extends ConsumerState<ProductFormDialog> {
     _specificationsController = TextEditingController(
       text: widget.product?.specifications ?? '',
     );
+    // ✅ NEW: Initialize price controller
+    _priceController = TextEditingController(
+      text: widget.product?.unitPrice.toString() ?? '',
+    );
+
     _selectedCategoryId = widget.product?.categoryId;
+    _selectedSupplierId = widget.product?.supplierId; // ✅ NEW
     _selectedUnit = widget.product?.unit ?? 'pcs';
     _isActive = widget.product?.isActive ?? true;
   }
@@ -54,6 +65,7 @@ class _ProductFormDialogState extends ConsumerState<ProductFormDialog> {
     _nameController.dispose();
     _descriptionController.dispose();
     _specificationsController.dispose();
+    _priceController.dispose(); // ✅ NEW
     super.dispose();
   }
 
@@ -69,22 +81,38 @@ class _ProductFormDialogState extends ConsumerState<ProductFormDialog> {
       return;
     }
 
+    // ✅ NEW: Validate supplier
+    if (_selectedSupplierId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please select a supplier'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
     setState(() => _isLoading = true);
 
     try {
       final currentUser = ref.read(currentUserProvider);
       final canDirectCreate = currentUser?.role == 'admin';
 
+      // ✅ Parse price
+      final price = double.tryParse(_priceController.text.trim()) ?? 0.0;
+
       if (widget.product == null) {
         // CREATE MODE
         if (canDirectCreate) {
-          // Admin: Langsung create ke master (PERLU PRODUCT CODE)
+          // Admin: Direct to master
           final notifier = ref.read(productNotifierProvider.notifier);
           await notifier.createProduct(
             CreateProductRequest(
               productCode: _productCodeController.text.trim(),
               name: _nameController.text.trim(),
               categoryId: _selectedCategoryId!,
+              supplierId: _selectedSupplierId!, // ✅ NEW
+              unitPrice: price, // ✅ NEW
               unit: _selectedUnit,
               description: _descriptionController.text.trim().isEmpty
                   ? null
@@ -95,13 +123,15 @@ class _ProductFormDialogState extends ConsumerState<ProductFormDialog> {
             ),
           );
         } else {
-          // User biasa: Create assessment request (TIDAK PERLU PRODUCT CODE)
+          // User: Assessment request
           final assessmentNotifier =
               ref.read(productAssessmentNotifierProvider.notifier);
           await assessmentNotifier.createAssessment(
             CreateProductAssessmentRequest(
               productName: _nameController.text.trim(),
               categoryId: _selectedCategoryId!,
+              supplierId: _selectedSupplierId!,
+              unitPrice: price,
               unit: _selectedUnit,
               description: _descriptionController.text.trim().isEmpty
                   ? null
@@ -127,14 +157,15 @@ class _ProductFormDialogState extends ConsumerState<ProductFormDialog> {
           );
         }
       } else {
-        // UPDATE MODE (unchanged)
+        // UPDATE MODE
         final notifier = ref.read(productNotifierProvider.notifier);
         await notifier.updateProduct(
           widget.product!.id,
           UpdateProductRequest(
-            productCode: _productCodeController.text.trim(),
             name: _nameController.text.trim(),
             categoryId: _selectedCategoryId!,
+            supplierId: _selectedSupplierId!, // ✅ NEW
+            unitPrice: price, // ✅ NEW
             unit: _selectedUnit,
             description: _descriptionController.text.trim().isEmpty
                 ? null
@@ -175,18 +206,15 @@ class _ProductFormDialogState extends ConsumerState<ProductFormDialog> {
   @override
   Widget build(BuildContext context) {
     final categoriesAsync = ref.watch(categoryListProvider);
+    final suppliersAsync = ref.watch(supplierListProvider); // ✅ NEW
     final currentUser = ref.watch(currentUserProvider);
     final isAdmin = currentUser?.role == 'admin';
     final isCreateMode = widget.product == null;
-
-    // Show product code field only for:
-    // 1. Admin creating new product (direct to master)
-    // 2. Editing existing product (update mode)
     final showProductCodeField = !isCreateMode || isAdmin;
 
     return Dialog(
       child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 600),
+        constraints: const BoxConstraints(maxWidth: 600, maxHeight: 700),
         child: Padding(
           padding: const EdgeInsets.all(24),
           child: Form(
@@ -277,10 +305,9 @@ class _ProductFormDialogState extends ConsumerState<ProductFormDialog> {
                   ),
                   const SizedBox(height: 16),
 
-                  // Category Dropdown (FILTER: Only Sub-Categories)
+                  // Category Dropdown (Sub-categories only)
                   categoriesAsync.when(
                     data: (categories) {
-                      // Filter: Hanya tampilkan sub-category (yang punya parent_id)
                       final subCategories = categories
                           .where((cat) => cat.parentId != null)
                           .toList();
@@ -316,6 +343,94 @@ class _ProductFormDialogState extends ConsumerState<ProductFormDialog> {
                   ),
                   const SizedBox(height: 16),
 
+                  //Supplier Dropdown
+                  suppliersAsync.when(
+                    data: (suppliers) {
+                      // ✅ FIX: Validate if selected supplier exists in list
+                      final validSupplierIds =
+                          suppliers.map((s) => s.id).toSet();
+
+                      // If editing and supplier not in list, reset to null
+                      if (_selectedSupplierId != null &&
+                          !validSupplierIds.contains(_selectedSupplierId)) {
+                        // Supplier has been deleted/inactive, reset selection
+                        WidgetsBinding.instance.addPostFrameCallback((_) {
+                          if (mounted) {
+                            setState(() {
+                              _selectedSupplierId = null;
+                            });
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text(
+                                    'Previous supplier is no longer available. Please select a new one.'),
+                                backgroundColor: Colors.orange,
+                              ),
+                            );
+                          }
+                        });
+                      }
+
+                      return DropdownButtonFormField<String>(
+                        value: validSupplierIds.contains(_selectedSupplierId)
+                            ? _selectedSupplierId
+                            : null, // ✅ Set to null if invalid
+                        decoration: const InputDecoration(
+                          labelText: 'Supplier *',
+                          border: OutlineInputBorder(),
+                          prefixIcon: Icon(Icons.business),
+                          helperText: 'Select product supplier',
+                        ),
+                        items: suppliers.map((supplier) {
+                          return DropdownMenuItem(
+                            value: supplier.id,
+                            child: Text(
+                                '${supplier.name} (${supplier.supplierCode})'),
+                          );
+                        }).toList(),
+                        onChanged: (value) {
+                          setState(() => _selectedSupplierId = value);
+                        },
+                        validator: (value) {
+                          if (value == null) {
+                            return 'Please select a supplier';
+                          }
+                          return null;
+                        },
+                      );
+                    },
+                    loading: () => const LinearProgressIndicator(),
+                    error: (_, __) => const Text('Failed to load suppliers'),
+                  ),
+                  SizedBox(height: 10),
+                  // ✅ NEW: Unit Price Input
+                  TextFormField(
+                    controller: _priceController,
+                    decoration: const InputDecoration(
+                      labelText: 'Unit Price *',
+                      border: OutlineInputBorder(),
+                      prefixIcon: Icon(Icons.attach_money),
+                      prefixText: 'Rp ',
+                      helperText: 'Enter unit price (numbers only)',
+                    ),
+                    keyboardType:
+                        const TextInputType.numberWithOptions(decimal: true),
+                    inputFormatters: [
+                      FilteringTextInputFormatter.allow(
+                          RegExp(r'^\d+\.?\d{0,2}')),
+                    ],
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'Unit price is required';
+                      }
+                      final price = double.tryParse(value);
+                      if (price == null || price <= 0) {
+                        return 'Please enter a valid price';
+                      }
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 16),
+
                   // Unit Dropdown
                   DropdownButtonFormField<String>(
                     value: _selectedUnit,
@@ -344,7 +459,7 @@ class _ProductFormDialogState extends ConsumerState<ProductFormDialog> {
                       border: OutlineInputBorder(),
                       prefixIcon: Icon(Icons.description),
                     ),
-                    maxLines: 3,
+                    maxLines: 2,
                   ),
                   const SizedBox(height: 16),
 
@@ -356,7 +471,7 @@ class _ProductFormDialogState extends ConsumerState<ProductFormDialog> {
                       border: OutlineInputBorder(),
                       prefixIcon: Icon(Icons.notes),
                     ),
-                    maxLines: 3,
+                    maxLines: 2,
                   ),
                   const SizedBox(height: 16),
 

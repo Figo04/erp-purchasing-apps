@@ -13,12 +13,14 @@ class PRRepository {
     String? status,
     String? divisionId,
     int? year,
+    String? supplierId, // ✅ NEW: Filter by supplier
   }) async {
     try {
       final queryParams = <String, dynamic>{};
       if (status != null) queryParams['status'] = status;
       if (divisionId != null) queryParams['division_id'] = divisionId;
       if (year != null) queryParams['year'] = year.toString();
+      if (supplierId != null) queryParams['supplier_id'] = supplierId; // ✅ NEW
 
       final response = await _apiService.get(
         ApiEndpoints.purchaseRequisitions,
@@ -71,7 +73,7 @@ class PRRepository {
     }
   }
 
-  // Create PR with items
+  // ✅ UPDATED: Create PR with simplified items
   Future<PurchaseRequisitionModel> createPR(CreatePRRequest request) async {
     try {
       final response = await _apiService.post<PurchaseRequisitionModel>(
@@ -90,7 +92,7 @@ class PRRepository {
     }
   }
 
-  // Update PR (only draft)
+  // ✅ UPDATED: Update PR (only draft)
   Future<PurchaseRequisitionModel> updatePR(
     String id,
     UpdatePRRequest request,
@@ -153,7 +155,9 @@ class PRRepository {
     try {
       final response = await _apiService.post<PurchaseRequisitionModel>(
         ApiEndpoints.rejectPR(id),
-        body: {'reason': reason},
+        body: {
+          'rejection_reason': reason
+        }, // ✅ FIX: use rejection_reason (match backend)
         fromJson: (json) => PurchaseRequisitionModel.fromJson(json),
       );
 

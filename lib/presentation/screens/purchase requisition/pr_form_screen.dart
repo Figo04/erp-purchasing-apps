@@ -1,4 +1,5 @@
 import 'package:erp_purchasing_apps/data/models/division_model.dart';
+import 'package:erp_purchasing_apps/data/models/product_model.dart';
 import 'package:erp_purchasing_apps/data/providers/division_provider.dart';
 import 'package:erp_purchasing_apps/data/providers/product_provider.dart';
 import 'package:flutter/material.dart';
@@ -23,7 +24,8 @@ class _PRFormScreenState extends ConsumerState<PRFormScreen> {
   final List<PRItemForm> _items = [];
 
   String? _selectedDivisionId;
-  String _selectedProcessingType = 'material';
+  String? _selectedSupplierId; // ✅ NEW: Track supplier
+  String? _selectedSupplierName;
   bool _isLoading = false;
 
   @override
@@ -44,22 +46,22 @@ class _PRFormScreenState extends ConsumerState<PRFormScreen> {
       if (pr != null && mounted) {
         setState(() {
           _selectedDivisionId = pr.divisionId;
-          _selectedProcessingType = pr.processingType;
           _notesController.text = pr.notes ?? '';
           _items.clear();
 
           if (pr.items != null && pr.items!.isNotEmpty) {
+            // ✅ Set supplier dari item pertama
+            _selectedSupplierId = pr.items!.first.supplierId;
+            _selectedSupplierName = pr.items!.first.supplierName;
+
             for (var item in pr.items!) {
               _items.add(PRItemForm(
                 productId: item.productId,
                 productName: item.itemName,
-                itemNameController: TextEditingController(text: item.itemName),
-                quantityController:
-                    TextEditingController(text: item.quantity.toString()),
-                unitController: TextEditingController(text: item.unit),
-                priceController: TextEditingController(
-                  text: item.estimatedPrice?.toString() ?? '',
-                ),
+                supplierName: item.supplierName,
+                unitPrice: item.unitPrice,
+                unit: item.unit,
+                quantityController: TextEditingController(text: item.quantity.toString()),
                 notesController: TextEditingController(text: item.notes ?? ''),
               ));
             }
@@ -80,10 +82,7 @@ class _PRFormScreenState extends ConsumerState<PRFormScreen> {
   void _addItem() {
     setState(() {
       _items.add(PRItemForm(
-        itemNameController: TextEditingController(),
         quantityController: TextEditingController(text: '1'),
-        unitController: TextEditingController(text: 'pcs'),
-        priceController: TextEditingController(),
         notesController: TextEditingController(),
       ));
     });
@@ -102,13 +101,30 @@ class _PRFormScreenState extends ConsumerState<PRFormScreen> {
     double total = 0;
     for (var item in _items) {
       final qty = int.tryParse(item.quantityController.text) ?? 0;
-      final price = double.tryParse(item.priceController.text) ?? 0;
+      final price = item.unitPrice ?? 0;
       total += qty * price;
     }
     return total;
   }
 
-  Future<void> _handleSubmit({bool isDraft = true}) async {
+  /// ✅ NEW: Validate all items from same supplier
+  bool _validateSameSupplier() {
+    if (_items.isEmpty) return true;
+    
+    String? firstSupplier;
+    for (var item in _items) {
+      if (item.productId == null) continue;
+      
+      if (firstSupplier == null) {
+        firstSupplier = item.supplierId;
+      } else if (item.supplierId != firstSupplier) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  Future<void> _handleSubmit() async {
     if (!_formKey.currentState!.validate()) return;
 
     if (_selectedDivisionId == null) {
@@ -121,20 +137,39 @@ class _PRFormScreenState extends ConsumerState<PRFormScreen> {
       return;
     }
 
+    // ✅ Validate: All items must have product selected
+    if (_items.any((item) => item.productId == null)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please select product for all items'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    // ✅ Validate: All items must be from same supplier
+    if (!_validateSameSupplier()) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('All items must be from the same supplier!'),
+          backgroundColor: Colors.red,
+          duration: Duration(seconds: 4),
+        ),
+      );
+      return;
+    }
+
     setState(() => _isLoading = true);
 
     try {
       final notifier = ref.read(prNotifierProvider.notifier);
 
+      // ✅ SIMPLIFIED: Only send product_id & quantity
       final items = _items.map((item) {
         return CreatePRItemRequest(
           productId: item.productId!,
-          itemName: item.itemNameController.text.trim(),
           quantity: int.parse(item.quantityController.text),
-          unit: item.unitController.text.trim(),
-          estimatedPrice: item.priceController.text.isNotEmpty
-              ? double.parse(item.priceController.text)
-              : null,
           notes: item.notesController.text.trim().isEmpty
               ? null
               : item.notesController.text.trim(),
@@ -144,7 +179,6 @@ class _PRFormScreenState extends ConsumerState<PRFormScreen> {
       if (widget.prId == null) {
         final request = CreatePRRequest(
           divisionId: _selectedDivisionId!,
-          processingType: _selectedProcessingType,
           items: items,
           notes: _notesController.text.trim().isEmpty
               ? null
@@ -156,11 +190,8 @@ class _PRFormScreenState extends ConsumerState<PRFormScreen> {
         final request = UpdatePRRequest(
           items: items
               .map((item) => UpdatePRItemRequest(
-                    productId: item.productId,
-                    itemName: item.itemName,
+                    productId: item.productId!,
                     quantity: item.quantity,
-                    unit: item.unit,
-                    estimatedPrice: item.estimatedPrice,
                     notes: item.notes,
                   ))
               .toList(),
@@ -333,32 +364,51 @@ class _PRFormScreenState extends ConsumerState<PRFormScreen> {
                           ),
                           const SizedBox(height: 16),
 
-                          // Processing Type Dropdown
-                          DropdownButtonFormField<String>(
-                            value: _selectedProcessingType,
-                            decoration: const InputDecoration(
-                              labelText: 'Processing Type *',
-                              border: OutlineInputBorder(),
-                              prefixIcon: Icon(Icons.category),
+                          // ✅ NEW: Supplier Info Display (Read-only)
+                          if (_selectedSupplierName != null)
+                            Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: Colors.blue.shade50,
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(color: Colors.blue.shade200),
+                              ),
+                              child: Row(
+                                children: [
+                                  Icon(Icons.store, color: Colors.blue.shade700),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        const Text(
+                                          'Supplier',
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            color: Colors.grey,
+                                          ),
+                                        ),
+                                        Text(
+                                          _selectedSupplierName!,
+                                          style: const TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 16,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          'All items must be from this supplier',
+                                          style: TextStyle(
+                                            fontSize: 11,
+                                            color: Colors.blue.shade700,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
-                            items: const [
-                              DropdownMenuItem(
-                                value: 'material',
-                                child: Text('Material (Bahan Produksi)'),
-                              ),
-                              DropdownMenuItem(
-                                value: 'aset',
-                                child: Text('Aset (Fix Asset)'),
-                              ),
-                              DropdownMenuItem(
-                                value: 'logistik',
-                                child: Text('Logistik (Bahan Penolong)'),
-                              ),
-                            ],
-                            onChanged: (value) {
-                              setState(() => _selectedProcessingType = value!);
-                            },
-                          ),
                           const SizedBox(height: 16),
 
                           // Notes Field
@@ -466,8 +516,7 @@ class _PRFormScreenState extends ConsumerState<PRFormScreen> {
               width: double.infinity,
               height: 50,
               child: ElevatedButton(
-                onPressed:
-                    _isLoading ? null : () => _handleSubmit(isDraft: false),
+                onPressed: _isLoading ? null : _handleSubmit,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF1ABC9C),
                   foregroundColor: Colors.white,
@@ -531,84 +580,118 @@ class _PRFormScreenState extends ConsumerState<PRFormScreen> {
 
             // Product Picker
             productsAsync.when(
-              data: (products) => Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  DropdownButtonFormField<String>(
-                    isExpanded: true,
-                    value: item.productId,
-                    decoration: const InputDecoration(
-                      labelText: 'Select Product *',
-                      border: OutlineInputBorder(),
-                      isDense: true,
-                      prefixIcon: Icon(Icons.inventory_2),
-                      hintText: 'Choose from product list',
-                    ),
-                    items: products.map((product) {
-                      return DropdownMenuItem(
-                        value: product.id,
-                        child: Text(
-                          '${product.name} (${product.productCode})', // ← Single line
-                          overflow: TextOverflow.ellipsis,
-                          maxLines: 1,
-                          style: const TextStyle(fontSize: 14),
-                        ),
-                      );
-                    }).toList(),
-                    onChanged: (productId) {
-                      setState(() {
-                        final selectedProduct = products.firstWhere(
-                          (p) => p.id == productId,
+              data: (products) {
+                // ✅ Filter products by selected supplier (if any)
+                final filteredProducts = _selectedSupplierId != null
+                    ? products.where((p) => p.supplierId == _selectedSupplierId).toList()
+                    : products;
+
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    DropdownButtonFormField<String>(
+                      isExpanded: true,
+                      value: item.productId,
+                      decoration: const InputDecoration(
+                        labelText: 'Select Product *',
+                        border: OutlineInputBorder(),
+                        isDense: true,
+                        prefixIcon: Icon(Icons.inventory_2),
+                        hintText: 'Choose from product list',
+                      ),
+                      items: filteredProducts.map((product) {
+                        return DropdownMenuItem(
+                          value: product.id,
+                          child: Text(
+                            '${product.name} (${product.productCode})',
+                            overflow: TextOverflow.ellipsis,
+                            maxLines: 1,
+                            style: const TextStyle(fontSize: 14),
+                          ),
                         );
+                      }).toList(),
+                      onChanged: (productId) {
+                        setState(() {
+                          final selectedProduct = products.firstWhere(
+                            (p) => p.id == productId,
+                          );
 
-                        item.productId = productId;
-                        item.productName = selectedProduct.name;
-                        item.itemNameController.text = selectedProduct.name;
+                          // ✅ Set supplier dari product pertama yang dipilih
+                          if (_selectedSupplierId == null) {
+                            _selectedSupplierId = selectedProduct.supplierId;
+                            _selectedSupplierName = selectedProduct.supplierName;
+                          }
 
-                        if (selectedProduct.unit != true) {
-                          item.unitController.text = selectedProduct.unit;
+                          item.productId = productId;
+                          item.productName = selectedProduct.name;
+                          item.supplierId = selectedProduct.supplierId;
+                          item.supplierName = selectedProduct.supplierName;
+                          item.unitPrice = selectedProduct.unitPrice;
+                          item.unit = selectedProduct.unit;
+                        });
+                      },
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Please select a product';
                         }
-                      });
-                    },
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Please select a product';
-                      }
-                      return null;
-                    },
-                  ),
+                        return null;
+                      },
+                    ),
 
-                  // Selected Product Indicator
-                  if (item.productId != null)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 8),
-                      child: Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: Colors.green.shade50,
-                          borderRadius: BorderRadius.circular(4),
-                          border: Border.all(color: Colors.green.shade200),
-                        ),
-                        child: Row(
-                          children: [
-                            Icon(Icons.check_circle,
-                                size: 16, color: Colors.green.shade700),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                'Product selected: ${item.productName}',
+                    // ✅ Selected Product Info
+                    if (item.productId != null)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 8),
+                        child: Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.green.shade50,
+                            borderRadius: BorderRadius.circular(4),
+                            border: Border.all(color: Colors.green.shade200),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Icon(Icons.check_circle,
+                                      size: 16, color: Colors.green.shade700),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      item.productName ?? '',
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.green.shade900,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                'Supplier: ${item.supplierName}',
                                 style: TextStyle(
                                   fontSize: 12,
-                                  color: Colors.green.shade900,
+                                  color: Colors.grey.shade700,
                                 ),
                               ),
-                            ),
-                          ],
+                              Text(
+                                'Unit Price: Rp ${NumberFormat('#,###').format(item.unitPrice)}',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.blue.shade700,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
-                    ),
-                ],
-              ),
+                  ],
+                );
+              },
               loading: () => const SizedBox(
                 height: 60,
                 child: Center(
@@ -645,26 +728,10 @@ class _PRFormScreenState extends ConsumerState<PRFormScreen> {
             ),
             const SizedBox(height: 12),
 
-            // Item Name (read-only, auto-filled)
-            TextFormField(
-              controller: item.itemNameController,
-              readOnly: true,
-              decoration: InputDecoration(
-                labelText: 'Item Name',
-                border: const OutlineInputBorder(),
-                isDense: true,
-                filled: true,
-                fillColor: Colors.grey.shade100,
-                suffixIcon: const Icon(Icons.lock_outline, size: 16),
-              ),
-            ),
-            const SizedBox(height: 12),
-
-            // Quantity and Unit Row
+            // Quantity Field
             Row(
               children: [
                 Expanded(
-                  flex: 2,
                   child: TextFormField(
                     controller: item.quantityController,
                     keyboardType: TextInputType.number,
@@ -678,8 +745,7 @@ class _PRFormScreenState extends ConsumerState<PRFormScreen> {
                       if (value == null || value.isEmpty) {
                         return 'Required';
                       }
-                      if (int.tryParse(value) == null ||
-                          int.parse(value) <= 0) {
+                      if (int.tryParse(value) == null || int.parse(value) <= 0) {
                         return 'Invalid';
                       }
                       return null;
@@ -687,41 +753,22 @@ class _PRFormScreenState extends ConsumerState<PRFormScreen> {
                     onChanged: (_) => setState(() {}),
                   ),
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(width: 12),
+                // ✅ Unit (Read-only, auto from product)
                 Expanded(
                   child: TextFormField(
-                    controller: item.unitController,
-                    decoration: const InputDecoration(
-                      labelText: 'Unit *',
-                      border: OutlineInputBorder(),
+                    initialValue: item.unit ?? 'pcs',
+                    readOnly: true,
+                    decoration: InputDecoration(
+                      labelText: 'Unit',
+                      border: const OutlineInputBorder(),
                       isDense: true,
+                      filled: true,
+                      fillColor: Colors.grey.shade100,
                     ),
-                    validator: (value) {
-                      if (value == null || value.trim().isEmpty) {
-                        return 'Required';
-                      }
-                      return null;
-                    },
                   ),
                 ),
               ],
-            ),
-            const SizedBox(height: 12),
-
-            // Estimated Price
-            TextFormField(
-              controller: item.priceController,
-              keyboardType: TextInputType.number,
-              inputFormatters: [
-                FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d{0,2}')),
-              ],
-              decoration: const InputDecoration(
-                labelText: 'Estimated Price',
-                border: OutlineInputBorder(),
-                isDense: true,
-                prefixText: 'Rp ',
-              ),
-              onChanged: (_) => setState(() {}),
             ),
             const SizedBox(height: 12),
 
@@ -737,15 +784,32 @@ class _PRFormScreenState extends ConsumerState<PRFormScreen> {
               ),
             ),
 
-            // Subtotal Display
-            if (item.priceController.text.isNotEmpty)
+            // ✅ Subtotal Display
+            if (item.productId != null && item.unitPrice != null)
               Padding(
-                padding: const EdgeInsets.only(top: 8),
-                child: Text(
-                  'Subtotal: Rp ${NumberFormat('#,###').format((int.tryParse(item.quantityController.text) ?? 0) * (double.tryParse(item.priceController.text) ?? 0))}',
-                  style: TextStyle(
-                    color: Colors.blue.shade700,
-                    fontWeight: FontWeight.w600,
+                padding: const EdgeInsets.only(top: 12),
+                child: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.shade50,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'Subtotal:',
+                        style: TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                      Text(
+                        'Rp ${NumberFormat('#,###').format((int.tryParse(item.quantityController.text) ?? 0) * (item.unitPrice ?? 0))}',
+                        style: TextStyle(
+                          color: Colors.blue.shade700,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ),
@@ -756,31 +820,30 @@ class _PRFormScreenState extends ConsumerState<PRFormScreen> {
   }
 }
 
-/// Helper class to manage item form controllers
+/// ✅ UPDATED: Helper class to manage item form
 class PRItemForm {
   String? productId;
   String? productName;
-  final TextEditingController itemNameController;
+  String? supplierId;     // ✅ NEW
+  String? supplierName;   // ✅ NEW
+  double? unitPrice;      // ✅ NEW (auto from product)
+  String? unit;           // ✅ NEW (auto from product)
   final TextEditingController quantityController;
-  final TextEditingController unitController;
-  final TextEditingController priceController;
   final TextEditingController notesController;
 
   PRItemForm({
     this.productId,
     this.productName,
-    required this.itemNameController,
+    this.supplierId,
+    this.supplierName,
+    this.unitPrice,
+    this.unit,
     required this.quantityController,
-    required this.unitController,
-    required this.priceController,
     required this.notesController,
   });
 
   void dispose() {
-    itemNameController.dispose();
     quantityController.dispose();
-    unitController.dispose();
-    priceController.dispose();
     notesController.dispose();
   }
 }

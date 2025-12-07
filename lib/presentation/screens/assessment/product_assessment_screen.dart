@@ -323,6 +323,17 @@ class _ProductAssessmentScreenState
                     Colors.purple,
                   ),
                   const SizedBox(width: 8),
+                  // ✅ NEW: Price Chip
+                  _buildStatChip(
+                    Icons.attach_money,
+                    assessment.formattedPrice,
+                    Colors.green,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 4),
+              Row(
+                children: [
                   _buildStatChip(
                     Icons.calendar_today,
                     DateFormat('dd/MM/yy').format(assessment.createdAt),
@@ -512,6 +523,9 @@ class _ProductAssessmentScreenState
                       _buildInfoRow('Product Name', assessment.productName),
                       _buildInfoRow(
                           'Category', assessment.categoryName ?? 'N/A'),
+                      _buildInfoRow(
+                          'Supplier', assessment.supplierName ?? 'Unknown'),
+                      _buildInfoRow('Unit Price', assessment.formattedPrice),
                       _buildInfoRow('Unit', assessment.unit.toUpperCase()),
                       _buildInfoRow('Status', assessment.status.toUpperCase()),
                       _buildInfoRow('Requester',
@@ -711,67 +725,69 @@ class _ProductAssessmentScreenState
     );
   }
 
- void _confirmApprove(ProductAssessmentModel assessment) {
-  showDialog(
-    context: context,
-    builder: (context) => AlertDialog(
-      title: const Row(
-        children: [
-          Icon(Icons.check_circle, color: Colors.green, size: 28),
-          SizedBox(width: 12),
-          Text('Approve Assessment'),
-        ],
-      ),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('Approve and create product "${assessment.productName}" in master data?'),
-          const SizedBox(height: 16),
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: Colors.blue.shade50,
-              borderRadius: BorderRadius.circular(4),
-              border: Border.all(color: Colors.blue.shade200),
-            ),
-            child: Row(
-              children: [
-                Icon(Icons.info_outline, size: 18, color: Colors.blue.shade700),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    'Product code will be auto-generated based on category',
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: Colors.blue.shade700,
-                      fontWeight: FontWeight.w500,
+  void _confirmApprove(ProductAssessmentModel assessment) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.check_circle, color: Colors.green, size: 28),
+            SizedBox(width: 12),
+            Text('Approve Assessment'),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+                'Approve and create product "${assessment.productName}" in master data?'),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.blue.shade50,
+                borderRadius: BorderRadius.circular(4),
+                border: Border.all(color: Colors.blue.shade200),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.info_outline,
+                      size: 18, color: Colors.blue.shade700),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      'Product code will be auto-generated based on category',
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: Colors.blue.shade700,
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton.icon(
+            onPressed: () async {
+              Navigator.pop(context);
+              await _approveAssessment(assessment.id, assessment.productName);
+            },
+            icon: const Icon(Icons.check, size: 18),
+            label: const Text('Approve'),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
           ),
         ],
       ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('Cancel'),
-        ),
-        ElevatedButton.icon(
-          onPressed: () async {
-            Navigator.pop(context);
-            await _approveAssessment(assessment.id, assessment.productName);
-          },
-          icon: const Icon(Icons.check, size: 18),
-          label: const Text('Approve'),
-          style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
-        ),
-      ],
-    ),
-  );
-}
+    );
+  }
 
   void _showRejectDialog(ProductAssessmentModel assessment) {
     final reasonController = TextEditingController();
@@ -858,24 +874,25 @@ class _ProductAssessmentScreenState
   }
 
   Future<void> _approveAssessment(String id, String name) async {
-  _showLoading('Approving...');
-  try {
-    // Backend auto-generates product code
-    await ref
-        .read(productAssessmentNotifierProvider.notifier)
-        .approveAssessment(id); // ← NO PRODUCT CODE parameter
-        
-    if (mounted) {
-      Navigator.pop(context);
-      _showSuccess('Product "$name" approved and created in master data with auto-generated code');
-    }
-  } catch (e) {
-    if (mounted) {
-      Navigator.pop(context);
-      _showError('Failed to approve: $e');
+    _showLoading('Approving...');
+    try {
+      // Backend auto-generates product code
+      await ref
+          .read(productAssessmentNotifierProvider.notifier)
+          .approveAssessment(id); // ← NO PRODUCT CODE parameter
+
+      if (mounted) {
+        Navigator.pop(context);
+        _showSuccess(
+            'Product "$name" approved and created in master data with auto-generated code');
+      }
+    } catch (e) {
+      if (mounted) {
+        Navigator.pop(context);
+        _showError('Failed to approve: $e');
+      }
     }
   }
-}
 
   Future<void> _rejectAssessment(String id, String name, String reason) async {
     _showLoading('Rejecting...');

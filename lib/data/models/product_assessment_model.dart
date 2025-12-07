@@ -8,6 +8,9 @@ class ProductAssessmentModel {
   final String unit;
   final String? description;
   final String? specifications;
+  final String supplierId;
+  final String? supplierName;
+  final double unitPrice;
   final String requesterId;
   final String? requesterName;
   final String status; // pending, verified, approved, rejected
@@ -30,6 +33,9 @@ class ProductAssessmentModel {
     required this.unit,
     this.description,
     this.specifications,
+    required this.supplierId,
+    this.supplierName,
+    required this.unitPrice,
     required this.requesterId,
     this.requesterName,
     required this.status,
@@ -54,6 +60,9 @@ class ProductAssessmentModel {
       unit: json['unit'] as String? ?? 'pcs',
       description: json['description'] as String?,
       specifications: json['specifications'] as String?,
+      supplierId: json['supplier_id'] as String,
+      supplierName: json['supplier_name'] as String?,
+      unitPrice: (json['unit_price'] as num?)?.toDouble() ?? 0.0,
       requesterId: json['requester_id'] as String,
       requesterName: json['requester_name'] as String?,
       status: json['status'] as String? ?? 'pending',
@@ -83,6 +92,9 @@ class ProductAssessmentModel {
       'unit': unit,
       'description': description,
       'specifications': specifications,
+      'supplier_id': supplierId,
+      'supplier_name': supplierName,
+      'unit_price': unitPrice,
       'requester_id': requesterId,
       'requester_name': requesterName,
       'status': status,
@@ -105,6 +117,8 @@ class ProductAssessmentModel {
   bool get isApproved => status == 'approved';
   bool get isRejected => status == 'rejected';
 
+  String get formattedPrice => 'Rp ${unitPrice.toStringAsFixed(0)}';
+
   ProductAssessmentModel copyWith({
     String? id,
     String? productName,
@@ -113,6 +127,9 @@ class ProductAssessmentModel {
     String? unit,
     String? description,
     String? specifications,
+    String? supplierId,        
+    String? supplierName,      
+    double? unitPrice,
     String? requesterId,
     String? requesterName,
     String? status,
@@ -135,6 +152,9 @@ class ProductAssessmentModel {
       unit: unit ?? this.unit,
       description: description ?? this.description,
       specifications: specifications ?? this.specifications,
+      supplierId: supplierId ?? this.supplierId,           
+      supplierName: supplierName ?? this.supplierName,     
+      unitPrice: unitPrice ?? this.unitPrice,              
       requesterId: requesterId ?? this.requesterId,
       requesterName: requesterName ?? this.requesterName,
       status: status ?? this.status,
@@ -156,6 +176,8 @@ class ProductAssessmentModel {
 class CreateProductAssessmentRequest {
   final String productName;
   final String categoryId;
+  final String supplierId;    
+  final double unitPrice;     
   final String unit;
   final String? description;
   final String? specifications;
@@ -164,6 +186,8 @@ class CreateProductAssessmentRequest {
   CreateProductAssessmentRequest({
     required this.productName,
     required this.categoryId,
+    required this.supplierId,      
+    required this.unitPrice,       
     this.unit = 'pcs',
     this.description,
     this.specifications,
@@ -174,6 +198,8 @@ class CreateProductAssessmentRequest {
     return {
       'product_name': productName,
       'category_id': categoryId,
+      'supplier_id': supplierId,    
+      'unit_price': unitPrice,      
       'unit': unit,
       if (description != null) 'description': description,
       if (specifications != null) 'specifications': specifications,
@@ -181,6 +207,7 @@ class CreateProductAssessmentRequest {
     };
   }
 }
+
 
 /// Update Product Assessment Request
 class UpdateProductAssessmentRequest {

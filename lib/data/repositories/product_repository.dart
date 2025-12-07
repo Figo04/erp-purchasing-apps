@@ -3,18 +3,19 @@ import 'package:erp_purchasing_apps/data/models/product_model.dart';
 import 'package:erp_purchasing_apps/core/api/api_response.dart';
 import 'package:erp_purchasing_apps/core/constants/api_constants.dart';
 
-// Product Repository
-// Handles product CRUD operations
+/// Product Repository
+/// Handles product CRUD operations
 class ProductRepository {
   final ApiService _apiService;
 
   ProductRepository({ApiService? apiService})
       : _apiService = apiService ?? ApiService();
 
-  // Get all products
+  /// Get all products
   Future<List<ProductModel>> getAllProducts({
     String? search,
     String? categoryId,
+    String? supplierId,    // ✅ NEW: Filter by supplier
     bool? isActive,
   }) async {
     try {
@@ -24,6 +25,10 @@ class ProductRepository {
       }
       if (categoryId != null) {
         queryParams['category_id'] = categoryId;
+      }
+      // ✅ NEW: Add supplier filter
+      if (supplierId != null) {
+        queryParams['supplier_id'] = supplierId;
       }
       if (isActive != null) {
         queryParams['is_active'] = isActive.toString();
@@ -66,6 +71,29 @@ class ProductRepository {
     }
   }
 
+  /// ✅ NEW: Get products by supplier
+  Future<List<ProductModel>> getProductsBySupplier(String supplierId) async {
+    try {
+      final response = await _apiService.get(
+        ApiEndpoints.productsBySupplier(supplierId),
+        fromJson: (json) {
+          if (json is List) {
+            return json.map((item) => ProductModel.fromJson(item)).toList();
+          }
+          return <ProductModel>[];
+        },
+      );
+
+      if (!response.isSuccess || response.data == null) {
+        throw Exception(response.errorMessage);
+      }
+
+      return response.data as List<ProductModel>;
+    } catch (e) {
+      throw Exception('Failed to load products by supplier: $e');
+    }
+  }
+
   /// Create new product
   Future<ProductModel> createProduct(CreateProductRequest request) async {
     try {
@@ -85,18 +113,17 @@ class ProductRepository {
     }
   }
 
-  // Update product
+  /// Update product
   Future<ProductModel> updateProduct(
     String id,
     UpdateProductRequest request,
   ) async {
     try {
-      final response =
-          await _apiService.put<ProductModel>(ApiEndpoints.productById(id),
-              body: request.toJson(),
-              fromJson: (json) => ProductModel.fromJson(
-                    json,
-                  ));
+      final response = await _apiService.put<ProductModel>(
+        ApiEndpoints.productById(id),
+        body: request.toJson(),
+        fromJson: (json) => ProductModel.fromJson(json),
+      );
 
       if (!response.isSuccess || response.data == null) {
         throw Exception(response.errorMessage);
@@ -108,7 +135,7 @@ class ProductRepository {
     }
   }
 
-  // Delete product
+  /// Delete product
   Future<void> deleteProduct(String id) async {
     try {
       final response = await _apiService.delete(
@@ -123,7 +150,7 @@ class ProductRepository {
     }
   }
 
-   /// Get products by category
+  /// Get products by category
   Future<List<ProductModel>> getProductsByCategory(String categoryId) async {
     try {
       return await getAllProducts(categoryId: categoryId, isActive: true);

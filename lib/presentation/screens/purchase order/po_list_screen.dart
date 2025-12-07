@@ -1,5 +1,3 @@
-import 'dart:math';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -120,12 +118,14 @@ class _POListScreenState extends ConsumerState<POListScreen> {
                   if (po.expectedDeliveryDate != null)
                     _buildDetailRow(
                         'Expected Delivery',
-                        DateFormat('dd MMM yyy')
+                        DateFormat('dd MMM yyyy')
                             .format(po.expectedDeliveryDate!)),
                   _buildDetailRow('Total Amount',
                       'Rp ${NumberFormat('#,###').format(po.totalAmount)}'),
                   _buildDetailRow('Shipment Status',
-                      po.shipmentStatus.replaceAll('_', '').toUpperCase()),
+                      po.shipmentStatus.replaceAll('_', ' ').toUpperCase()),
+                  if (po.prNumbers != null && po.prNumbers!.isNotEmpty)
+                    _buildDetailRow('Related PRs', po.prNumbers!.join(', ')),
                   if (po.notes != null && po.notes!.isNotEmpty)
                     _buildDetailRow('Notes', po.notes!),
 
@@ -766,117 +766,4 @@ class _POListScreenState extends ConsumerState<POListScreen> {
       ),
     );
   }
-
-//   Widget _buildFilterCHip(String value, String label, int count) {
-//     final isSelected = _filterStatus == value;
-//     return FilterChip(
-//       label: Row(
-//         mainAxisSize: MainAxisSize.min,
-//         children: [
-//           Text(label),
-//           if (count > 0) ...[
-//             const SizedBox(width: 4),
-//             Container(
-//               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-//               decoration: BoxDecoration(
-//                 color: isSelected ? Colors.white : Colors.blue,
-//                 borderRadius: BorderRadius.circular(10),
-//               ),
-//               child: Text(
-//                 count.toString(),
-//                 style: TextStyle(
-//                   fontSize: 10,
-//                   color: isSelected ? Colors.blue : Colors.white,
-//                   fontWeight: FontWeight.bold,
-//                 ),
-//               ),
-//             )
-//           ]
-//         ],
-//       ),
-//       selected: isSelected,
-//       onSelected: (selected) {
-//         setState(() {
-//           _filterStatus = value;
-//         });
-//       },
-//     );
-//   }
-
-//   void _showPODetail(PurchaseOrderModel po) {
-//     showDialog(
-//         context: context,
-//         builder: (context) => Dialog(
-//               child: ConstrainedBox(
-//                 constraints:
-//                     const BoxConstraints(maxWidth: 600, maxHeight: 600),
-//                 child: Padding(
-//                   padding: const EdgeInsets.all(24),
-//                   child: Column(
-//                     mainAxisSize: MainAxisSize.min,
-//                     crossAxisAlignment: CrossAxisAlignment.start,
-//                     children: [
-//                       Text(
-//                         'PO Detail: ${po.poNumber}',
-//                         style: Theme.of(context).textTheme.titleLarge,
-//                       ),
-//                       const Divider(height: 24),
-//                       Text('Status: ${po.status.toUpperCase()}'),
-//                       Text(
-//                           'Order Date: ${DateFormat('dd MMM yyyy').format(po.orderDate)}'),
-//                       Text(
-//                           'Total: Rp ${NumberFormat('#,###').format(po.totalAmount)}'),
-//                       if (po.notes != null) Text('Notes: ${po.notes}'),
-//                       const SizedBox(height: 16),
-//                       const Text(
-//                         'Items:',
-//                         style: TextStyle(fontWeight: FontWeight.bold),
-//                       ),
-//                       const SizedBox(height: 8),
-//                       Expanded(
-//                         child: ListView.builder(
-//                           shrinkWrap: true,
-//                           itemCount: po.items?.length ?? 0,
-//                           itemBuilder: (context, index) {
-//                             final item = po.items![index];
-//                             return Card(
-//                               margin: const EdgeInsets.only(bottom: 8),
-//                               child: Padding(
-//                                 padding: const EdgeInsets.all(12),
-//                                 child: Column(
-//                                   crossAxisAlignment: CrossAxisAlignment.start,
-//                                   children: [
-//                                     Text(
-//                                       item.itemName,
-//                                       style: const TextStyle(
-//                                           fontWeight: FontWeight.bold),
-//                                     ),
-//                                     Text('Qty: ${item.quantity} ${item.unit}'),
-//                                     Text(
-//                                       'Price: Rp ${NumberFormat('#,###').format(item.subtotal)}',
-//                                       style: const TextStyle(
-//                                           color: Colors.blue,
-//                                           fontWeight: FontWeight.w600),
-//                                     )
-//                                   ],
-//                                 ),
-//                               ),
-//                             );
-//                           },
-//                         ),
-//                       ),
-//                       const SizedBox(height: 16),
-//                       Align(
-//                         alignment: Alignment.centerRight,
-//                         child: TextButton(
-//                           onPressed: () => Navigator.pop(context),
-//                           child: const Text('Close'),
-//                         ),
-//                       )
-//                     ],
-//                   ),
-//                 ),
-//               ),
-//             ));
-//   }
 }
