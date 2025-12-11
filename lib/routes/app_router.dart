@@ -1,4 +1,5 @@
 import 'package:erp_purchasing_apps/presentation/screens/assessment/product_assessment_screen.dart';
+import 'package:erp_purchasing_apps/presentation/screens/assessment/supplier_assessment_screen.dart';
 import 'package:erp_purchasing_apps/presentation/screens/asset/asset_list_screen.dart';
 import 'package:erp_purchasing_apps/presentation/screens/dashboard/dashboard2_screen.dart';
 import 'package:erp_purchasing_apps/presentation/screens/inventory/inventory_list_screen.dart';
@@ -90,6 +91,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/assessment-product',
         builder: (context, state) => const ProductAssessmentScreen(),
+      ),
+      GoRoute(
+        path: '/assessment-supplier',
+        builder: (context, state) => const SupplierAssessmentScreen(),
       ),
       GoRoute(
         path: '/pr-history',

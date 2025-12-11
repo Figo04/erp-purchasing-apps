@@ -18,15 +18,19 @@ final selectedSupplierProvider = StateProvider<SupplierModel?>((ref) => null);
 // Supplier Search Query Provider
 final supplierSearchQueryProvider = StateProvider<String>((ref) => '');
 
+// Active/Inactive Filter State
+final supplierActiveFilterProvider = StateProvider<bool?>((ref) => true);
+
 // Filterd Suppliers Provider
 final filteredSuppliersProvider =
     FutureProvider<List<SupplierModel>>((ref) async {
   final repo = ref.watch(supplierRepositoryProvider);
   final searchQuery = ref.watch(supplierSearchQueryProvider);
+  final activeFilter = ref.watch(supplierActiveFilterProvider);
 
   return await repo.getAllSuppliers(
     search: searchQuery.isEmpty ? null : searchQuery,
-    isActive: true,
+    isActive: activeFilter,
   );
 });
 
@@ -44,7 +48,16 @@ class SupplierNotifier extends StateNotifier<AsyncValue<List<SupplierModel>>> {
   Future<void> loadSuppliers() async {
     try {
       state = const AsyncValue.loading();
-      final suppliers = await _repository.getAllSuppliers(isActive: true);
+
+      // READ filters from providers
+      final searchQuery = ref.read(supplierSearchQueryProvider);
+      final activeFilter = ref.read(supplierActiveFilterProvider);
+
+      final suppliers = await _repository.getAllSuppliers(
+        search: searchQuery.isEmpty ? null : searchQuery,
+        isActive: activeFilter, // ✅ Dynamic!
+      );
+
       state = AsyncValue.data(suppliers);
     } catch (e, stackTrace) {
       state = AsyncValue.error(e, stackTrace);
@@ -90,7 +103,15 @@ class SupplierNotifier extends StateNotifier<AsyncValue<List<SupplierModel>>> {
   Future<void> searchSuppliers(String query) async {
     try {
       state = const AsyncValue.loading();
-      final suppliers = await _repository.searchSuppliers(query);
+
+      // ✅ Also read active filter when searching
+      final activeFilter = ref.read(supplierActiveFilterProvider);
+
+      final suppliers = await _repository.getAllSuppliers(
+        search: query.isEmpty ? null : query,
+        isActive: activeFilter, // ✅ Respect filter saat search
+      );
+
       state = AsyncValue.data(suppliers);
     } catch (e, stackTrace) {
       state = AsyncValue.error(e, stackTrace);

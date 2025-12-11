@@ -249,9 +249,9 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
                         loading: () => const SizedBox.shrink(),
                         error: (_, __) => const SizedBox.shrink(),
                       ),
-                      
+
                       const SizedBox(width: 8),
-                      
+
                       // Supplier Filters
                       suppliersAsync.when(
                         data: (suppliers) {
@@ -296,13 +296,16 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
                         loading: () => const SizedBox.shrink(),
                         error: (_, __) => const SizedBox.shrink(),
                       ),
-                      
+
                       const SizedBox(width: 8),
                       FilterChip(
                         label: const Text('Inactive Only'),
                         selected: _showInactiveOnly,
                         onSelected: (selected) {
                           setState(() => _showInactiveOnly = selected);
+
+                          ref.read(productActiveFilterProvider.notifier).state =
+                              selected ? false : true;
                         },
                         avatar: Icon(
                           _showInactiveOnly
@@ -517,7 +520,7 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
                                     ),
                                   ),
                                 ),
-                                
+
                                 // Product Name
                                 DataCell(
                                   Column(
@@ -544,7 +547,7 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
                                     ],
                                   ),
                                 ),
-                                
+
                                 // Category
                                 DataCell(
                                   Container(
@@ -566,11 +569,12 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
                                     ),
                                   ),
                                 ),
-                                
+
                                 // Supplier
                                 DataCell(
                                   Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     mainAxisAlignment: MainAxisAlignment.center,
                                     children: [
                                       Text(
@@ -591,7 +595,7 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
                                     ],
                                   ),
                                 ),
-                                
+
                                 // Unit Price
                                 DataCell(
                                   Container(
@@ -613,7 +617,7 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
                                     ),
                                   ),
                                 ),
-                                
+
                                 // Unit
                                 DataCell(
                                   Text(
@@ -624,7 +628,7 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
                                     ),
                                   ),
                                 ),
-                                
+
                                 // Status
                                 DataCell(
                                   Container(
@@ -667,7 +671,7 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
                                     ),
                                   ),
                                 ),
-                                
+
                                 // Actions
                                 DataCell(
                                   Row(

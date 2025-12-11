@@ -1,11 +1,12 @@
 import 'package:equatable/equatable.dart';
 
-/// Purchase Requisition Model 
+/// Purchase Requisition Model
 class PurchaseRequisitionModel extends Equatable {
   final String id;
   final String prNumber;
   final String divisionId;
   final String? divisionName;
+  final String? divisionCode;
   final String processingType; // material, aset, logistik
   final String requesterId;
   final String? requesterName;
@@ -24,6 +25,7 @@ class PurchaseRequisitionModel extends Equatable {
     required this.id,
     required this.prNumber,
     required this.divisionId,
+    this.divisionCode,
     this.divisionName,
     required this.processingType,
     required this.requesterId,
@@ -45,6 +47,7 @@ class PurchaseRequisitionModel extends Equatable {
       id: json['id'] as String,
       prNumber: json['pr_number'] as String,
       divisionId: json['division_id'] as String,
+      divisionCode: json['division_code'] as String?,
       divisionName: json['division_name'] as String?,
       processingType: json['processing_type'] as String,
       requesterId: json['requester_id'] as String,
@@ -101,6 +104,7 @@ class PurchaseRequisitionModel extends Equatable {
         id,
         prNumber,
         divisionId,
+        divisionCode,
         processingType,
         requesterId,
         year,
@@ -119,17 +123,17 @@ class PurchaseRequisitionModel extends Equatable {
 class PRItemModel extends Equatable {
   final String id;
   final String prId;
-  final String productId;          // ✅ WAJIB (tidak boleh null)
+  final String productId; // ✅ WAJIB (tidak boleh null)
   final String productCode;
   final String itemName;
   final String categoryId;
   final String categoryName;
-  final String supplierId;         // ✅ NEW
-  final String supplierName;       // ✅ NEW
+  final String supplierId; // ✅ NEW
+  final String supplierName; // ✅ NEW
   final int quantity;
   final String unit;
-  final double unitPrice;          // ✅ CHANGED (dari estimated_price)
-  final double subtotal;           // ✅ NEW (auto-calculated: qty * price)
+  final double unitPrice; // ✅ CHANGED (dari estimated_price)
+  final double subtotal; // ✅ NEW (auto-calculated: qty * price)
   final String? notes;
   final DateTime createdAt;
 
@@ -232,8 +236,8 @@ class CreatePRRequest {
 
 /// ✅ SIMPLIFIED: Create PR Item Request (Only product_id & quantity)
 class CreatePRItemRequest {
-  final String productId;  // ✅ WAJIB
-  final int quantity;      // ✅ WAJIB
+  final String productId; // ✅ WAJIB
+  final int quantity; // ✅ WAJIB
   final String? notes;
 
   const CreatePRItemRequest({
@@ -271,8 +275,8 @@ class UpdatePRRequest {
 
 /// ✅ SIMPLIFIED: Update PR Item Request
 class UpdatePRItemRequest {
-  final String productId;  // ✅ WAJIB
-  final int quantity;      // ✅ WAJIB
+  final String productId; // ✅ WAJIB
+  final int quantity; // ✅ WAJIB
   final String? notes;
 
   const UpdatePRItemRequest({

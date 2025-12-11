@@ -206,23 +206,69 @@ class _PrApprovalScreenState extends ConsumerState<PRApprovalScreen> {
                 var pendingPRs =
                     prs.where((pr) => pr.status == 'pending').toList();
 
+                // ✅ DEBUG: Print untuk cek data (HAPUS SETELAH TESTING)
+                if (pendingPRs.isNotEmpty && _selectedDivision != null) {
+                  print('=== FILTER DEBUG ===');
+                  print('Selected Division: $_selectedDivision');
+                  print('Sample PR Data:');
+                  pendingPRs.take(3).forEach((pr) {
+                    print('  PR: ${pr.prNumber}');
+                    print('    - divisionId: ${pr.divisionId}');
+                    print('    - divisionCode: ${pr.divisionCode}');
+                    print('    - divisionName: ${pr.divisionName}');
+                  });
+                }
+
+                // ✅ FIXED: Apply division filter using divisionCode
+                if (_selectedDivision != null) {
+                  pendingPRs = pendingPRs.where((pr) {
+                    // Gunakan divisionCode jika ada, fallback ke divisionName matching
+                    final divisionCode = pr.divisionCode;
+
+                    if (divisionCode != null && divisionCode.isNotEmpty) {
+                      // Jika divisionCode ada, gunakan itu
+                      return divisionCode == _selectedDivision;
+                    } else {
+                      // Fallback: match berdasarkan divisionName
+                      // Karena dropdown value adalah code (100, 200, dll)
+                      // tapi backend mungkin return name
+                      final nameToCodeMap = {
+                        'Motor': '100',
+                        'Injection': '200',
+                        'Stamping': '300',
+                        'PD': '500',
+                        'Tooling': '600',
+                        'Machining': '700',
+                        'Lumina': '800',
+                        'LED': '810',
+                        'Sales': '900',
+                        'Admin': '910',
+                      };
+
+                      final divisionName = pr.divisionName ?? '';
+                      final matchedCode = nameToCodeMap[divisionName];
+                      return matchedCode == _selectedDivision;
+                    }
+                  }).toList();
+
+                  // ✅ DEBUG: Print hasil filter (HAPUS SETELAH TESTING)
+                  print('After filter: ${pendingPRs.length} PRs found');
+                }
+
                 // Apply search filter
                 if (_searchQuery.isNotEmpty) {
                   pendingPRs = pendingPRs.where((pr) {
-                    return pr.prNumber.toLowerCase().contains(_searchQuery) ||
-                        (pr.divisionName
-                                ?.toLowerCase()
-                                .contains(_searchQuery) ??
-                            false) ||
-                        pr.processingType.toLowerCase().contains(_searchQuery);
-                  }).toList();
-                }
+                    final prNumber = pr.prNumber.toLowerCase();
+                    final divisionName = (pr.divisionName ?? '').toLowerCase();
+                    final divisionCode =
+                        (pr.divisionCode ?? pr.divisionId).toLowerCase();
+                    final processingType = pr.processingType.toLowerCase();
 
-                // Apply division filter
-                if (_selectedDivision != null) {
-                  pendingPRs = pendingPRs
-                      .where((pr) => pr.divisionId == _selectedDivision)
-                      .toList();
+                    return prNumber.contains(_searchQuery) ||
+                        divisionName.contains(_searchQuery) ||
+                        divisionCode.contains(_searchQuery) ||
+                        processingType.contains(_searchQuery);
+                  }).toList();
                 }
 
                 // Sort data
@@ -256,7 +302,9 @@ class _PrApprovalScreenState extends ConsumerState<PRApprovalScreen> {
                         ),
                         const SizedBox(height: 8),
                         Text(
-                          'All PRs have been processed',
+                          _selectedDivision != null
+                              ? 'No pending PRs for selected division'
+                              : 'All PRs have been processed',
                           style: TextStyle(
                               fontSize: 14, color: Colors.grey.shade600),
                         ),
@@ -273,7 +321,7 @@ class _PrApprovalScreenState extends ConsumerState<PRApprovalScreen> {
                     padding: const EdgeInsets.all(16),
                     gridDelegate:
                         const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 2, // 2 cards per row for desktop
+                      crossAxisCount: 2,
                       childAspectRatio: 1.6,
                       crossAxisSpacing: 16,
                       mainAxisSpacing: 16,

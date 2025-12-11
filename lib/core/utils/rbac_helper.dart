@@ -31,6 +31,9 @@ class RBACHelper {
     // Assessment Product - Admin, Kadiv
     'assessment_product': ['admin', 'kadiv'],
 
+    // Assessment Supplier - Admin, Kadiv
+    'assessment_supplier': ['admin', 'kadiv'],
+
     // Master Product - Admin, Kadiv
     'master_product': [
       'admin',

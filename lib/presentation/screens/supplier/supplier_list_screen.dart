@@ -15,7 +15,7 @@ class SupplierListScreen extends ConsumerStatefulWidget {
 
 class _SupplierListScreenState extends ConsumerState<SupplierListScreen> {
   final _searchController = TextEditingController();
-  bool _showInactiveOnly = false;
+  bool? _showInactiveOnly = false;
 
   @override
   void dispose() {
@@ -308,18 +308,60 @@ class _SupplierListScreenState extends ConsumerState<SupplierListScreen> {
                 // Filter Chip
                 Align(
                   alignment: Alignment.centerLeft,
-                  child: FilterChip(
-                    label: const Text('Inactive Only'),
-                    selected: _showInactiveOnly,
-                    onSelected: (selected) {
-                      setState(() => _showInactiveOnly = selected);
-                    },
-                    avatar: Icon(
-                      _showInactiveOnly
-                          ? Icons.check_circle
-                          : Icons.circle_outlined,
-                      size: 16,
-                    ),
+                  child: Wrap(
+                    spacing: 8,
+                    children: [
+                      FilterChip(
+                        label: const Text('Show All'),
+                        selected: _showInactiveOnly == null,
+                        onSelected: (selected) {
+                          setState(() => _showInactiveOnly = null);
+                          ref
+                              .read(supplierActiveFilterProvider.notifier)
+                              .state = null;
+                        },
+                        avatar: Icon(
+                          _showInactiveOnly == null
+                              ? Icons.check_circle
+                              : Icons.circle_outlined,
+                          size: 16,
+                        ),
+                      ),
+                      FilterChip(
+                        label: const Text('Active Only'),
+                        selected: _showInactiveOnly == false,
+                        onSelected: (selected) {
+                          setState(() => _showInactiveOnly = false);
+
+                          ref
+                              .read(supplierActiveFilterProvider.notifier)
+                              .state = true;
+                        },
+                        avatar: Icon(
+                          _showInactiveOnly == false
+                              ? Icons.check_circle
+                              : Icons.circle_outlined,
+                          size: 16,
+                        ),
+                      ),
+                      FilterChip(
+                        label: const Text('Inactive Only'),
+                        selected: _showInactiveOnly == true,
+                        onSelected: (selected) {
+                          setState(() => _showInactiveOnly = true);
+
+                          ref
+                              .read(supplierActiveFilterProvider.notifier)
+                              .state = false;
+                        },
+                        avatar: Icon(
+                          _showInactiveOnly == true
+                              ? Icons.check_circle
+                              : Icons.circle_outlined,
+                          size: 16,
+                        ),
+                      ),
+                    ],
                   ),
                 )
               ],
@@ -332,32 +374,20 @@ class _SupplierListScreenState extends ConsumerState<SupplierListScreen> {
           Expanded(
             child: suppliersState.when(
               data: (suppliers) {
-                // Apply filters
+                // Apply ONLY client-side filters (search only)
                 var filteredSuppliers = suppliers;
-
-                if (_showInactiveOnly) {
-                  filteredSuppliers =
-                      filteredSuppliers.where((s) => !s.isActive).toList();
-                }
 
                 if (filteredSuppliers.isEmpty) {
                   return Center(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(
-                          Icons.business_outlined,
-                          size: 64,
-                          color: Colors.grey.shade400,
-                        ),
+                        Icon(Icons.business_outlined,
+                            size: 64, color: Colors.grey.shade400),
                         const SizedBox(height: 16),
-                        Text(
-                          'No suppliers found',
-                          style: TextStyle(
-                            fontSize: 16,
-                            color: Colors.grey.shade600,
-                          ),
-                        )
+                        Text('No suppliers found',
+                            style: TextStyle(
+                                fontSize: 16, color: Colors.grey.shade600)),
                       ],
                     ),
                   );

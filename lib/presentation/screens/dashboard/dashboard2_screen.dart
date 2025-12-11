@@ -20,19 +20,19 @@ class DashboardScreen2 extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final currentUser = ref.watch(currentUserProvider);
     final userRole = currentUser?.role?.toLowerCase();
-    
+
     // ✅ ONLY watch providers if user has permission
     final pendingCount = ref.watch(pendingPRCountProvider);
-    
+
     // ✅ Conditional watching based on role
     final lowStockCount = RBACHelper.canAccessMenu(userRole, 'inventory')
         ? ref.watch(lowStockCountProvider)
         : const AsyncValue.data(0);
-        
+
     final borrowedAssetsCount = RBACHelper.canAccessMenu(userRole, 'asset')
         ? ref.watch(borrowedAssetsCountProvider)
         : const AsyncValue.data(0);
-        
+
     final overduePaymentsCount = RBACHelper.canAccessMenu(userRole, 'payment')
         ? ref.watch(overduePaymentsCountProvider)
         : const AsyncValue.data(0);
@@ -210,6 +210,14 @@ class DashboardScreen2 extends ConsumerWidget {
                             Icons.approval,
                             'Assessment Product',
                             () => context.go('/assessment-product')),
+
+                      if (RBACHelper.canAccessMenu(
+                          currentUser?.role, 'assessment_supplier'))
+                        _buildSideMenuItem(
+                            context,
+                            Icons.approval,
+                            'Assessment Supplier',
+                            () => context.go('/assessment-supplier')),
 
                       // Receipt - Admin, Warehouse, Purchasing
                       if (RBACHelper.canAccessMenu(

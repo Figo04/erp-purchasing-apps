@@ -27,6 +27,9 @@ final productSupplierFilterProvider = StateProvider<String?>((ref) => null);
 /// Selected Product (for detail view)
 final selectedProductProvider = StateProvider<ProductModel?>((ref) => null);
 
+/// ✅ NEW: Active/Inactive filter state
+final productActiveFilterProvider = StateProvider<bool?>((ref) => true);
+
 // ============================================
 // MAIN PRODUCT NOTIFIER (AsyncNotifier)
 // ============================================
@@ -37,7 +40,8 @@ class ProductNotifier extends AsyncNotifier<List<ProductModel>> {
     // Watch filters - auto rebuild when changed
     final searchQuery = ref.watch(productSearchQueryProvider);
     final categoryFilter = ref.watch(productCategoryFilterProvider);
-    final supplierFilter = ref.watch(productSupplierFilterProvider); // ✅ NEW
+    final supplierFilter = ref.watch(productSupplierFilterProvider); 
+    final activeFilter = ref.watch(productActiveFilterProvider);
 
     // Fetch with filters applied
     final repo = ref.read(productRepositoryProvider);
@@ -45,7 +49,7 @@ class ProductNotifier extends AsyncNotifier<List<ProductModel>> {
       search: searchQuery.isEmpty ? null : searchQuery,
       categoryId: categoryFilter,
       supplierId: supplierFilter, // ✅ NEW
-      isActive: true,
+      isActive: activeFilter,
     );
 
     return products;
@@ -109,13 +113,14 @@ final filteredProductsProvider =
   final repo = ref.read(productRepositoryProvider);
   final searchQuery = ref.watch(productSearchQueryProvider);
   final categoryFilter = ref.watch(productCategoryFilterProvider);
-  final supplierFilter = ref.watch(productSupplierFilterProvider); // ✅ NEW
+  final supplierFilter = ref.watch(productSupplierFilterProvider); 
+  final activeFilter = ref.watch(productActiveFilterProvider);
 
   final products = await repo.getAllProducts(
     search: searchQuery.isEmpty ? null : searchQuery,
     categoryId: categoryFilter,
     supplierId: supplierFilter, // ✅ NEW
-    isActive: true,
+    isActive: activeFilter,
   );
 
   return products;
