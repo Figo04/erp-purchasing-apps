@@ -18,8 +18,8 @@ class AssetModel extends Equatable {
   final String? notes;
   final DateTime createdAt;
   final DateTime updatedAt;
-  
-  // ✅ BEACUKAI FIELDS (NEW)
+
+  // BEACUKAI FIELDS 
   final String? beacukaiDoc;
   final DateTime? beacukaiTgl;
   final String? beacukaiNo;
@@ -75,7 +75,7 @@ class AssetModel extends Equatable {
       notes: json['notes'] as String?,
       createdAt: DateTime.parse(json['created_at'] as String),
       updatedAt: DateTime.parse(json['updated_at'] as String),
-      // ✅ BEACUKAI FIELDS
+
       beacukaiDoc: json['beacukai_doc'] as String?,
       beacukaiTgl: json['beacukai_tgl'] != null
           ? DateTime.parse(json['beacukai_tgl'] as String)
@@ -159,6 +159,9 @@ class AssetModel extends Equatable {
   /// Helper: Check if has beacukai
   bool get hasBeacukai => beacukaiNo != null && beacukaiNo!.isNotEmpty;
 
+  /// Helper: Check if asset category is pending
+  bool get isPending => assetCategory == 'pending';
+
   /// Helper: Category display name
   String get categoryDisplayName {
     switch (assetCategory) {
@@ -168,6 +171,8 @@ class AssetModel extends Equatable {
         return 'Loanable';
       case 'saleable':
         return 'Saleable';
+      case 'pending':
+        return 'Pending Classification';
       default:
         return assetCategory;
     }

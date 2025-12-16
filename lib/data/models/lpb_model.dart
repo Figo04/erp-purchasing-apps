@@ -18,7 +18,7 @@ class LPBModel extends Equatable {
   final String paymentStatus; // unpaid, pending, paid, partial
   final String? paymentId;
 
-  // ✅ BEACUKAI FIELDS (NEW)
+  //  BEACUKAI FIELDS 
   final String? beacukaiDoc;
   final DateTime? beacukaiTgl;
   final String? beacukaiNo;
@@ -78,7 +78,7 @@ class LPBModel extends Equatable {
           : null,
       paymentStatus: json['payment_status'] as String? ?? 'unpaid',
       paymentId: json['payment_id'] as String?,
-      // ✅ BEACUKAI FIELDS
+    
       beacukaiDoc: json['beacukai_doc'] as String?,
       beacukaiTgl: json['beacukai_tgl'] != null
           ? DateTime.parse(json['beacukai_tgl'] as String)
@@ -218,7 +218,6 @@ class LPBItemModel extends Equatable {
   final String? notes;
   final DateTime createdAt;
 
-  // ✅ BEACUKAI FIELDS PER ITEM (NEW)
   final String? beacukaiDoc;
   final DateTime? beacukaiTgl;
   final String? beacukaiNo;
@@ -262,7 +261,7 @@ class LPBItemModel extends Equatable {
       unit: json['unit'] as String? ?? 'pcs',
       notes: json['notes'] as String?,
       createdAt: DateTime.parse(json['created_at'] as String),
-      // ✅ BEACUKAI FIELDS
+
       beacukaiDoc: json['beacukai_doc'] as String?,
       beacukaiTgl: json['beacukai_tgl'] != null
           ? DateTime.parse(json['beacukai_tgl'] as String)
@@ -282,7 +281,7 @@ class LPBItemModel extends Equatable {
       'po_item_id': poItemId,
       'quantity_received': quantityReceived,
       'notes': notes,
-      // ✅ BEACUKAI FIELDS
+
       'beacukai_doc': beacukaiDoc,
       'beacukai_tgl': beacukaiTgl != null
           ? beacukaiTgl!.toIso8601String()

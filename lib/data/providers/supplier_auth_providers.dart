@@ -23,22 +23,22 @@ class SupplierAuthNotifier extends StateNotifier<AsyncValue<SupplierModel?>> {
 
   SupplierAuthNotifier(this.ref) : super(const AsyncValue.data(null));
 
-  // // ✅ Check session aktif untuk auto-login
+  // //  Check session aktif untuk auto-login
   // Future<void> _checkCurrentSession() async {
   //   try {
-  //     print('🔍 Checking for active session...');
+  //     print(' Checking for active session...');
   //     final repo = ref.read(supplierAuthRepositoryProvider);
   //     final supplier = await repo.getCurrentSupplier();
 
   //     if (supplier != null) {
-  //       print('✅ Found active session: ${supplier.name}');
+  //       print('Found active session: ${supplier.name}');
   //       ref.read(currentSupplierProvider.notifier).state = supplier;
   //       state = AsyncValue.data(supplier);
   //     } else {
-  //       print('ℹ️ No active session');
+  //       print(' No active session');
   //     }
   //   } catch (e) {
-  //     print('⚠️ Session check failed: $e');
+  //     print(' Session check failed: $e');
   //     // Don't set error state, just continue
   //   }
   // }
@@ -52,20 +52,20 @@ class SupplierAuthNotifier extends StateNotifier<AsyncValue<SupplierModel?>> {
       final supplier = await repo.signIn(email: email, password: password);
 
       if (supplier != null) {
-        print('✅ SupplierAuthNotifier: Sign in success');
+        print(' SupplierAuthNotifier: Sign in success');
 
-        // ✅ Update both providers
+        // Update both providers
         ref.read(currentSupplierProvider.notifier).state = supplier;
         state = AsyncValue.data(supplier);
 
-        print('✅ Providers updated with supplier: ${supplier.name}');
+        print(' Providers updated with supplier: ${supplier.name}');
       } else {
         throw Exception('Login gagal: supplier tidak ditemukan');
       }
     } catch (e, st) {
-      print('❌ SupplierAuthNotifier: Sign in failed - $e');
+      print(' SupplierAuthNotifier: Sign in failed - $e');
       state = AsyncValue.error(e, st);
-      rethrow; // ✅ Penting: throw lagi supaya UI bisa catch error
+      rethrow; // throw lagi supaya UI bisa catch error
     }
   }
 
@@ -81,7 +81,7 @@ class SupplierAuthNotifier extends StateNotifier<AsyncValue<SupplierModel?>> {
 
       print('✅ SupplierAuthNotifier: Sign out complete');
     } catch (e, st) {
-      print('❌ SupplierAuthNotifier: Sign out failed - $e');
+      print('SupplierAuthNotifier: Sign out failed - $e');
       state = AsyncValue.error(e, st);
     }
   }

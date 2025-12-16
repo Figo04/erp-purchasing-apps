@@ -356,30 +356,31 @@ class _LPBListScreenState extends ConsumerState<LPBListScreen> {
       padding: const EdgeInsets.all(16),
       child: Column(
         children: [
-          // Search Bar & Scan Button
+          // Filter Chips & Beacukai Search Button
           Row(
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Expanded(
-                child: SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Row(
-                    children: [
-                      _buildFilterChip('all', 'All', lpbState.lpbs.length),
-                      const SizedBox(width: 8),
-                      _buildFilterChip(
-                          'draft', 'Draft', ref.watch(draftLPBsCountProvider)),
-                      const SizedBox(width: 8),
-                      _buildFilterChip('completed', 'Completed',
-                          ref.watch(completedLPBsCountProvider)),
-                      const SizedBox(width: 8),
-                      _buildFilterChip('unpaid', 'Unpaid',
-                          ref.watch(unpaidLPBsCountProvider)),
-                    ],
-                  ),
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _buildFilterChip('all', 'All', lpbState.lpbs.length),
+                    const SizedBox(width: 8),
+                    _buildFilterChip(
+                        'draft', 'Draft', ref.watch(draftLPBsCountProvider)),
+                    const SizedBox(width: 8),
+                    _buildFilterChip('completed', 'Completed',
+                        ref.watch(completedLPBsCountProvider)),
+                    const SizedBox(width: 8),
+                    _buildFilterChip(
+                        'unpaid', 'Unpaid', ref.watch(unpaidLPBsCountProvider)),
+                  ],
                 ),
               ),
+
               const SizedBox(width: 12),
-              // ✅ BEACUKAI SEARCH BUTTON (NEW)
+              // Beacukai Search Button
               OutlinedButton.icon(
                 onPressed: () {
                   setState(() => _showBeacukaiSearch = !_showBeacukaiSearch);
@@ -399,38 +400,6 @@ class _LPBListScreenState extends ConsumerState<LPBListScreen> {
             ],
           ),
           const SizedBox(height: 12),
-
-          // Filter Chips
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              children: [
-                _buildFilterChip(
-                  'all',
-                  'All',
-                  lpbState.lpbs.length,
-                ),
-                const SizedBox(width: 8),
-                _buildFilterChip(
-                  'draft',
-                  'Draft',
-                  ref.watch(draftLPBsCountProvider),
-                ),
-                const SizedBox(width: 8),
-                _buildFilterChip(
-                  'completed',
-                  'Completed',
-                  ref.watch(completedLPBsCountProvider),
-                ),
-                const SizedBox(width: 8),
-                _buildFilterChip(
-                  'unpaid',
-                  'Unpaid',
-                  ref.watch(unpaidLPBsCountProvider),
-                ),
-              ],
-            ),
-          ),
 
           if (_showBeacukaiSearch) ...[
             const SizedBox(height: 16),

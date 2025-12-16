@@ -22,6 +22,7 @@ class ApiEndpoints {
   static const String products = '/products';
   static String productById(String id) => '/products/$id';
   static String productsBySupplier(String supplierId) => '/products/supplier/$supplierId';
+  static const String checkProductName = '/products/check-name';
 
   /// Suppliers
   static const String suppliers = '/suppliers';

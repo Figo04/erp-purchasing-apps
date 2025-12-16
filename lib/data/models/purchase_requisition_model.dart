@@ -93,7 +93,7 @@ class PurchaseRequisitionModel extends Equatable {
     };
   }
 
-  /// ✅ CHANGED: Calculate total from unit_price (not estimated_price)
+  /// Calculate total from unit_price
   double get totalEstimated {
     if (items == null || items!.isEmpty) return 0;
     return items!.fold(0, (sum, item) => sum + item.subtotal);
@@ -119,21 +119,21 @@ class PurchaseRequisitionModel extends Equatable {
       ];
 }
 
-/// ✅ UPDATED: PR Item Model with supplier info & unit_price
+/// PR Item Model with supplier info & unit_price
 class PRItemModel extends Equatable {
   final String id;
   final String prId;
-  final String productId; // ✅ WAJIB (tidak boleh null)
+  final String productId; 
   final String productCode;
   final String itemName;
   final String categoryId;
   final String categoryName;
-  final String supplierId; // ✅ NEW
-  final String supplierName; // ✅ NEW
+  final String supplierId; 
+  final String supplierName; 
   final int quantity;
   final String unit;
-  final double unitPrice; // ✅ CHANGED (dari estimated_price)
-  final double subtotal; // ✅ NEW (auto-calculated: qty * price)
+  final double unitPrice; 
+  final double subtotal;
   final String? notes;
   final DateTime createdAt;
 
@@ -234,10 +234,9 @@ class CreatePRRequest {
   }
 }
 
-/// ✅ SIMPLIFIED: Create PR Item Request (Only product_id & quantity)
 class CreatePRItemRequest {
-  final String productId; // ✅ WAJIB
-  final int quantity; // ✅ WAJIB
+  final String productId; 
+  final int quantity; 
   final String? notes;
 
   const CreatePRItemRequest({
@@ -255,7 +254,6 @@ class CreatePRItemRequest {
   }
 }
 
-/// ✅ SIMPLIFIED: Update PR Request
 class UpdatePRRequest {
   final List<UpdatePRItemRequest> items;
   final String? notes;
@@ -273,10 +271,9 @@ class UpdatePRRequest {
   }
 }
 
-/// ✅ SIMPLIFIED: Update PR Item Request
 class UpdatePRItemRequest {
-  final String productId; // ✅ WAJIB
-  final int quantity; // ✅ WAJIB
+  final String productId; 
+  final int quantity; 
   final String? notes;
 
   const UpdatePRItemRequest({

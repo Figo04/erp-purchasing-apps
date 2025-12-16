@@ -16,8 +16,6 @@ class ShipmentModel extends Equatable {
   final DateTime updatedAt;
   final String? invoiceNumber;
   final double? invoiceAmount;
-
-  // ✅ BEACUKAI FIELDS (NEW)
   final String? beacukaiDoc;
   final DateTime? beacukaiTgl;
   final String? beacukaiNo;
@@ -91,7 +89,6 @@ class ShipmentModel extends Equatable {
       'invoice_number': invoiceNumber,
       'invoice_amount': invoiceAmount,
       'notes': notes,
-      // ✅ BEACUKAI FIELDS
       'beacukai_doc': beacukaiDoc,
       'beacukai_tgl': beacukaiTgl?.toIso8601String(),
       'beacukai_no': beacukaiNo,

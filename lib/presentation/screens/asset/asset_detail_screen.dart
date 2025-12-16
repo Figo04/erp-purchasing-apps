@@ -6,8 +6,6 @@ import 'package:erp_purchasing_apps/data/providers/user_provider.dart';
 import 'package:erp_purchasing_apps/data/providers/auth_providers.dart';
 import 'package:intl/intl.dart';
 
-/// Asset Detail Screen - Updated for Golang Backend (SIMPLIFIED)
-/// Path: lib/presentation/screens/asset/asset_detail_screen.dart
 class AssetDetailScreen extends ConsumerWidget {
   final String assetId;
 
@@ -21,6 +19,8 @@ class AssetDetailScreen extends ConsumerWidget {
         return Colors.purple;
       case 'saleable':
         return Colors.green;
+      case 'pending':
+        return Colors.amber;
       default:
         return Colors.grey;
     }
@@ -49,6 +49,8 @@ class AssetDetailScreen extends ConsumerWidget {
         return Icons.devices;
       case 'saleable':
         return Icons.shopping_bag;
+      case 'pending':
+        return Icons.help_outline;
       default:
         return Icons.category;
     }
@@ -69,6 +71,16 @@ class AssetDetailScreen extends ConsumerWidget {
             PopupMenuButton(
               itemBuilder: (context) => [
                 const PopupMenuItem(
+                  value: 'edit',
+                  child: Row(
+                    children: [
+                      Icon(Icons.edit, color: Colors.blue),
+                      SizedBox(width: 8),
+                      Text('Edit Asset'),
+                    ],
+                  ),
+                ),
+                const PopupMenuItem(
                   value: 'delete',
                   child: Row(
                     children: [
@@ -80,7 +92,9 @@ class AssetDetailScreen extends ConsumerWidget {
                 )
               ],
               onSelected: (value) {
-                if (value == 'delete') {
+                if (value == 'edit' && assetAsync.value != null) {
+                  _showEditDialog(context, ref, assetAsync.value!);
+                } else if (value == 'delete' && assetAsync.value != null) {
                   _confirmDelete(context, ref, assetAsync.value!);
                 }
               },
@@ -118,6 +132,43 @@ class AssetDetailScreen extends ConsumerWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // ✅ WARNING: Pending Classification
+                  if (asset.isPending)
+                    Card(
+                      color: Colors.amber.shade100,
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Row(
+                          children: [
+                            Icon(Icons.warning_amber_rounded,
+                                color: Colors.amber.shade900, size: 32),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Classification Required',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 16,
+                                      color: Colors.amber.shade900,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  const Text(
+                                    'This asset needs to be classified as Consumable, Loanable, or Saleable.',
+                                    style: TextStyle(fontSize: 13),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  if (asset.isPending) const SizedBox(height: 16),
+
                   // Asset Header Card
                   Card(
                     color:
@@ -160,12 +211,12 @@ class AssetDetailScreen extends ConsumerWidget {
                   ),
                   const SizedBox(height: 16),
 
-                  // Status & Category Row
+                  // STATUS 1 & STATUS 2 Row
                   Row(
                     children: [
                       Expanded(
                         child: _buildInfoCard(
-                          'Category',
+                          'Category (Status 1)',
                           asset.categoryDisplayName,
                           _getCategoryColor(asset.assetCategory),
                         ),
@@ -173,7 +224,7 @@ class AssetDetailScreen extends ConsumerWidget {
                       const SizedBox(width: 8),
                       Expanded(
                         child: _buildInfoCard(
-                          'Status',
+                          'Status (Status 2)',
                           asset.statusDisplayName,
                           _getStatusColor(asset.status),
                         ),
@@ -193,15 +244,6 @@ class AssetDetailScreen extends ConsumerWidget {
                         ),
                       ),
                       const SizedBox(width: 8),
-                      Expanded(
-                        child: _buildInfoCard(
-                          'Price',
-                          asset.purchasePrice != null
-                              ? 'Rp ${NumberFormat('#,###').format(asset.purchasePrice)}'
-                              : 'N/A',
-                          Colors.green,
-                        ),
-                      ),
                     ],
                   ),
                   const SizedBox(height: 24),
@@ -280,39 +322,55 @@ class AssetDetailScreen extends ConsumerWidget {
                     Text('Actions',
                         style: Theme.of(context).textTheme.titleMedium),
                     const SizedBox(height: 8),
-                    if (asset.assetCategory == 'loanable') ...[
+
+                    // ✅ PRIORITY: Edit Asset (Always visible)
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        onPressed: () => _showEditDialog(context, ref, asset),
+                        icon: const Icon(Icons.edit),
+                        label: Text(asset.isPending
+                            ? 'Set Classification & Status'
+                            : 'Edit Asset'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor:
+                              asset.isPending ? Colors.amber : Colors.blue,
+                          foregroundColor: Colors.white,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+
+                    if (asset.assetCategory == 'loanable' &&
+                        !asset.isPending) ...[
                       if (asset.isAvailable)
                         SizedBox(
                           width: double.infinity,
-                          child: ElevatedButton.icon(
+                          child: OutlinedButton.icon(
                             onPressed: () =>
                                 _showAssignDialog(context, ref, asset),
                             icon: const Icon(Icons.person_add),
                             label: const Text('Assign to User'),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.blue,
-                              foregroundColor: Colors.white,
-                            ),
                           ),
                         ),
                       if (asset.isBorrowed)
                         SizedBox(
                           width: double.infinity,
-                          child: ElevatedButton.icon(
+                          child: OutlinedButton.icon(
                             onPressed: () =>
                                 _showReturnDialog(context, ref, asset),
                             icon: const Icon(Icons.assignment_return),
                             label: const Text('Return Asset'),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.green,
-                              foregroundColor: Colors.white,
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: Colors.green,
                             ),
                           ),
                         ),
                       const SizedBox(height: 8),
                     ],
                     if (asset.assetCategory == 'consumable' &&
-                        asset.quantity > 0) ...[
+                        asset.quantity > 0 &&
+                        !asset.isPending) ...[
                       SizedBox(
                         width: double.infinity,
                         child: OutlinedButton.icon(
@@ -324,15 +382,6 @@ class AssetDetailScreen extends ConsumerWidget {
                       ),
                       const SizedBox(height: 8),
                     ],
-                    SizedBox(
-                      width: double.infinity,
-                      child: OutlinedButton.icon(
-                        onPressed: () =>
-                            _showStatusChangeDialog(context, ref, asset),
-                        icon: const Icon(Icons.swap_horiz),
-                        label: const Text('Change Status'),
-                      ),
-                    ),
                   ]
                 ],
               ),
@@ -396,6 +445,216 @@ class AssetDetailScreen extends ConsumerWidget {
         ],
       ),
     );
+  }
+
+  // ✅ NEW: EDIT DIALOG - Edit both STATUS 1 & STATUS 2
+  void _showEditDialog(BuildContext context, WidgetRef ref, AssetModel asset) {
+    String selectedCategory = asset.assetCategory;
+    String selectedStatus = asset.status;
+    int selectedQuantity = asset.quantity;
+    final nameController = TextEditingController(text: asset.name);
+    final priceController =
+        TextEditingController(text: asset.purchasePrice?.toString() ?? '');
+    final notesController = TextEditingController(text: asset.notes ?? '');
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          title: Text(
+              asset.isPending ? 'Set Classification & Status' : 'Edit Asset'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Name
+                TextField(
+                  controller: nameController,
+                  decoration: const InputDecoration(
+                    labelText: 'Asset Name',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                // ✅ STATUS 1: Asset Category
+                const Text('Category (Status 1):',
+                    style: TextStyle(fontWeight: FontWeight.bold)),
+                const SizedBox(height: 8),
+                DropdownButtonFormField<String>(
+                  value: selectedCategory,
+                  decoration: InputDecoration(
+                    border: const OutlineInputBorder(),
+                    filled: selectedCategory == 'pending',
+                    fillColor: selectedCategory == 'pending'
+                        ? Colors.amber.shade50
+                        : null,
+                  ),
+                  items: const [
+                    DropdownMenuItem(
+                      value: 'pending',
+                      child: Row(
+                        children: [
+                          Icon(Icons.help_outline, color: Colors.amber),
+                          SizedBox(width: 8),
+                          Text('Pending Classification'),
+                        ],
+                      ),
+                    ),
+                    DropdownMenuItem(
+                      value: 'consumable',
+                      child: Row(
+                        children: [
+                          Icon(Icons.inventory_2, color: Colors.blue),
+                          SizedBox(width: 8),
+                          Text('Consumable'),
+                        ],
+                      ),
+                    ),
+                    DropdownMenuItem(
+                      value: 'loanable',
+                      child: Row(
+                        children: [
+                          Icon(Icons.devices, color: Colors.purple),
+                          SizedBox(width: 8),
+                          Text('Loanable'),
+                        ],
+                      ),
+                    ),
+                    DropdownMenuItem(
+                      value: 'saleable',
+                      child: Row(
+                        children: [
+                          Icon(Icons.shopping_bag, color: Colors.green),
+                          SizedBox(width: 8),
+                          Text('Saleable'),
+                        ],
+                      ),
+                    ),
+                  ],
+                  onChanged: (v) => setState(() => selectedCategory = v!),
+                ),
+                const SizedBox(height: 16),
+
+                // ✅ STATUS 2: Operational Status
+                const Text('Status (Status 2):',
+                    style: TextStyle(fontWeight: FontWeight.bold)),
+                const SizedBox(height: 8),
+                DropdownButtonFormField<String>(
+                  value: selectedStatus,
+                  decoration: const InputDecoration(
+                    border: OutlineInputBorder(),
+                  ),
+                  items: const [
+                    DropdownMenuItem(
+                        value: 'available', child: Text('Available')),
+                    DropdownMenuItem(
+                        value: 'borrowed', child: Text('Borrowed')),
+                    DropdownMenuItem(
+                        value: 'maintenance', child: Text('Maintenance')),
+                    DropdownMenuItem(
+                        value: 'disposed', child: Text('Disposed')),
+                  ],
+                  onChanged: (v) => setState(() => selectedStatus = v!),
+                ),
+                const SizedBox(height: 16),
+
+                // Quantity
+                TextField(
+                  decoration: const InputDecoration(
+                    labelText: 'Quantity',
+                    border: OutlineInputBorder(),
+                  ),
+                  keyboardType: TextInputType.number,
+                  onChanged: (v) {
+                    final val = int.tryParse(v);
+                    if (val != null) selectedQuantity = val;
+                  },
+                  controller: TextEditingController(text: '$selectedQuantity'),
+                ),
+                const SizedBox(height: 16),
+
+                // Notes
+                TextField(
+                  controller: notesController,
+                  decoration: const InputDecoration(
+                    labelText: 'Notes (Optional)',
+                    border: OutlineInputBorder(),
+                  ),
+                  maxLines: 3,
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Cancel')),
+            ElevatedButton(
+              onPressed: () async {
+                if (nameController.text.isEmpty) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Name is required')));
+                  return;
+                }
+
+                Navigator.pop(ctx);
+                await _performUpdate(
+                  context,
+                  ref,
+                  asset.id,
+                  nameController.text,
+                  selectedCategory,
+                  selectedStatus,
+                  selectedQuantity,
+                  double.tryParse(priceController.text),
+                  notesController.text.isEmpty ? null : notesController.text,
+                );
+              },
+              child: const Text('Save'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _performUpdate(
+    BuildContext context,
+    WidgetRef ref,
+    String assetId,
+    String name,
+    String category,
+    String status,
+    int quantity,
+    double? price,
+    String? notes,
+  ) async {
+    _showLoading(context, 'Updating...');
+    try {
+      await ref.read(assetRepositoryProvider).updateAsset(
+            id: assetId,
+            name: name,
+            assetCategory: category,
+            status: status,
+            quantity: quantity,
+            purchasePrice: price,
+            notes: notes,
+          );
+
+      if (!context.mounted) return;
+      Navigator.pop(context);
+      ref.invalidate(assetDetailProvider(assetId));
+      ref.invalidate(filteredAssetListProvider);
+
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('✓ Updated successfully'),
+          backgroundColor: Colors.green));
+    } catch (e) {
+      Navigator.pop(context);
+      _showError(context, e.toString());
+    }
   }
 
   void _showAssignDialog(
@@ -610,83 +869,6 @@ class AssetDetailScreen extends ConsumerWidget {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
           content: Text('✓ Updated successfully'),
           backgroundColor: Colors.green));
-    } catch (e) {
-      Navigator.pop(context);
-      _showError(context, e.toString());
-    }
-  }
-
-  void _showStatusChangeDialog(
-      BuildContext context, WidgetRef ref, AssetModel asset) {
-    String selectedStatus = asset.status;
-    final reasonController = TextEditingController();
-
-    showDialog(
-      context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (context, setState) => AlertDialog(
-          title: const Text('Change Status'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text('Current: ${asset.statusDisplayName}'),
-              const SizedBox(height: 16),
-              DropdownButtonFormField<String>(
-                value: selectedStatus,
-                decoration: const InputDecoration(
-                    labelText: 'New Status', border: OutlineInputBorder()),
-                items: const [
-                  DropdownMenuItem(
-                      value: 'available', child: Text('Available')),
-                  DropdownMenuItem(value: 'borrowed', child: Text('Borrowed')),
-                  DropdownMenuItem(
-                      value: 'maintenance', child: Text('Maintenance')),
-                  DropdownMenuItem(value: 'disposed', child: Text('Disposed')),
-                ],
-                onChanged: (v) => setState(() => selectedStatus = v!),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: reasonController,
-                decoration: const InputDecoration(
-                    labelText: 'Reason (Optional)',
-                    border: OutlineInputBorder()),
-                maxLines: 3,
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-                onPressed: () => Navigator.pop(ctx),
-                child: const Text('Cancel')),
-            ElevatedButton(
-              onPressed: () async {
-                Navigator.pop(ctx);
-                await _performStatusChange(context, ref, asset.id,
-                    selectedStatus, reasonController.text);
-              },
-              child: const Text('Confirm'),
-            )
-          ],
-        ),
-      ),
-    );
-  }
-
-  Future<void> _performStatusChange(BuildContext context, WidgetRef ref,
-      String assetId, String status, String reason) async {
-    _showLoading(context, 'Updating...');
-    try {
-      await ref.read(assetRepositoryProvider).updateStatus(
-          id: assetId, status: status, reason: reason.isEmpty ? null : reason);
-
-      if (!context.mounted) return;
-      Navigator.pop(context);
-      ref.invalidate(assetDetailProvider(assetId));
-      ref.invalidate(filteredAssetListProvider);
-
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('✓ Status updated'), backgroundColor: Colors.green));
     } catch (e) {
       Navigator.pop(context);
       _showError(context, e.toString());

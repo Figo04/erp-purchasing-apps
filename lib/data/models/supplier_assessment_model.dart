@@ -1,5 +1,3 @@
-/// Supplier Assessment Model
-/// Represents supplier assessment request for approval before creating master supplier
 class SupplierAssessmentModel {
   final String id;
   final String supplierName;

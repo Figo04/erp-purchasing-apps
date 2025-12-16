@@ -21,13 +21,13 @@ final productSearchQueryProvider = StateProvider<String>((ref) => '');
 /// Selected Category Filter
 final productCategoryFilterProvider = StateProvider<String?>((ref) => null);
 
-/// ✅ NEW: Selected Supplier Filter
+/// Selected Supplier Filter
 final productSupplierFilterProvider = StateProvider<String?>((ref) => null);
 
 /// Selected Product (for detail view)
 final selectedProductProvider = StateProvider<ProductModel?>((ref) => null);
 
-/// ✅ NEW: Active/Inactive filter state
+/// Active/Inactive filter state
 final productActiveFilterProvider = StateProvider<bool?>((ref) => true);
 
 // ============================================
@@ -48,7 +48,7 @@ class ProductNotifier extends AsyncNotifier<List<ProductModel>> {
     final products = await repo.getAllProducts(
       search: searchQuery.isEmpty ? null : searchQuery,
       categoryId: categoryFilter,
-      supplierId: supplierFilter, // ✅ NEW
+      supplierId: supplierFilter, 
       isActive: activeFilter,
     );
 
@@ -100,7 +100,7 @@ final productListProvider =
   return products;
 });
 
-/// ✅ NEW: Products by Supplier
+/// Products by Supplier
 final productsBySupplierProvider = FutureProvider.autoDispose
     .family<List<ProductModel>, String>((ref, supplierId) async {
   final repo = ref.read(productRepositoryProvider);
@@ -119,7 +119,7 @@ final filteredProductsProvider =
   final products = await repo.getAllProducts(
     search: searchQuery.isEmpty ? null : searchQuery,
     categoryId: categoryFilter,
-    supplierId: supplierFilter, // ✅ NEW
+    supplierId: supplierFilter, 
     isActive: activeFilter,
   );
 

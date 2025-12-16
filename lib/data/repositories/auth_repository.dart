@@ -41,9 +41,9 @@ class AuthRepository {
       // Save token to secure strage
       await _apiService.saveToken(response.data!.token);
 
-      print('✅ AuthRepository: Login successful');
-      print('👤 User: ${response.data!.user.email}');
-      print('🔑 Role: ${response.data!.user.role}');
+      print('AuthRepository: Login successful');
+      print('User: ${response.data!.user.email}');
+      print('Role: ${response.data!.user.role}');
 
       return response.data!;
     } catch (e) {
@@ -56,11 +56,11 @@ class AuthRepository {
   // Removes stored token
   Future<void> signOut() async {
     try {
-      print('🔵 AuthRepository: Logging out...');
+      print(' AuthRepository: Logging out...');
       await _apiService.removeToken();
-      print('✅ AuthRepository: Logout successful');
+      print('AuthRepository: Logout successful');
     } catch (e) {
-      print('❌ AuthRepository: Logout failed - $e');
+      print('AuthRepository: Logout failed - $e');
       rethrow;
     }
   }
@@ -81,12 +81,12 @@ class AuthRepository {
         throw Exception(response.errorMessage);
       }
 
-      print('✅ AuthRepository: Profile fetched');
-      print('👤 User: ${response.data!.email}');
+      print('AuthRepository: Profile fetched');
+      print('User: ${response.data!.email}');
 
       return response.data!;
     } catch (e) {
-      print('❌ AuthRepository: Failed to fetch profile - $e');
+      print('AuthRepository: Failed to fetch profile - $e');
       rethrow;
     }
   }
@@ -153,7 +153,7 @@ class AuthRepository {
       await getCurrentUser();
       return true;
     } catch (e) {
-      print('❌ AuthRepository: Session invalid - $e');
+      print('AuthRepository: Session invalid - $e');
       await _apiService.removeToken();
       return false;
     }

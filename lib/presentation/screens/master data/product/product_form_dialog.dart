@@ -1,15 +1,15 @@
 import 'package:erp_purchasing_apps/data/models/product_assessment_model.dart';
 import 'package:erp_purchasing_apps/data/providers/auth_providers.dart';
 import 'package:erp_purchasing_apps/data/providers/product_assessment_provider.dart';
-import 'package:erp_purchasing_apps/data/providers/supplier_provider.dart'; // ✅ NEW
+import 'package:erp_purchasing_apps/data/providers/supplier_provider.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart'; // ✅ NEW for number input
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:erp_purchasing_apps/data/providers/product_provider.dart';
 import 'package:erp_purchasing_apps/data/providers/category_provider.dart';
 import 'package:erp_purchasing_apps/data/models/product_model.dart';
 
-/// Product Form Dialog (Create/Edit) - WITH SUPPLIER & PRICE
+/// Product Form Dialog (Create/Edit) - WITH DUPLICATE CHECK
 class ProductFormDialog extends ConsumerStatefulWidget {
   final ProductModel? product;
 
@@ -25,13 +25,19 @@ class _ProductFormDialogState extends ConsumerState<ProductFormDialog> {
   late TextEditingController _nameController;
   late TextEditingController _descriptionController;
   late TextEditingController _specificationsController;
-  late TextEditingController _priceController; // ✅ NEW
+  late TextEditingController _priceController;
 
   String? _selectedCategoryId;
-  String? _selectedSupplierId; // ✅ NEW
+  String? _selectedSupplierId;
   String _selectedUnit = 'pcs';
   bool _isActive = true;
   bool _isLoading = false;
+
+  // ✅ Duplicate check states
+  bool _isNameChecked = false;
+  bool _isCheckingName = false;
+  bool _nameExists = false;
+  ProductModel? _existingProduct;
 
   @override
   void initState() {
@@ -48,15 +54,30 @@ class _ProductFormDialogState extends ConsumerState<ProductFormDialog> {
     _specificationsController = TextEditingController(
       text: widget.product?.specifications ?? '',
     );
-    // ✅ NEW: Initialize price controller
     _priceController = TextEditingController(
       text: widget.product?.unitPrice.toString() ?? '',
     );
 
     _selectedCategoryId = widget.product?.categoryId;
-    _selectedSupplierId = widget.product?.supplierId; // ✅ NEW
+    _selectedSupplierId = widget.product?.supplierId;
     _selectedUnit = widget.product?.unit ?? 'pcs';
     _isActive = widget.product?.isActive ?? true;
+
+    // If editing, name is already checked
+    if (widget.product != null) {
+      _isNameChecked = true;
+    }
+
+    // Listen to name changes to reset check status
+    _nameController.addListener(() {
+      if (_isNameChecked) {
+        setState(() {
+          _isNameChecked = false;
+          _nameExists = false;
+          _existingProduct = null;
+        });
+      }
+    });
   }
 
   @override
@@ -65,12 +86,211 @@ class _ProductFormDialogState extends ConsumerState<ProductFormDialog> {
     _nameController.dispose();
     _descriptionController.dispose();
     _specificationsController.dispose();
-    _priceController.dispose(); // ✅ NEW
+    _priceController.dispose();
     super.dispose();
   }
 
+  /// Check if product name already exists
+  Future<void> _checkProductName() async {
+    final name = _nameController.text.trim();
+
+    if (name.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please enter product name first'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    setState(() {
+      _isCheckingName = true;
+      _nameExists = false;
+      _existingProduct = null;
+    });
+
+    try {
+      final repo = ref.read(productRepositoryProvider);
+      final result = await repo.checkProductNameExists(name);
+
+      setState(() {
+        _isCheckingName = false;
+        _isNameChecked = true;
+        _nameExists = result['exists'] == true;
+
+        if (_nameExists && result['product'] != null) {
+          _existingProduct = ProductModel.fromJson(result['product']);
+        }
+      });
+
+      if (mounted) {
+        if (_nameExists) {
+          _showDuplicateDialog();
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Row(
+                children: [
+                  Icon(Icons.check_circle, color: Colors.white),
+                  SizedBox(width: 12),
+                  Text('Product name is available! ✓'),
+                ],
+              ),
+              backgroundColor: Colors.green,
+              duration: Duration(seconds: 2),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      setState(() {
+        _isCheckingName = false;
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to check name: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  /// Show dialog when duplicate product found
+  void _showDuplicateDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Row(
+          children: [
+            Icon(Icons.warning_amber_rounded,
+                color: Colors.orange.shade700, size: 28),
+            const SizedBox(width: 12),
+            const Text('Product Already Exists'),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Product with name "${_nameController.text.trim()}" already exists:',
+              style: const TextStyle(fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade100,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.grey.shade300),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildInfoRow('Code', _existingProduct?.productCode ?? '-'),
+                  _buildInfoRow('Name', _existingProduct?.name ?? '-'),
+                  _buildInfoRow(
+                      'Category', _existingProduct?.categoryName ?? '-'),
+                  _buildInfoRow(
+                      'Supplier', _existingProduct?.supplierName ?? '-'),
+                  _buildInfoRow(
+                      'Price', _existingProduct?.formattedPrice ?? '-'),
+                  _buildInfoRow(
+                      'Status',
+                      _existingProduct?.isActive == true
+                          ? 'Active'
+                          : 'Inactive'),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Please use a different product name or update the existing product.',
+              style: TextStyle(fontSize: 13, color: Colors.grey.shade700),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Helper widget for info rows
+  Widget _buildInfoRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 4),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 80,
+            child: Text(
+              '$label:',
+              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+            ),
+          ),
+          Expanded(
+            child: Text(value, style: const TextStyle(fontSize: 13)),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _handleSubmit() async {
+    // ✅ VALIDATION 1: Name must be checked first (only for create mode)
+    if (!_isNameChecked && widget.product == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Row(
+            children: [
+              Icon(Icons.warning, color: Colors.white),
+              SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                    'Please check product name availability first by clicking "Check Name" button!'),
+              ),
+            ],
+          ),
+          backgroundColor: Colors.orange,
+          duration: Duration(seconds: 3),
+        ),
+      );
+      return;
+    }
+
+    // ✅ VALIDATION 2: If name exists, cannot proceed
+    if (_nameExists) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Row(
+            children: [
+              Icon(Icons.error, color: Colors.white),
+              SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                    'Product name already exists! Please use a different name.'),
+              ),
+            ],
+          ),
+          backgroundColor: Colors.red,
+          duration: Duration(seconds: 3),
+        ),
+      );
+      return;
+    }
+
     if (!_formKey.currentState!.validate()) return;
+
     if (_selectedCategoryId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -81,7 +301,6 @@ class _ProductFormDialogState extends ConsumerState<ProductFormDialog> {
       return;
     }
 
-    // ✅ NEW: Validate supplier
     if (_selectedSupplierId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -96,23 +315,23 @@ class _ProductFormDialogState extends ConsumerState<ProductFormDialog> {
 
     try {
       final currentUser = ref.read(currentUserProvider);
-      final canDirectCreate = currentUser?.role == 'admin';
+      final canDirectCreate =
+          currentUser?.role == 'admin' || currentUser?.role == 'purchasing';
 
-      // ✅ Parse price
       final price = double.tryParse(_priceController.text.trim()) ?? 0.0;
 
       if (widget.product == null) {
         // CREATE MODE
         if (canDirectCreate) {
-          // Admin: Direct to master
+          // Admin/Purchasing: Direct to master
           final notifier = ref.read(productNotifierProvider.notifier);
           await notifier.createProduct(
             CreateProductRequest(
               productCode: _productCodeController.text.trim(),
               name: _nameController.text.trim(),
               categoryId: _selectedCategoryId!,
-              supplierId: _selectedSupplierId!, // ✅ NEW
-              unitPrice: price, // ✅ NEW
+              supplierId: _selectedSupplierId!,
+              unitPrice: price,
               unit: _selectedUnit,
               description: _descriptionController.text.trim().isEmpty
                   ? null
@@ -147,12 +366,24 @@ class _ProductFormDialogState extends ConsumerState<ProductFormDialog> {
           Navigator.pop(context);
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text(
-                canDirectCreate
-                    ? 'Product created successfully'
-                    : 'Product assessment request submitted. Waiting for approval.',
+              content: Row(
+                children: [
+                  Icon(
+                    canDirectCreate ? Icons.check_circle : Icons.pending,
+                    color: Colors.white,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      canDirectCreate
+                          ? 'Product created successfully'
+                          : 'Product assessment request submitted. Waiting for admin/purchasing approval.',
+                    ),
+                  ),
+                ],
               ),
-              backgroundColor: Colors.green,
+              backgroundColor: canDirectCreate ? Colors.green : Colors.blue,
+              duration: const Duration(seconds: 4),
             ),
           );
         }
@@ -164,8 +395,8 @@ class _ProductFormDialogState extends ConsumerState<ProductFormDialog> {
           UpdateProductRequest(
             name: _nameController.text.trim(),
             categoryId: _selectedCategoryId!,
-            supplierId: _selectedSupplierId!, // ✅ NEW
-            unitPrice: price, // ✅ NEW
+            supplierId: _selectedSupplierId!,
+            unitPrice: price,
             unit: _selectedUnit,
             description: _descriptionController.text.trim().isEmpty
                 ? null
@@ -193,6 +424,7 @@ class _ProductFormDialogState extends ConsumerState<ProductFormDialog> {
           SnackBar(
             content: Text('Failed: $e'),
             backgroundColor: Colors.red,
+            duration: const Duration(seconds: 4),
           ),
         );
       }
@@ -206,15 +438,16 @@ class _ProductFormDialogState extends ConsumerState<ProductFormDialog> {
   @override
   Widget build(BuildContext context) {
     final categoriesAsync = ref.watch(categoryListProvider);
-    final suppliersAsync = ref.watch(supplierListProvider); // ✅ NEW
+    final suppliersAsync = ref.watch(supplierListProvider);
     final currentUser = ref.watch(currentUserProvider);
     final isAdmin = currentUser?.role == 'admin';
+    final isPurchasing = currentUser?.role == 'purchasing';
     final isCreateMode = widget.product == null;
-    final showProductCodeField = !isCreateMode || isAdmin;
+    final showProductCodeField = !isCreateMode || isAdmin || isPurchasing;
 
     return Dialog(
       child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 600, maxHeight: 700),
+        constraints: const BoxConstraints(maxWidth: 600, maxHeight: 750),
         child: Padding(
           padding: const EdgeInsets.all(24),
           child: Form(
@@ -233,8 +466,8 @@ class _ProductFormDialogState extends ConsumerState<ProductFormDialog> {
                   ),
                   const SizedBox(height: 24),
 
-                  // Info banner for non-admin
-                  if (isCreateMode && !isAdmin) ...[
+                  // ✅ Info banner for non-admin (HANYA BANNER, TANPA FIELD)
+                  if (isCreateMode && !isAdmin && !isPurchasing) ...[
                     Container(
                       width: double.infinity,
                       padding: const EdgeInsets.all(12),
@@ -253,7 +486,7 @@ class _ProductFormDialogState extends ConsumerState<ProductFormDialog> {
                           const SizedBox(width: 12),
                           Expanded(
                             child: Text(
-                              'Product code will be auto-generated after approval',
+                              'Your request will be sent for admin/purchasing approval. Product code will be auto-generated after approval.',
                               style: TextStyle(
                                 fontSize: 13,
                                 color: Colors.blue.shade700,
@@ -267,7 +500,7 @@ class _ProductFormDialogState extends ConsumerState<ProductFormDialog> {
                     const SizedBox(height: 16),
                   ],
 
-                  // Product Code (conditional)
+                  // ✅ Product Code (conditional - hanya untuk admin/purchasing atau edit mode)
                   if (showProductCodeField) ...[
                     TextFormField(
                       controller: _productCodeController,
@@ -288,129 +521,248 @@ class _ProductFormDialogState extends ConsumerState<ProductFormDialog> {
                     const SizedBox(height: 16),
                   ],
 
-                  // Name
-                  TextFormField(
-                    controller: _nameController,
-                    decoration: const InputDecoration(
-                      labelText: 'Product Name *',
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.inventory_2),
-                    ),
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Product name is required';
-                      }
-                      return null;
-                    },
+                  // ✅ Product Name + Check Button (UNTUK SEMUA USER)
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        flex: 3,
+                        child: TextFormField(
+                          controller: _nameController,
+                          decoration: InputDecoration(
+                            labelText: 'Product Name *',
+                            border: const OutlineInputBorder(),
+                            prefixIcon: const Icon(Icons.inventory_2),
+                            suffixIcon: _isNameChecked
+                                ? Icon(
+                                    _nameExists
+                                        ? Icons.error
+                                        : Icons.check_circle,
+                                    color:
+                                        _nameExists ? Colors.red : Colors.green,
+                                  )
+                                : null,
+                          ),
+                          enabled: !_isCheckingName,
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
+                              return 'Product name is required';
+                            }
+                            return null;
+                          },
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+
+                      // Check Button
+                      SizedBox(
+                        height: 56,
+                        child: ElevatedButton.icon(
+                          onPressed: _isCheckingName ? null : _checkProductName,
+                          icon: _isCheckingName
+                              ? const SizedBox(
+                                  width: 16,
+                                  height: 16,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              : Icon(
+                                  _isNameChecked
+                                      ? (_nameExists
+                                          ? Icons.refresh
+                                          : Icons.check)
+                                      : Icons.search,
+                                  size: 20,
+                                ),
+                          label: Text(
+                            _isCheckingName
+                                ? 'Checking...'
+                                : _isNameChecked
+                                    ? (_nameExists ? 'Recheck' : 'Checked')
+                                    : 'Check Name',
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: _isNameChecked
+                                ? (_nameExists ? Colors.orange : Colors.green)
+                                : const Color(0xFF1ABC9C),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 20,
+                              vertical: 16,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
+
+                  //  Status Indicator
+                  const SizedBox(height: 8),
+                  if (_isNameChecked)
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: _nameExists
+                            ? Colors.red.shade50
+                            : Colors.green.shade50,
+                        borderRadius: BorderRadius.circular(4),
+                        border: Border.all(
+                          color: _nameExists
+                              ? Colors.red.shade200
+                              : Colors.green.shade200,
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            _nameExists
+                                ? Icons.error_outline
+                                : Icons.check_circle_outline,
+                            size: 16,
+                            color: _nameExists
+                                ? Colors.red.shade700
+                                : Colors.green.shade700,
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              _nameExists
+                                  ? 'Product name already exists! Please use different name.'
+                                  : 'Product name is available ✓',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: _nameExists
+                                    ? Colors.red.shade700
+                                    : Colors.green.shade700,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
                   const SizedBox(height: 16),
 
-                  // Category Dropdown (Sub-categories only)
+                  //  Category Dropdown 
                   categoriesAsync.when(
                     data: (categories) {
                       final subCategories = categories
                           .where((cat) => cat.parentId != null)
                           .toList();
 
-                      return DropdownButtonFormField<String>(
-                        value: _selectedCategoryId,
-                        decoration: const InputDecoration(
-                          labelText: 'Category *',
-                          border: OutlineInputBorder(),
-                          prefixIcon: Icon(Icons.category),
-                          helperText:
-                              'Select specific sub-category (e.g., 1.1, 2.3)',
+                      return IgnorePointer(
+                        ignoring: !_isNameChecked || _nameExists,
+                        child: Opacity(
+                          opacity: (!_isNameChecked || _nameExists) ? 0.5 : 1.0,
+                          child: DropdownButtonFormField<String>(
+                            value: _selectedCategoryId,
+                            decoration: InputDecoration(
+                              labelText: 'Category *',
+                              border: const OutlineInputBorder(),
+                              prefixIcon: const Icon(Icons.category),
+                              helperText: !_isNameChecked
+                                  ? 'Check product name first'
+                                  : 'Select specific sub-category (e.g., 1.1, 2.3)',
+                            ),
+                            items: subCategories.map((category) {
+                              return DropdownMenuItem(
+                                value: category.id,
+                                child: Text(category.getFullPath()),
+                              );
+                            }).toList(),
+                            onChanged: (value) {
+                              setState(() => _selectedCategoryId = value);
+                            },
+                            validator: (value) {
+                              if (value == null) {
+                                return 'Please select a sub-category';
+                              }
+                              return null;
+                            },
+                          ),
                         ),
-                        items: subCategories.map((category) {
-                          return DropdownMenuItem(
-                            value: category.id,
-                            child: Text(category.getFullPath()),
-                          );
-                        }).toList(),
-                        onChanged: (value) {
-                          setState(() => _selectedCategoryId = value);
-                        },
-                        validator: (value) {
-                          if (value == null) {
-                            return 'Please select a sub-category';
-                          }
-                          return null;
-                        },
                       );
                     },
                     loading: () => const LinearProgressIndicator(),
                     error: (_, __) => const Text('Failed to load categories'),
                   ),
+
                   const SizedBox(height: 16),
 
-                  //Supplier Dropdown
+                  // ✅ Supplier Dropdown (disabled until name checked)
                   suppliersAsync.when(
                     data: (suppliers) {
-                      // ✅ FIX: Validate if selected supplier exists in list
                       final validSupplierIds =
                           suppliers.map((s) => s.id).toSet();
 
-                      // If editing and supplier not in list, reset to null
                       if (_selectedSupplierId != null &&
                           !validSupplierIds.contains(_selectedSupplierId)) {
-                        // Supplier has been deleted/inactive, reset selection
                         WidgetsBinding.instance.addPostFrameCallback((_) {
                           if (mounted) {
                             setState(() {
                               _selectedSupplierId = null;
                             });
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text(
-                                    'Previous supplier is no longer available. Please select a new one.'),
-                                backgroundColor: Colors.orange,
-                              ),
-                            );
                           }
                         });
                       }
 
-                      return DropdownButtonFormField<String>(
-                        value: validSupplierIds.contains(_selectedSupplierId)
-                            ? _selectedSupplierId
-                            : null, // ✅ Set to null if invalid
-                        decoration: const InputDecoration(
-                          labelText: 'Supplier *',
-                          border: OutlineInputBorder(),
-                          prefixIcon: Icon(Icons.business),
-                          helperText: 'Select product supplier',
+                      return IgnorePointer(
+                        ignoring: !_isNameChecked || _nameExists,
+                        child: Opacity(
+                          opacity: (!_isNameChecked || _nameExists) ? 0.5 : 1.0,
+                          child: DropdownButtonFormField<String>(
+                            value:
+                                validSupplierIds.contains(_selectedSupplierId)
+                                    ? _selectedSupplierId
+                                    : null,
+                            decoration: InputDecoration(
+                              labelText: 'Supplier *',
+                              border: const OutlineInputBorder(),
+                              prefixIcon: const Icon(Icons.business),
+                              helperText: !_isNameChecked
+                                  ? 'Check product name first'
+                                  : 'Select product supplier',
+                            ),
+                            items: suppliers.map((supplier) {
+                              return DropdownMenuItem(
+                                value: supplier.id,
+                                child: Text(
+                                    '${supplier.name} (${supplier.supplierCode})'),
+                              );
+                            }).toList(),
+                            onChanged: (value) {
+                              setState(() => _selectedSupplierId = value);
+                            },
+                            validator: (value) {
+                              if (value == null) {
+                                return 'Please select a supplier';
+                              }
+                              return null;
+                            },
+                          ),
                         ),
-                        items: suppliers.map((supplier) {
-                          return DropdownMenuItem(
-                            value: supplier.id,
-                            child: Text(
-                                '${supplier.name} (${supplier.supplierCode})'),
-                          );
-                        }).toList(),
-                        onChanged: (value) {
-                          setState(() => _selectedSupplierId = value);
-                        },
-                        validator: (value) {
-                          if (value == null) {
-                            return 'Please select a supplier';
-                          }
-                          return null;
-                        },
                       );
                     },
                     loading: () => const LinearProgressIndicator(),
                     error: (_, __) => const Text('Failed to load suppliers'),
                   ),
-                  SizedBox(height: 10),
-                  // ✅ NEW: Unit Price Input
+
+                  const SizedBox(height: 16),
+
+                  // ✅ Unit Price (disabled until name checked)
                   TextFormField(
                     controller: _priceController,
-                    decoration: const InputDecoration(
+                    enabled: _isNameChecked && !_nameExists,
+                    decoration: InputDecoration(
                       labelText: 'Unit Price *',
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.attach_money),
+                      border: const OutlineInputBorder(),
+                      prefixIcon: const Icon(Icons.attach_money),
                       prefixText: 'Rp ',
-                      helperText: 'Enter unit price (numbers only)',
+                      helperText: !_isNameChecked
+                          ? 'Check product name first'
+                          : 'Enter unit price (numbers only)',
                     ),
                     keyboardType:
                         const TextInputType.numberWithOptions(decimal: true),
@@ -429,6 +781,7 @@ class _ProductFormDialogState extends ConsumerState<ProductFormDialog> {
                       return null;
                     },
                   ),
+
                   const SizedBox(height: 16),
 
                   // Unit Dropdown
@@ -449,6 +802,7 @@ class _ProductFormDialogState extends ConsumerState<ProductFormDialog> {
                       setState(() => _selectedUnit = value!);
                     },
                   ),
+
                   const SizedBox(height: 16),
 
                   // Description
@@ -461,6 +815,7 @@ class _ProductFormDialogState extends ConsumerState<ProductFormDialog> {
                     ),
                     maxLines: 2,
                   ),
+
                   const SizedBox(height: 16),
 
                   // Specifications
@@ -473,6 +828,7 @@ class _ProductFormDialogState extends ConsumerState<ProductFormDialog> {
                     ),
                     maxLines: 2,
                   ),
+
                   const SizedBox(height: 16),
 
                   // Active Switch (Edit mode only)

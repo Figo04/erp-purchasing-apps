@@ -146,39 +146,85 @@ class _QRScannerScreenState extends ConsumerState<QRScannerScreen> {
                 ),
                 const SizedBox(height: 48),
 
-                // QR Input Field (auto-submit ketika scanner selesai)
-                TextField(
-                  controller: _qrController,
-                  focusNode: _qrFocusNode,
-                  enabled: !_isProcessing,
-                  autofocus: true,
-                  decoration: InputDecoration(
-                    labelText: 'QR Code Data',
-                    hintText: 'Scan or paste QR code here...',
-                    border: const OutlineInputBorder(),
-                    prefixIcon: const Icon(Icons.qr_code),
-                    suffixIcon: _qrController.text.isNotEmpty && !_isProcessing
-                        ? IconButton(
+                // Hidden TextField - benar-benar invisible
+                Offstage(
+                  child: TextField(
+                    controller: _qrController,
+                    focusNode: _qrFocusNode,
+                    enabled: !_isProcessing,
+                    autofocus: true,
+                    onSubmitted: (value) {
+                      _handleScan(value);
+                    },
+                    onChanged: (value) {
+                      if (_errorMessage != null) {
+                        setState(() {
+                          _errorMessage = null;
+                        });
+                      }
+                    },
+                  ),
+                ),
+
+                // Visual Indicator - hanya tampilan, bukan input
+                GestureDetector(
+                  onTap: () {
+                    _qrFocusNode.requestFocus();
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade50,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: _qrController.text.isNotEmpty
+                            ? Colors.green.shade300
+                            : Colors.grey.shade300,
+                        width: 2,
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          _qrController.text.isEmpty
+                              ? Icons.qr_code_scanner
+                              : Icons.check_circle_outline,
+                          color: _qrController.text.isEmpty
+                              ? Colors.grey[600]
+                              : Colors.green[700],
+                          size: 28,
+                        ),
+                        const SizedBox(width: 12),
+                        Text(
+                          _qrController.text.isEmpty
+                              ? 'Waiting for scan...'
+                              : 'QR Code detected ✓',
+                          style: TextStyle(
+                            color: _qrController.text.isEmpty
+                                ? Colors.grey[600]
+                                : Colors.green[700],
+                            fontSize: 16,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        if (_qrController.text.isNotEmpty && !_isProcessing) ...[
+                          const SizedBox(width: 12),
+                          IconButton(
                             icon: const Icon(Icons.clear),
+                            color: Colors.grey[600],
                             onPressed: () {
                               _qrController.clear();
                               setState(() {
                                 _errorMessage = null;
                               });
+                              _qrFocusNode.requestFocus();
                             },
-                          )
-                        : null,
+                          ),
+                        ],
+                      ],
+                    ),
                   ),
-                  onSubmitted: (value) {
-                    _handleScan(value);
-                  },
-                  onChanged: (value) {
-                    if (_errorMessage != null) {
-                      setState(() {
-                        _errorMessage = null;
-                      });
-                    }
-                  },
                 ),
                 const SizedBox(height: 16),
 

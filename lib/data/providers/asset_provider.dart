@@ -37,8 +37,7 @@ final borrowedAssetsCountProvider = FutureProvider<int>((ref) async {
 });
 
 // ASSETS BY CATEGORY PROVIDER
-final assetsByCategoryProvider =
-    FutureProvider<Map<String, int>>((ref) async {
+final assetsByCategoryProvider = FutureProvider<Map<String, int>>((ref) async {
   final repository = ref.watch(assetRepositoryProvider);
   final allAssets = await repository.getAllAssets();
 
@@ -131,10 +130,41 @@ class AssetFilterNotifier extends StateNotifier<AssetFilter> {
   AssetFilterNotifier() : super(AssetFilter.empty);
 
   void setFilter(AssetFilter filter) => state = filter;
-  void updateCategory(String? category) =>
-      state = state.copyWith(assetCategory: category);
-  void updateStatus(String? status) => state = state.copyWith(status: status);
-  void updateSearch(String? search) => state = state.copyWith(search: search);
+
+  //  Explicit set untuk bisa clear
+  void updateCategory(String? category) {
+    state = AssetFilter(
+      search: state.search,
+      status: state.status,
+      productId: state.productId,
+      categoryId: state.categoryId,
+      assignedTo: state.assignedTo,
+      assetCategory: category, 
+    );
+  }
+
+  void updateStatus(String? status) {
+    state = AssetFilter(
+      search: state.search,
+      assetCategory: state.assetCategory,
+      productId: state.productId,
+      categoryId: state.categoryId,
+      assignedTo: state.assignedTo,
+      status: status, 
+    );
+  }
+
+  void updateSearch(String? search) {
+    state = AssetFilter(
+      assetCategory: state.assetCategory,
+      status: state.status,
+      productId: state.productId,
+      categoryId: state.categoryId,
+      assignedTo: state.assignedTo,
+      search: search, 
+    );
+  }
+
   void reset() => state = AssetFilter.empty;
 }
 
@@ -183,10 +213,9 @@ class BeacukaiAssetFilter {
 }
 
 /// Search Assets by Beacukai Provider
-final searchAssetsByBeacukaiProvider = FutureProvider.family<
-    List<AssetModel>, 
-    BeacukaiAssetFilter
->((ref, filter) async {
+final searchAssetsByBeacukaiProvider =
+    FutureProvider.family<List<AssetModel>, BeacukaiAssetFilter>(
+        (ref, filter) async {
   final repository = ref.watch(assetRepositoryProvider);
   return await repository.searchByBeacukai(
     beacukaiNo: filter.beacukaiNo,

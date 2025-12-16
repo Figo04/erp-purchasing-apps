@@ -54,7 +54,7 @@ class DashboardScreen2 extends ConsumerWidget {
     WidgetRef ref,
     dynamic currentUser,
     int pendingCount,
-    int lowStockCount,
+    int lowStockCount, 
     int borrowedAssetsCount,
     int overduePaymentsCount,
   ) {

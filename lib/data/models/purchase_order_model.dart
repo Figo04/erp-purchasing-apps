@@ -5,7 +5,7 @@ class PurchaseOrderModel extends Equatable {
   final String id;
   final String poNumber;
   final String supplierId;
-  final String? supplierCode;  // ✅ NEW
+  final String? supplierCode;  
   final String? supplierName;
   final DateTime orderDate;
   final DateTime? expectedDeliveryDate;
@@ -16,7 +16,7 @@ class PurchaseOrderModel extends Equatable {
   final String createdBy;
   final String? createdByName;
   final String? approvedBy;
-  final String? approvedByName;  // ✅ NEW
+  final String? approvedByName;  
   final DateTime? approvedAt;
   final String? notes;
   final DateTime createdAt;
@@ -80,7 +80,7 @@ class PurchaseOrderModel extends Equatable {
               .map((item) => POItemModel.fromJson(item))
               .toList()
           : null,
-      prNumbers: json['pr_numbers'] != null  // ✅ CHANGED
+      prNumbers: json['pr_numbers'] != null  
           ? (json['pr_numbers'] as List).map((e) => e.toString()).toList()
           : null,
     );
@@ -129,10 +129,10 @@ class POItemModel extends Equatable {
   final String id;
   final String poId;
   final String? productId;
-  final String? productCode;  // ✅ NEW
+  final String? productCode;  
   final String itemName;
-  final String? categoryId;   // ✅ NEW
-  final String? categoryName; // ✅ NEW
+  final String? categoryId;   
+  final String? categoryName; 
   final int quantity;
   final String unit;
   final double unitPrice;
@@ -345,7 +345,6 @@ class PRWithItems {
 
 /// ============================================
 /// DEPRECATED - Keep for backward compatibility
-/// ⚠️ PRCategoryGroup is now replaced by PRSupplierGroup
 /// ============================================
 
 @Deprecated('Use PRSupplierGroup instead')

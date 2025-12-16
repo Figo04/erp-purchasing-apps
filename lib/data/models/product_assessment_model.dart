@@ -1,5 +1,3 @@
-/// Product Assessment Model
-/// Represents product assessment request for approval before creating master product
 class ProductAssessmentModel {
   final String id;
   final String productName;
@@ -239,7 +237,7 @@ class UpdateProductAssessmentRequest {
   }
 }
 
-/// Verify/Reject Request (SIMPLIFIED - NO PRODUCT CODE)
+/// Verify/Reject Request 
 class AssessmentActionRequest {
   final String? notes;
   final String? rejectionReason;

@@ -55,7 +55,7 @@ class SupplierNotifier extends StateNotifier<AsyncValue<List<SupplierModel>>> {
 
       final suppliers = await _repository.getAllSuppliers(
         search: searchQuery.isEmpty ? null : searchQuery,
-        isActive: activeFilter, // ✅ Dynamic!
+        isActive: activeFilter, 
       );
 
       state = AsyncValue.data(suppliers);
@@ -109,7 +109,7 @@ class SupplierNotifier extends StateNotifier<AsyncValue<List<SupplierModel>>> {
 
       final suppliers = await _repository.getAllSuppliers(
         search: query.isEmpty ? null : query,
-        isActive: activeFilter, // ✅ Respect filter saat search
+        isActive: activeFilter, 
       );
 
       state = AsyncValue.data(suppliers);

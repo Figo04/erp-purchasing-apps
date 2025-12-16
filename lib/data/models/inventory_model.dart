@@ -19,7 +19,7 @@ class InventoryModel extends Equatable {
   final DateTime createdAt;
   final DateTime updatedAt;
   
-  // ✅ BEACUKAI FIELDS (NEW)
+  // BEACUKAI FIELDS 
   final String? beacukaiDoc;
   final DateTime? beacukaiTgl;
   final String? beacukaiNo;
@@ -72,7 +72,6 @@ class InventoryModel extends Equatable {
       notes: json['notes'] as String?,
       createdAt: DateTime.parse(json['created_at'] as String),
       updatedAt: DateTime.parse(json['updated_at'] as String),
-      // ✅ BEACUKAI FIELDS
       beacukaiDoc: json['beacukai_doc'] as String?,
       beacukaiTgl: json['beacukai_tgl'] != null
           ? DateTime.parse(json['beacukai_tgl'] as String)

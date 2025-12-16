@@ -29,6 +29,7 @@ class PaymentModel extends Equatable {
 
   const PaymentModel({
     required this.id,
+    
     required this.paymentNumber,
     required this.supplierId,
     this.supplierName,

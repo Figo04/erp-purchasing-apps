@@ -16,7 +16,6 @@ class LPBRepository {
     String? search,
     String? fromDate,
     String? toDate,
-    // ✅ TAMBAHKAN PARAMETER BEACUKAI (NEW)
     String? beacukaiNo,
     String? beacukaiNoAju,
     String? beacukaiFrom,
@@ -32,8 +31,6 @@ class LPBRepository {
       if (search != null) queryParams['search'] = search;
       if (fromDate != null) queryParams['from_date'] = fromDate;
       if (toDate != null) queryParams['to_date'] = toDate;
-
-      // ✅ TAMBAHKAN BEACUKAI PARAMS (NEW)
       if (beacukaiNo != null) queryParams['beacukai_no'] = beacukaiNo;
       if (beacukaiNoAju != null) queryParams['beacukai_no_aju'] = beacukaiNoAju;
       if (beacukaiFrom != null) queryParams['beacukai_from'] = beacukaiFrom;
@@ -99,7 +96,6 @@ class LPBRepository {
     String? invoiceNumber,
     double? invoiceAmount,
     String? notes,
-    // ✅ TAMBAHKAN PARAMETER BEACUKAI
     String? beacukaiDoc,
     DateTime? beacukaiTgl,
     String? beacukaiNo,
@@ -118,7 +114,6 @@ class LPBRepository {
           'invoice_number': invoiceNumber,
           'invoice_amount': invoiceAmount,
           'notes': notes,
-          // ✅ TAMBAHKAN BEACUKAI KE REQUEST BODY
           'beacukai_doc': beacukaiDoc,
           'beacukai_tgl': beacukaiTgl != null
               ? DateTimeHelper.formatForBackend(beacukaiTgl)

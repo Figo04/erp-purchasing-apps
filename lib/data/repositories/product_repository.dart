@@ -15,7 +15,7 @@ class ProductRepository {
   Future<List<ProductModel>> getAllProducts({
     String? search,
     String? categoryId,
-    String? supplierId,    // ✅ NEW: Filter by supplier
+    String? supplierId, // ✅ NEW: Filter by supplier
     bool? isActive,
   }) async {
     try {
@@ -165,6 +165,25 @@ class ProductRepository {
       return await getAllProducts(search: query, isActive: true);
     } catch (e) {
       throw Exception('Failed to search products: $e');
+    }
+  }
+
+  /// Check if product name already exists
+  Future<Map<String, dynamic>> checkProductNameExists(String name) async {
+    try {
+      final response = await _apiService.get(
+        ApiEndpoints.checkProductName,
+        queryParameters: {'name': name},
+        fromJson: (json) => json as Map<String, dynamic>,
+      );
+
+      if (!response.isSuccess || response.data == null) {
+        throw Exception(response.errorMessage);
+      }
+
+      return response.data!;
+    } catch (e) {
+      throw Exception('Failed to check product name: $e');
     }
   }
 }
