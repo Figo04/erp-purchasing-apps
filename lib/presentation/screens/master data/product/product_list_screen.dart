@@ -460,6 +460,15 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
                             ),
                             DataColumn(
                               label: Text(
+                                'DIVISION',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 13,
+                                ),
+                              ),
+                            ),
+                            DataColumn(
+                              label: Text(
                                 'UNIT PRICE',
                                 style: TextStyle(
                                   fontWeight: FontWeight.bold,
@@ -593,6 +602,28 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
                                           ),
                                         ),
                                     ],
+                                  ),
+                                ),
+
+                                // Division
+                                DataCell(
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 12,
+                                      vertical: 6,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: Colors.orange.shade50,
+                                      borderRadius: BorderRadius.circular(6),
+                                    ),
+                                    child: Text(
+                                      product.divisionName ?? 'N/A',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: Colors.orange.shade700,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
                                   ),
                                 ),
 

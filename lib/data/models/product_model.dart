@@ -10,10 +10,12 @@ class ProductModel extends Equatable {
   final String supplierId;
   final String? supplierCode;
   final String? supplierName;
-  
+  final String? divisionId;
+  final String? divisionCode;
+  final String? divisionName;
 
   final double unitPrice;
-  
+
   final String unit;
   final String? description;
   final String? specifications;
@@ -26,11 +28,14 @@ class ProductModel extends Equatable {
     required this.productCode,
     required this.name,
     required this.categoryId,
-    this.categoryName, 
-    required this.supplierId,     
+    this.categoryName,
+    required this.supplierId,
     this.supplierCode,
     this.supplierName,
-    required this.unitPrice,       
+    this.divisionId,
+    this.divisionCode,
+    this.divisionName,
+    required this.unitPrice,
     required this.unit,
     this.description,
     this.specifications,
@@ -46,12 +51,13 @@ class ProductModel extends Equatable {
       name: json['name'] as String,
       categoryId: json['category_id'] as String,
       categoryName: json['category_name'] as String?,
-
       supplierId: json['supplier_id'] as String,
       supplierCode: json['supplier_code'] as String?,
       supplierName: json['supplier_name'] as String?,
+      divisionId: json['division_id'] as String?,
+      divisionCode: json['division_code'] as String?,
+      divisionName: json['division_name'] as String?,
       unitPrice: (json['unit_price'] as num?)?.toDouble() ?? 0.0,
-      
       unit: json['unit'] as String? ?? 'pcs',
       description: json['description'] as String?,
       specifications: json['specifications'] as String?,
@@ -68,12 +74,13 @@ class ProductModel extends Equatable {
       'name': name,
       'category_id': categoryId,
       'category_name': categoryName,
-      
       'supplier_id': supplierId,
       'supplier_code': supplierCode,
       'supplier_name': supplierName,
+      'division_id': divisionId,
+      'division_code': divisionCode,
+      'division_name': divisionName,
       'unit_price': unitPrice,
-      
       'unit': unit,
       'description': description,
       'specifications': specifications,
@@ -85,9 +92,10 @@ class ProductModel extends Equatable {
 
   /// Get display name with code
   String get displayName => '[$productCode] $name';
-  
+
   /// Get display name with supplier
-  String get displayNameWithSupplier => '[$productCode] $name - ${supplierName ?? "Unknown Supplier"}';
+  String get displayNameWithSupplier =>
+      '[$productCode] $name - ${supplierName ?? "Unknown Supplier"}';
 
   /// Get product type based on category
   String get productType {
@@ -98,7 +106,7 @@ class ProductModel extends Equatable {
     }
     return 'Unknown';
   }
-  
+
   /// Format price
   String get formattedPrice => 'Rp ${unitPrice.toStringAsFixed(0)}';
 
@@ -109,10 +117,13 @@ class ProductModel extends Equatable {
         name,
         categoryId,
         categoryName,
-        supplierId,        
-        supplierCode,      
-        supplierName,      
-        unitPrice,         
+        supplierId,
+        supplierCode,
+        supplierName,
+        divisionId,
+        divisionCode,
+        divisionName,
+        unitPrice,
         unit,
         description,
         specifications,
@@ -127,8 +138,9 @@ class CreateProductRequest {
   final String productCode;
   final String name;
   final String categoryId;
-  final String supplierId;    
-  final double unitPrice;     
+  final String supplierId;
+  final String? divisionId;
+  final double unitPrice;
   final String unit;
   final String? description;
   final String? specifications;
@@ -137,8 +149,9 @@ class CreateProductRequest {
     required this.productCode,
     required this.name,
     required this.categoryId,
-    required this.supplierId,     
-    required this.unitPrice,      
+    required this.supplierId,
+    this.divisionId,
+    required this.unitPrice,
     this.unit = 'pcs',
     this.description,
     this.specifications,
@@ -149,8 +162,9 @@ class CreateProductRequest {
       'product_code': productCode,
       'name': name,
       'category_id': categoryId,
-      'supplier_id': supplierId,    
-      'unit_price': unitPrice,      
+      'supplier_id': supplierId,
+      'division_id': divisionId,
+      'unit_price': unitPrice,
       'unit': unit,
       'description': description,
       'specifications': specifications,
@@ -162,8 +176,9 @@ class CreateProductRequest {
 class UpdateProductRequest {
   final String name;
   final String categoryId;
-  final String supplierId;    
-  final double unitPrice;     
+  final String supplierId;
+  final String? divisionId;
+  final double unitPrice;
   final String unit;
   final String? description;
   final String? specifications;
@@ -172,8 +187,9 @@ class UpdateProductRequest {
   const UpdateProductRequest({
     required this.name,
     required this.categoryId,
-    required this.supplierId,      
-    required this.unitPrice,       
+    required this.supplierId,
+    this.divisionId,
+    required this.unitPrice,
     required this.unit,
     this.description,
     this.specifications,
@@ -184,8 +200,9 @@ class UpdateProductRequest {
     return {
       'name': name,
       'category_id': categoryId,
-      'supplier_id': supplierId,   
-      'unit_price': unitPrice,     
+      'supplier_id': supplierId,
+      'division_id': divisionId,
+      'unit_price': unitPrice,
       'unit': unit,
       'description': description,
       'specifications': specifications,

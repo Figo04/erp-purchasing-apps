@@ -3,6 +3,9 @@ class ProductAssessmentModel {
   final String productName;
   final String categoryId;
   final String? categoryName;
+  final String? divisionId;
+  final String? divisionCode;
+  final String? divisionName;
   final String unit;
   final String? description;
   final String? specifications;
@@ -28,6 +31,9 @@ class ProductAssessmentModel {
     required this.productName,
     required this.categoryId,
     this.categoryName,
+    this.divisionId,
+    this.divisionCode,
+    this.divisionName,
     required this.unit,
     this.description,
     this.specifications,
@@ -55,6 +61,9 @@ class ProductAssessmentModel {
       productName: json['product_name'] as String,
       categoryId: json['category_id'] as String,
       categoryName: json['category_name'] as String?,
+      divisionId: json['division_id'] as String?,
+      divisionCode: json['division_code'] as String?,
+      divisionName: json['division_name'] as String?,
       unit: json['unit'] as String? ?? 'pcs',
       description: json['description'] as String?,
       specifications: json['specifications'] as String?,
@@ -125,8 +134,8 @@ class ProductAssessmentModel {
     String? unit,
     String? description,
     String? specifications,
-    String? supplierId,        
-    String? supplierName,      
+    String? supplierId,
+    String? supplierName,
     double? unitPrice,
     String? requesterId,
     String? requesterName,
@@ -150,9 +159,9 @@ class ProductAssessmentModel {
       unit: unit ?? this.unit,
       description: description ?? this.description,
       specifications: specifications ?? this.specifications,
-      supplierId: supplierId ?? this.supplierId,           
-      supplierName: supplierName ?? this.supplierName,     
-      unitPrice: unitPrice ?? this.unitPrice,              
+      supplierId: supplierId ?? this.supplierId,
+      supplierName: supplierName ?? this.supplierName,
+      unitPrice: unitPrice ?? this.unitPrice,
       requesterId: requesterId ?? this.requesterId,
       requesterName: requesterName ?? this.requesterName,
       status: status ?? this.status,
@@ -174,8 +183,9 @@ class ProductAssessmentModel {
 class CreateProductAssessmentRequest {
   final String productName;
   final String categoryId;
-  final String supplierId;    
-  final double unitPrice;     
+  final String? divisionId;
+  final String supplierId;
+  final double unitPrice;
   final String unit;
   final String? description;
   final String? specifications;
@@ -184,8 +194,9 @@ class CreateProductAssessmentRequest {
   CreateProductAssessmentRequest({
     required this.productName,
     required this.categoryId,
-    required this.supplierId,      
-    required this.unitPrice,       
+    this.divisionId,
+    required this.supplierId,
+    required this.unitPrice,
     this.unit = 'pcs',
     this.description,
     this.specifications,
@@ -196,8 +207,9 @@ class CreateProductAssessmentRequest {
     return {
       'product_name': productName,
       'category_id': categoryId,
-      'supplier_id': supplierId,    
-      'unit_price': unitPrice,      
+      if (divisionId != null) 'division_id': divisionId,
+      'supplier_id': supplierId,
+      'unit_price': unitPrice,
       'unit': unit,
       if (description != null) 'description': description,
       if (specifications != null) 'specifications': specifications,
@@ -206,11 +218,11 @@ class CreateProductAssessmentRequest {
   }
 }
 
-
 /// Update Product Assessment Request
 class UpdateProductAssessmentRequest {
   final String productName;
   final String categoryId;
+  final String? divisionId;
   final String unit;
   final String? description;
   final String? specifications;
@@ -219,6 +231,7 @@ class UpdateProductAssessmentRequest {
   UpdateProductAssessmentRequest({
     required this.productName,
     required this.categoryId,
+    this.divisionId,
     required this.unit,
     this.description,
     this.specifications,
@@ -229,6 +242,7 @@ class UpdateProductAssessmentRequest {
     return {
       'product_name': productName,
       'category_id': categoryId,
+      if (divisionId != null) 'division_id': divisionId,
       'unit': unit,
       if (description != null) 'description': description,
       if (specifications != null) 'specifications': specifications,
@@ -237,7 +251,7 @@ class UpdateProductAssessmentRequest {
   }
 }
 
-/// Verify/Reject Request 
+/// Verify/Reject Request
 class AssessmentActionRequest {
   final String? notes;
   final String? rejectionReason;

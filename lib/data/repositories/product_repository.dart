@@ -186,4 +186,48 @@ class ProductRepository {
       throw Exception('Failed to check product name: $e');
     }
   }
+
+  /// Generate product code suggestion
+Future<String> generateProductCode({
+  required String categoryId,
+  required String divisionId,
+}) async {
+  try {
+    final response = await _apiService.post(
+      ApiEndpoints.generateProductCode,
+      body: {
+        'category_id': categoryId,
+        'division_id': divisionId,
+      },
+      fromJson: (json) => json,
+    );
+
+    if (!response.isSuccess || response.data == null) {
+      throw Exception(response.errorMessage);
+    }
+
+    return response.data['product_code'] as String;
+  } catch (e) {
+    throw Exception('Failed to generate product code: $e');
+  }
+}
+
+/// Validate product code availability
+Future<bool> validateProductCode(String code) async {
+  try {
+    final response = await _apiService.get(
+      ApiEndpoints.validateProductCode,
+      queryParameters: {'code': code},
+      fromJson: (json) => json,
+    );
+
+    if (!response.isSuccess || response.data == null) {
+      throw Exception(response.errorMessage);
+    }
+
+    return response.data['available'] as bool;
+  } catch (e) {
+    throw Exception('Failed to validate product code: $e');
+  }
+}
 }
