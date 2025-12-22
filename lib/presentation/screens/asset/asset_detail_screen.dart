@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:erp_purchasing_apps/data/models/asset_model.dart';
 import 'package:erp_purchasing_apps/data/providers/asset_provider.dart';
-import 'package:erp_purchasing_apps/data/providers/user_provider.dart';
 import 'package:erp_purchasing_apps/data/providers/auth_providers.dart';
 import 'package:intl/intl.dart';
 
@@ -13,12 +12,12 @@ class AssetDetailScreen extends ConsumerWidget {
 
   Color _getCategoryColor(String category) {
     switch (category) {
-      case 'consumable':
-        return Colors.blue;
       case 'loanable':
         return Colors.purple;
       case 'saleable':
         return Colors.green;
+      case 'disposed':
+        return Colors.grey;
       case 'pending':
         return Colors.amber;
       default:
@@ -32,10 +31,14 @@ class AssetDetailScreen extends ConsumerWidget {
         return Colors.green;
       case 'borrowed':
         return Colors.orange;
+      case 'lent':
+        return Colors.blue;
+      case 'sold':
+        return Colors.purple;
       case 'disposed':
         return Colors.grey;
-      case 'maintenance':
-        return Colors.red;
+      case 'returned':
+        return Colors.teal;
       default:
         return Colors.grey;
     }
@@ -43,12 +46,12 @@ class AssetDetailScreen extends ConsumerWidget {
 
   IconData _getCategoryIcon(String category) {
     switch (category) {
-      case 'consumable':
-        return Icons.inventory_2;
       case 'loanable':
         return Icons.devices;
       case 'saleable':
         return Icons.shopping_bag;
+      case 'disposed':
+        return Icons.delete_forever;
       case 'pending':
         return Icons.help_outline;
       default:
@@ -62,6 +65,7 @@ class AssetDetailScreen extends ConsumerWidget {
     final canManage =
         currentUser?.role == 'admin' || currentUser?.role == 'warehouse';
     final assetAsync = ref.watch(assetDetailProvider(assetId));
+    final loanHistoryAsync = ref.watch(assetLoanHistoryProvider(assetId));
 
     return Scaffold(
       appBar: AppBar(
@@ -124,6 +128,7 @@ class AssetDetailScreen extends ConsumerWidget {
           return RefreshIndicator(
             onRefresh: () async {
               ref.invalidate(assetDetailProvider(assetId));
+              ref.invalidate(assetLoanHistoryProvider(assetId));
               await Future.delayed(const Duration(milliseconds: 500));
             },
             child: SingleChildScrollView(
@@ -132,7 +137,7 @@ class AssetDetailScreen extends ConsumerWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // ✅ WARNING: Pending Classification
+                  // WARNING: Pending Classification
                   if (asset.isPending)
                     Card(
                       color: Colors.amber.shade100,
@@ -211,29 +216,62 @@ class AssetDetailScreen extends ConsumerWidget {
                   ),
                   const SizedBox(height: 16),
 
-                  // STATUS 1 & STATUS 2 Row
+                  // Category & Status Row
                   Row(
                     children: [
                       Expanded(
                         child: _buildInfoCard(
-                          'Category (Status 1)',
+                          'Category',
                           asset.categoryDisplayName,
                           _getCategoryColor(asset.assetCategory),
                         ),
                       ),
                       const SizedBox(width: 8),
+                      if (!asset.isDisposed)
+                        Expanded(
+                          child: _buildInfoCard(
+                            'Status',
+                            asset.statusDisplayName,
+                            _getStatusColor(asset.status ?? ''),
+                          ),
+                        )
+                      else // TAMBAH else
+                        Expanded(
+                          child: _buildInfoCard(
+                            'Status',
+                            'Disposed (No Status)',
+                            Colors.grey,
+                          ),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+
+                  // Type & Division Row (NEW)
+                  Row(
+                    children: [
                       Expanded(
                         child: _buildInfoCard(
-                          'Status (Status 2)',
-                          asset.statusDisplayName,
-                          _getStatusColor(asset.status),
+                          'Type',
+                          asset.assetTypeDisplayName,
+                          Colors.deepPurple,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: _buildInfoCard(
+                          'Division',
+                          asset.divisionName ?? 'Not Assigned',
+                          asset.divisionName != null
+                              ? Colors.blue
+                              : Colors.grey,
                         ),
                       ),
                     ],
                   ),
                   const SizedBox(height: 8),
 
-                  // Quantity & Price Row
+                  // Quantity & Source Row
                   Row(
                     children: [
                       Expanded(
@@ -244,14 +282,24 @@ class AssetDetailScreen extends ConsumerWidget {
                         ),
                       ),
                       const SizedBox(width: 8),
+                      Expanded(
+                        child: _buildInfoCard(
+                          'Source',
+                          asset.sourceDisplayName,
+                          asset.isFromExternal ? Colors.purple : Colors.teal,
+                        ),
+                      ),
                     ],
                   ),
                   const SizedBox(height: 24),
 
-                  // Assignment Info
-                  if (asset.isBorrowed && asset.assignedToName != null)
+                  // Assignment/Loan Info
+                  if ((asset.isBorrowed || asset.isLent) &&
+                      asset.assignedToName != null)
                     Card(
-                      color: Colors.orange.shade50,
+                      color: asset.isBorrowed
+                          ? Colors.orange.shade50
+                          : Colors.blue.shade50,
                       child: Padding(
                         padding: const EdgeInsets.all(16),
                         child: Column(
@@ -259,21 +307,32 @@ class AssetDetailScreen extends ConsumerWidget {
                           children: [
                             Row(
                               children: [
-                                Icon(Icons.person,
-                                    color: Colors.orange.shade700),
+                                Icon(
+                                    asset.isBorrowed
+                                        ? Icons.outbound
+                                        : Icons.input,
+                                    color: asset.isBorrowed
+                                        ? Colors.orange.shade700
+                                        : Colors.blue.shade700),
                                 const SizedBox(width: 8),
                                 Text(
-                                  'Currently Borrowed',
+                                  asset.isBorrowed
+                                      ? 'Currently Borrowed Out'
+                                      : 'Currently On Loan',
                                   style: TextStyle(
                                     fontSize: 16,
                                     fontWeight: FontWeight.bold,
-                                    color: Colors.orange.shade700,
+                                    color: asset.isBorrowed
+                                        ? Colors.orange.shade700
+                                        : Colors.blue.shade700,
                                   ),
                                 )
                               ],
                             ),
                             const SizedBox(height: 8),
-                            _buildInfoRow('Assigned to', asset.assignedToName!),
+                            _buildInfoRow(
+                                asset.isBorrowed ? 'Borrowed by' : 'Lent to',
+                                asset.assignedToName!),
                             if (asset.assignedDate != null)
                               _buildInfoRow(
                                 'Since',
@@ -284,7 +343,8 @@ class AssetDetailScreen extends ConsumerWidget {
                         ),
                       ),
                     ),
-                  if (asset.isBorrowed) const SizedBox(height: 16),
+                  if (asset.isBorrowed || asset.isLent)
+                    const SizedBox(height: 16),
 
                   // Additional Information
                   Text('Additional Information',
@@ -317,13 +377,153 @@ class AssetDetailScreen extends ConsumerWidget {
                       DateFormat('dd MMM yyyy HH:mm').format(asset.updatedAt)),
                   const SizedBox(height: 24),
 
+                  // Loan History Section (NEW)
+                  if (canManage) ...[
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text('Loan History',
+                            style: Theme.of(context).textTheme.titleMedium),
+                        TextButton.icon(
+                          onPressed: () =>
+                              ref.invalidate(assetLoanHistoryProvider(assetId)),
+                          icon: const Icon(Icons.refresh, size: 18),
+                          label: const Text('Refresh'),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    loanHistoryAsync.when(
+                      data: (loans) {
+                        if (loans.isEmpty) {
+                          return const Card(
+                            child: Padding(
+                              padding: EdgeInsets.all(16),
+                              child: Center(
+                                child: Text(
+                                  'No loan history',
+                                  style: TextStyle(color: Colors.grey),
+                                ),
+                              ),
+                            ),
+                          );
+                        }
+
+                        return Column(
+                          children: loans.map((loan) {
+                            return Card(
+                              margin: const EdgeInsets.only(bottom: 8),
+                              color: loan.isOngoing
+                                  ? Colors.orange.shade50
+                                  : loan.isOverdue
+                                      ? Colors.red.shade50
+                                      : null,
+                              child: Padding(
+                                padding: const EdgeInsets.all(12),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        Icon(
+                                          loan.isInternal
+                                              ? Icons.swap_horiz
+                                              : Icons.business,
+                                          size: 20,
+                                          color: loan.isInternal
+                                              ? Colors.blue
+                                              : Colors.purple,
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Expanded(
+                                          child: Text(
+                                            loan.isInternal
+                                                ? 'Internal: ${loan.fromDivisionName ?? ''} → ${loan.toDivisionName ?? ''}'
+                                                : 'External: ${loan.externalCompanyName ?? ''}',
+                                            style: const TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 14,
+                                            ),
+                                          ),
+                                        ),
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 8, vertical: 4),
+                                          decoration: BoxDecoration(
+                                            color: loan.isReturned
+                                                ? Colors.green
+                                                : loan.isOverdue
+                                                    ? Colors.red
+                                                    : Colors.orange,
+                                            borderRadius:
+                                                BorderRadius.circular(12),
+                                          ),
+                                          child: Text(
+                                            loan.status.toUpperCase(),
+                                            style: const TextStyle(
+                                              fontSize: 10,
+                                              color: Colors.white,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      'Qty: ${loan.quantity} | Loan: ${DateFormat('dd MMM yyyy').format(loan.loanDate)}',
+                                      style: const TextStyle(fontSize: 12),
+                                    ),
+                                    if (loan.expectedReturnDate != null)
+                                      Text(
+                                        'Expected Return: ${DateFormat('dd MMM yyyy').format(loan.expectedReturnDate!)}',
+                                        style: const TextStyle(fontSize: 12),
+                                      ),
+                                    if (loan.actualReturnDate != null)
+                                      Text(
+                                        'Returned: ${DateFormat('dd MMM yyyy').format(loan.actualReturnDate!)}',
+                                        style: const TextStyle(
+                                          fontSize: 12,
+                                          color: Colors.green,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    if (loan.isOverdue &&
+                                        loan.daysOverdue != null)
+                                      Text(
+                                        '⚠️ Overdue by ${loan.daysOverdue} days',
+                                        style: const TextStyle(
+                                          fontSize: 12,
+                                          color: Colors.red,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          }).toList(),
+                        );
+                      },
+                      loading: () =>
+                          const Center(child: CircularProgressIndicator()),
+                      error: (error, _) => Card(
+                        child: Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Text('Error loading loan history: $error'),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                  ],
+
                   // Action Buttons
                   if (canManage) ...[
                     Text('Actions',
                         style: Theme.of(context).textTheme.titleMedium),
                     const SizedBox(height: 8),
 
-                    // ✅ PRIORITY: Edit Asset (Always visible)
+                    // Edit Asset (Always visible)
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton.icon(
@@ -341,45 +541,33 @@ class AssetDetailScreen extends ConsumerWidget {
                     ),
                     const SizedBox(height: 8),
 
+                    // Loanable Actions
                     if (asset.assetCategory == 'loanable' &&
-                        !asset.isPending) ...[
+                        !asset.isPending &&
+                        !asset.isDisposed) ...[
                       if (asset.isAvailable)
                         SizedBox(
                           width: double.infinity,
                           child: OutlinedButton.icon(
                             onPressed: () =>
-                                _showAssignDialog(context, ref, asset),
-                            icon: const Icon(Icons.person_add),
-                            label: const Text('Assign to User'),
+                                _showLoanDialog(context, ref, asset),
+                            icon: const Icon(Icons.output),
+                            label: const Text('Loan Out Asset'),
                           ),
                         ),
-                      if (asset.isBorrowed)
+                      if (asset.isBorrowed || asset.isLent)
                         SizedBox(
                           width: double.infinity,
                           child: OutlinedButton.icon(
-                            onPressed: () =>
-                                _showReturnDialog(context, ref, asset),
+                            onPressed: () => _showReturnDialog(
+                                context, ref, asset, loanHistoryAsync.value),
                             icon: const Icon(Icons.assignment_return),
-                            label: const Text('Return Asset'),
+                            label: const Text('Mark as Returned'),
                             style: OutlinedButton.styleFrom(
                               foregroundColor: Colors.green,
                             ),
                           ),
                         ),
-                      const SizedBox(height: 8),
-                    ],
-                    if (asset.assetCategory == 'consumable' &&
-                        asset.quantity > 0 &&
-                        !asset.isPending) ...[
-                      SizedBox(
-                        width: double.infinity,
-                        child: OutlinedButton.icon(
-                          onPressed: () =>
-                              _showDecreaseQuantityDialog(context, ref, asset),
-                          icon: const Icon(Icons.remove_circle_outline),
-                          label: const Text('Use/Consume Item'),
-                        ),
-                      ),
                       const SizedBox(height: 8),
                     ],
                   ]
@@ -447,14 +635,13 @@ class AssetDetailScreen extends ConsumerWidget {
     );
   }
 
-  // ✅ NEW: EDIT DIALOG - Edit both STATUS 1 & STATUS 2
+  // EDIT DIALOG (UPDATED with assetType)
   void _showEditDialog(BuildContext context, WidgetRef ref, AssetModel asset) {
     String selectedCategory = asset.assetCategory;
-    String selectedStatus = asset.status;
+    String selectedType = asset.assetType;
+    String selectedStatus = asset.status ?? '';
     int selectedQuantity = asset.quantity;
     final nameController = TextEditingController(text: asset.name);
-    final priceController =
-        TextEditingController(text: asset.purchasePrice?.toString() ?? '');
     final notesController = TextEditingController(text: asset.notes ?? '');
 
     showDialog(
@@ -468,7 +655,6 @@ class AssetDetailScreen extends ConsumerWidget {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Name
                 TextField(
                   controller: nameController,
                   decoration: const InputDecoration(
@@ -478,8 +664,44 @@ class AssetDetailScreen extends ConsumerWidget {
                 ),
                 const SizedBox(height: 16),
 
-                // ✅ STATUS 1: Asset Category
-                const Text('Category (Status 1):',
+                // Asset Type (NEW)
+                const Text('Asset Type:',
+                    style: TextStyle(fontWeight: FontWeight.bold)),
+                const SizedBox(height: 8),
+                DropdownButtonFormField<String>(
+                  value: selectedType,
+                  decoration: const InputDecoration(
+                    border: OutlineInputBorder(),
+                  ),
+                  items: const [
+                    DropdownMenuItem(
+                      value: 'mesin',
+                      child: Row(
+                        children: [
+                          Icon(Icons.precision_manufacturing,
+                              color: Colors.deepPurple),
+                          SizedBox(width: 8),
+                          Text('Mesin'),
+                        ],
+                      ),
+                    ),
+                    DropdownMenuItem(
+                      value: 'sparepart',
+                      child: Row(
+                        children: [
+                          Icon(Icons.build_circle, color: Colors.orange),
+                          SizedBox(width: 8),
+                          Text('Sparepart'),
+                        ],
+                      ),
+                    ),
+                  ],
+                  onChanged: (v) => setState(() => selectedType = v!),
+                ),
+                const SizedBox(height: 16),
+
+                // Category
+                const Text('Category:',
                     style: TextStyle(fontWeight: FontWeight.bold)),
                 const SizedBox(height: 8),
                 DropdownButtonFormField<String>(
@@ -503,16 +725,6 @@ class AssetDetailScreen extends ConsumerWidget {
                       ),
                     ),
                     DropdownMenuItem(
-                      value: 'consumable',
-                      child: Row(
-                        children: [
-                          Icon(Icons.inventory_2, color: Colors.blue),
-                          SizedBox(width: 8),
-                          Text('Consumable'),
-                        ],
-                      ),
-                    ),
-                    DropdownMenuItem(
                       value: 'loanable',
                       child: Row(
                         children: [
@@ -532,33 +744,77 @@ class AssetDetailScreen extends ConsumerWidget {
                         ],
                       ),
                     ),
+                    DropdownMenuItem(
+                      value: 'disposed',
+                      child: Row(
+                        children: [
+                          Icon(Icons.delete_forever, color: Colors.grey),
+                          SizedBox(width: 8),
+                          Text('Disposed'),
+                        ],
+                      ),
+                    ),
                   ],
                   onChanged: (v) => setState(() => selectedCategory = v!),
                 ),
                 const SizedBox(height: 16),
 
-                // ✅ STATUS 2: Operational Status
-                const Text('Status (Status 2):',
-                    style: TextStyle(fontWeight: FontWeight.bold)),
-                const SizedBox(height: 8),
-                DropdownButtonFormField<String>(
-                  value: selectedStatus,
-                  decoration: const InputDecoration(
-                    border: OutlineInputBorder(),
+                Visibility(
+                  visible: selectedCategory != 'disposed',
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Status
+                      const Text('Status:',
+                          style: TextStyle(fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 8),
+                      DropdownButtonFormField<String>(
+                        value: selectedStatus,
+                        decoration: const InputDecoration(
+                          border: OutlineInputBorder(),
+                        ),
+                        items: const [
+                          DropdownMenuItem(
+                              value: 'available', child: Text('Available')),
+                          DropdownMenuItem(
+                              value: 'borrowed', child: Text('Borrowed')),
+                          DropdownMenuItem(value: 'lent', child: Text('Lent')),
+                          DropdownMenuItem(value: 'sold', child: Text('Sold')),
+                          DropdownMenuItem(
+                              value: 'returned', child: Text('Returned')),
+                        ],
+                        onChanged: (v) => setState(() => selectedStatus = v!),
+                      ),
+                      const SizedBox(height: 16),
+                    ],
                   ),
-                  items: const [
-                    DropdownMenuItem(
-                        value: 'available', child: Text('Available')),
-                    DropdownMenuItem(
-                        value: 'borrowed', child: Text('Borrowed')),
-                    DropdownMenuItem(
-                        value: 'maintenance', child: Text('Maintenance')),
-                    DropdownMenuItem(
-                        value: 'disposed', child: Text('Disposed')),
-                  ],
-                  onChanged: (v) => setState(() => selectedStatus = v!),
                 ),
-                const SizedBox(height: 16),
+
+                // disposed
+                if (selectedCategory == 'disposed')
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 16),
+                    child: Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade200,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.info_outline,
+                              color: Colors.grey.shade700, size: 20),
+                          const SizedBox(width: 8),
+                          const Expanded(
+                            child: Text(
+                              'Disposed items have no status',
+                              style: TextStyle(fontSize: 12),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
 
                 // Quantity
                 TextField(
@@ -606,9 +862,11 @@ class AssetDetailScreen extends ConsumerWidget {
                   asset.id,
                   nameController.text,
                   selectedCategory,
+                  selectedType,
                   selectedStatus,
                   selectedQuantity,
-                  double.tryParse(priceController.text),
+                  asset.divisionId,
+                  asset.purchasePrice,
                   notesController.text.isEmpty ? null : notesController.text,
                 );
               },
@@ -626,19 +884,25 @@ class AssetDetailScreen extends ConsumerWidget {
     String assetId,
     String name,
     String category,
+    String type,
     String status,
     int quantity,
+    String? divisionId,
     double? price,
     String? notes,
   ) async {
     _showLoading(context, 'Updating...');
     try {
+      String? finalStatus = category == 'disposed' ? null : status;
+
       await ref.read(assetRepositoryProvider).updateAsset(
             id: assetId,
             name: name,
             assetCategory: category,
+            assetType: type,
             status: status,
             quantity: quantity,
+            divisionId: divisionId,
             purchasePrice: price,
             notes: notes,
           );
@@ -657,85 +921,142 @@ class AssetDetailScreen extends ConsumerWidget {
     }
   }
 
-  void _showAssignDialog(
-      BuildContext context, WidgetRef ref, AssetModel asset) {
-    final userListAsync = ref.read(userListProvider);
-    String? selectedUserId;
-    final reasonController = TextEditingController();
+  // LOAN DIALOG (NEW)
+  void _showLoanDialog(BuildContext context, WidgetRef ref, AssetModel asset) {
+    String loanType = 'internal';
+    int quantity = 1;
+    final companyController = TextEditingController();
+    final notesController = TextEditingController();
 
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Assign Asset to User'),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              userListAsync.when(
-                data: (users) {
-                  final activeUsers = users.where((u) => u.isActive).toList();
-                  return DropdownButtonFormField<String>(
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          title: const Text('Loan Out Asset'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Loan Type
+                const Text('Loan Type:',
+                    style: TextStyle(fontWeight: FontWeight.bold)),
+                const SizedBox(height: 8),
+                DropdownButtonFormField<String>(
+                  value: loanType,
+                  decoration: const InputDecoration(
+                    border: OutlineInputBorder(),
+                  ),
+                  items: const [
+                    DropdownMenuItem(
+                        value: 'internal', child: Text('Internal (Division)')),
+                    DropdownMenuItem(
+                        value: 'external', child: Text('External (Company)')),
+                  ],
+                  onChanged: (v) => setState(() => loanType = v!),
+                ),
+                const SizedBox(height: 16),
+
+                // Quantity
+                TextField(
+                  decoration: const InputDecoration(
+                    labelText: 'Quantity',
+                    border: OutlineInputBorder(),
+                  ),
+                  keyboardType: TextInputType.number,
+                  onChanged: (v) {
+                    final val = int.tryParse(v);
+                    if (val != null && val <= asset.quantity) quantity = val;
+                  },
+                  controller: TextEditingController(text: '1'),
+                ),
+                const SizedBox(height: 8),
+                Text('Available: ${asset.quantity}',
+                    style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                const SizedBox(height: 16),
+
+                // Company Name (for external)
+                if (loanType == 'external') ...[
+                  TextField(
+                    controller: companyController,
                     decoration: const InputDecoration(
-                        labelText: 'Select User', border: OutlineInputBorder()),
-                    items: activeUsers
-                        .map((user) => DropdownMenuItem(
-                            value: user.id,
-                            child: Text('${user.fullName} (${user.role})')))
-                        .toList(),
-                    onChanged: (value) => selectedUserId = value,
-                  );
-                },
-                loading: () => const CircularProgressIndicator(),
-                error: (error, _) => Text('Error: $error'),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: reasonController,
-                decoration: const InputDecoration(
-                    labelText: 'Reason (Optional)',
-                    border: OutlineInputBorder()),
-                maxLines: 3,
-              )
-            ],
+                      labelText: 'Company Name *',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                ],
+
+                // Notes
+                TextField(
+                  controller: notesController,
+                  decoration: const InputDecoration(
+                    labelText: 'Notes (Optional)',
+                    border: OutlineInputBorder(),
+                  ),
+                  maxLines: 2,
+                ),
+              ],
+            ),
           ),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Cancel')),
+            ElevatedButton(
+              onPressed: () async {
+                if (loanType == 'external' && companyController.text.isEmpty) {
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                      content: Text('Company name is required')));
+                  return;
+                }
+
+                Navigator.pop(ctx);
+                await _performLoan(
+                  context,
+                  ref,
+                  asset.id,
+                  loanType,
+                  quantity,
+                  companyController.text,
+                  notesController.text,
+                );
+              },
+              child: const Text('Loan Out'),
+            ),
+          ],
         ),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
-          ElevatedButton(
-            onPressed: () async {
-              if (selectedUserId == null) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Please select a user')));
-                return;
-              }
-              Navigator.pop(ctx);
-              await _performAssign(context, ref, asset.id, selectedUserId!,
-                  reasonController.text);
-            },
-            child: const Text('Assign'),
-          )
-        ],
       ),
     );
   }
 
-  Future<void> _performAssign(BuildContext context, WidgetRef ref,
-      String assetId, String userId, String reason) async {
-    _showLoading(context, 'Assigning...');
+  Future<void> _performLoan(
+    BuildContext context,
+    WidgetRef ref,
+    String assetId,
+    String loanType,
+    int quantity,
+    String? companyName,
+    String? notes,
+  ) async {
+    _showLoading(context, 'Processing loan...');
     try {
-      await ref.read(assetRepositoryProvider).assignAsset(
-          id: assetId,
-          assignedTo: userId,
-          notes: reason.isEmpty ? null : reason);
+      await ref.read(assetRepositoryProvider).loanAsset(
+            assetId: assetId,
+            loanType: loanType,
+            quantity: quantity,
+            externalCompanyName: loanType == 'external' ? companyName : null,
+            notes: notes?.isEmpty == true ? null : notes,
+          );
 
       if (!context.mounted) return;
       Navigator.pop(context);
       ref.invalidate(assetDetailProvider(assetId));
+      ref.invalidate(assetLoanHistoryProvider(assetId));
       ref.invalidate(filteredAssetListProvider);
 
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('✓ Assigned successfully'),
+          content: Text('✓ Asset loaned successfully'),
           backgroundColor: Colors.green));
     } catch (e) {
       Navigator.pop(context);
@@ -743,58 +1064,109 @@ class AssetDetailScreen extends ConsumerWidget {
     }
   }
 
-  void _showReturnDialog(
-      BuildContext context, WidgetRef ref, AssetModel asset) {
+  // RETURN DIALOG (NEW)
+  void _showReturnDialog(BuildContext context, WidgetRef ref, AssetModel asset,
+      List<AssetLoanHistoryModel>? loans) {
+    if (loans == null || loans.isEmpty) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('No active loans found')));
+      return;
+    }
+
+    final ongoingLoans = loans.where((l) => l.isOngoing).toList();
+    if (ongoingLoans.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No ongoing loans to return')));
+      return;
+    }
+
+    String? selectedLoanId = ongoingLoans.first.id;
     final notesController = TextEditingController();
 
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Return Asset'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text('Return asset from ${asset.assignedToName}?'),
-            const SizedBox(height: 16),
-            TextField(
-              controller: notesController,
-              decoration: const InputDecoration(
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          title: const Text('Return Asset'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('Select loan to return:',
+                  style: TextStyle(fontWeight: FontWeight.bold)),
+              const SizedBox(height: 8),
+              DropdownButtonFormField<String>(
+                value: selectedLoanId,
+                decoration: const InputDecoration(
+                  border: OutlineInputBorder(),
+                ),
+                items: ongoingLoans.map((loan) {
+                  return DropdownMenuItem(
+                    value: loan.id,
+                    child: Text(loan.isInternal
+                        ? 'Internal: ${loan.toDivisionName}'
+                        : 'External: ${loan.externalCompanyName}'),
+                  );
+                }).toList(),
+                onChanged: (v) => setState(() => selectedLoanId = v),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: notesController,
+                decoration: const InputDecoration(
                   labelText: 'Return Notes (Optional)',
-                  border: OutlineInputBorder()),
-              maxLines: 3,
-            )
+                  border: OutlineInputBorder(),
+                ),
+                maxLines: 3,
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Cancel')),
+            ElevatedButton(
+              onPressed: () async {
+                if (selectedLoanId == null) return;
+                Navigator.pop(ctx);
+                await _performReturn(
+                  context,
+                  ref,
+                  asset.id,
+                  selectedLoanId!,
+                  notesController.text,
+                );
+              },
+              child: const Text('Mark Returned'),
+            ),
           ],
         ),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
-          ElevatedButton(
-            onPressed: () async {
-              Navigator.pop(ctx);
-              await _performReturn(
-                  context, ref, asset.id, notesController.text.trim());
-            },
-            child: const Text('Return'),
-          )
-        ],
       ),
     );
   }
 
   Future<void> _performReturn(
-      BuildContext context, WidgetRef ref, String assetId, String notes) async {
+    BuildContext context,
+    WidgetRef ref,
+    String assetId,
+    String loanHistoryId,
+    String? notes,
+  ) async {
     _showLoading(context, 'Processing return...');
     try {
-      await ref.read(assetRepositoryProvider).unassignAsset(
-          id: assetId, returnNotes: notes.isEmpty ? null : notes);
+      await ref.read(assetRepositoryProvider).returnAsset(
+            loanHistoryId: loanHistoryId,
+            notes: notes?.isEmpty == true ? null : notes,
+          );
 
       if (!context.mounted) return;
       Navigator.pop(context);
       ref.invalidate(assetDetailProvider(assetId));
+      ref.invalidate(assetLoanHistoryProvider(assetId));
       ref.invalidate(filteredAssetListProvider);
 
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('✓ Returned successfully'),
+          content: Text('✓ Asset returned successfully'),
           backgroundColor: Colors.green));
     } catch (e) {
       Navigator.pop(context);
@@ -857,9 +1229,7 @@ class AssetDetailScreen extends ConsumerWidget {
       String assetId, int qty, String reason) async {
     _showLoading(context, 'Processing...');
     try {
-      await ref
-          .read(assetRepositoryProvider)
-          .decreaseQuantity(id: assetId, quantity: qty, reason: reason);
+      await ref.read(assetRepositoryProvider);
 
       if (!context.mounted) return;
       Navigator.pop(context);

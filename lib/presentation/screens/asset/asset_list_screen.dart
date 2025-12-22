@@ -1,3 +1,4 @@
+import 'package:erp_purchasing_apps/presentation/screens/asset/asset_form_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -24,12 +25,12 @@ class _AssetListScreenState extends ConsumerState<AssetListScreen> {
 
   Color _getCategoryColor(String category) {
     switch (category) {
-      case 'consumable':
-        return Colors.blue;
       case 'loanable':
         return Colors.purple;
       case 'saleable':
         return Colors.green;
+      case 'disposed': // TAMBAH
+        return Colors.grey;
       case 'pending':
         return Colors.amber;
       default:
@@ -43,10 +44,14 @@ class _AssetListScreenState extends ConsumerState<AssetListScreen> {
         return Colors.green;
       case 'borrowed':
         return Colors.orange;
+      case 'lent':
+        return Colors.blue;
+      case 'sold':
+        return Colors.purple;
       case 'disposed':
         return Colors.grey;
-      case 'maintenance':
-        return Colors.red;
+      case 'returned':
+        return Colors.teal;
       default:
         return Colors.grey;
     }
@@ -54,14 +59,25 @@ class _AssetListScreenState extends ConsumerState<AssetListScreen> {
 
   IconData _getCategoryIcon(String category) {
     switch (category) {
-      case 'consumable':
-        return Icons.inventory_2;
       case 'loanable':
         return Icons.devices;
       case 'saleable':
         return Icons.shopping_bag;
+      case 'disposed':
+        return Icons.delete_forever;
       case 'pending':
         return Icons.help_outline;
+      default:
+        return Icons.category;
+    }
+  }
+
+  IconData _getTypeIcon(String type) {
+    switch (type) {
+      case 'mesin':
+        return Icons.precision_manufacturing;
+      case 'sparepart':
+        return Icons.build_circle;
       default:
         return Icons.category;
     }
@@ -70,20 +86,22 @@ class _AssetListScreenState extends ConsumerState<AssetListScreen> {
   void _refreshAssets() {
     ref.invalidate(filteredAssetListProvider);
     ref.invalidate(borrowedAssetsCountProvider);
-    ref.invalidate(assetsByCategoryProvider); // ✅ Refresh category counts
+    ref.invalidate(lentAssetsCountProvider);
+    ref.invalidate(assetsByCategoryProvider);
+    ref.invalidate(assetsByTypeProvider);
   }
 
   @override
   Widget build(BuildContext context) {
     final assetAsync = ref.watch(filteredAssetListProvider);
     final borrowedCountAsync = ref.watch(borrowedAssetsCountProvider);
-    final categoryCounts =
-        ref.watch(assetsByCategoryProvider); // ✅ Watch all assets count
+    final lentCountAsync = ref.watch(lentAssetsCountProvider);
+    final categoryCounts = ref.watch(assetsByCategoryProvider);
+    final typeCounts = ref.watch(assetsByTypeProvider);
     final currentUser = ref.watch(currentUserProvider);
     final canManage =
         currentUser?.role == 'admin' || currentUser?.role == 'warehouse';
 
-    // ✅ Watch filter state from provider
     final filterState = ref.watch(assetFilterProvider);
 
     return Scaffold(
@@ -94,19 +112,64 @@ class _AssetListScreenState extends ConsumerState<AssetListScreen> {
         ),
         title: const Text('Assets Management'),
         actions: [
+          if (canManage)
+            IconButton(
+              icon: const Icon(Icons.add_business),
+              tooltip: 'Input External Assets',
+              onPressed: () {
+                // Navigasi ke form input aset eksternal
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const CreateExternalAssetScreen(),
+                  ),
+                ).then((_) {
+                  // Refresh data setelah kembali dari form
+                  _refreshAssets();
+                });
+              },
+            ),
+          // Borrowed Count Badge
           borrowedCountAsync.when(
             data: (count) {
               if (count > 0) {
                 return Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
                   child: Center(
                     child: Chip(
                       label: Text(
                         'Borrowed: $count',
                         style:
-                            const TextStyle(fontSize: 12, color: Colors.white),
+                            const TextStyle(fontSize: 11, color: Colors.white),
                       ),
                       backgroundColor: Colors.orange,
+                      padding: EdgeInsets.zero,
+                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
+                  ),
+                );
+              }
+              return const SizedBox.shrink();
+            },
+            loading: () => const SizedBox.shrink(),
+            error: (_, __) => const SizedBox.shrink(),
+          ),
+          // Lent Count Badge (NEW)
+          lentCountAsync.when(
+            data: (count) {
+              if (count > 0) {
+                return Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  child: Center(
+                    child: Chip(
+                      label: Text(
+                        'Lent: $count',
+                        style:
+                            const TextStyle(fontSize: 11, color: Colors.white),
+                      ),
+                      backgroundColor: Colors.blue,
+                      padding: EdgeInsets.zero,
+                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                     ),
                   ),
                 );
@@ -175,18 +238,53 @@ class _AssetListScreenState extends ConsumerState<AssetListScreen> {
               ),
             ),
 
-            // Category Filter (STATUS 1)
+            // Asset Type Filter (NEW) - Mesin/Sparepart
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: typeCounts.when(
+                  data: (counts) {
+                    final total =
+                        counts.values.fold<int>(0, (sum, count) => sum + count);
+                    final mesinCount = counts['mesin'] ?? 0;
+                    final sparepartCount = counts['sparepart'] ?? 0;
+
+                    return Row(
+                      children: [
+                        _buildTypeChip(
+                            'all', 'All Types', total, filterState.assetType),
+                        const SizedBox(width: 8),
+                        _buildTypeChip('mesin', '🔧 Mesin', mesinCount,
+                            filterState.assetType),
+                        const SizedBox(width: 8),
+                        _buildTypeChip('sparepart', '⚙️ Sparepart',
+                            sparepartCount, filterState.assetType),
+                      ],
+                    );
+                  },
+                  loading: () => const SizedBox(
+                    height: 32,
+                    child: Center(
+                        child: CircularProgressIndicator(strokeWidth: 2)),
+                  ),
+                  error: (_, __) => const SizedBox.shrink(),
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+
+            // Category Filter (Consumable/Loanable/Saleable)
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
                 child: categoryCounts.when(
                   data: (counts) {
-                    // ✅ Calculate total from category counts
                     final total =
                         counts.values.fold<int>(0, (sum, count) => sum + count);
                     final pendingCount = counts['pending'] ?? 0;
-                    final consumableCount = counts['consumable'] ?? 0;
+                    final disposedCount = counts['disposed'] ?? 0;
                     final loanableCount = counts['loanable'] ?? 0;
                     final saleableCount = counts['saleable'] ?? 0;
 
@@ -201,8 +299,8 @@ class _AssetListScreenState extends ConsumerState<AssetListScreen> {
                               isWarning: true),
                           const SizedBox(width: 8),
                         ],
-                        _buildCategoryChip('consumable', 'Consumable',
-                            consumableCount, filterState.assetCategory),
+                        _buildCategoryChip('disposed', 'Disposed',
+                            disposedCount, filterState.assetCategory),
                         const SizedBox(width: 8),
                         _buildCategoryChip('loanable', 'Loanable',
                             loanableCount, filterState.assetCategory),
@@ -223,23 +321,22 @@ class _AssetListScreenState extends ConsumerState<AssetListScreen> {
             ),
             const SizedBox(height: 8),
 
-            // Status Filter (STATUS 2)
+            // Status Filter (Available/Borrowed/Lent/etc)
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
                 child: assetAsync.when(
                   data: (assets) {
-                    // ✅ Count from filtered assets for display only
                     final displayTotal = assets.length;
                     final availableCount =
                         assets.where((a) => a.status == 'available').length;
                     final borrowedCount =
                         assets.where((a) => a.status == 'borrowed').length;
-                    final maintenanceCount =
-                        assets.where((a) => a.status == 'maintenance').length;
-                    final disposedCount =
-                        assets.where((a) => a.status == 'disposed').length;
+                    final lentCount =
+                        assets.where((a) => a.status == 'lent').length;
+                    final returnedCount =
+                        assets.where((a) => a.status == 'returned').length;
 
                     return Row(
                       children: [
@@ -252,11 +349,12 @@ class _AssetListScreenState extends ConsumerState<AssetListScreen> {
                         _buildStatusChip('borrowed', 'Borrowed', borrowedCount,
                             filterState.status),
                         const SizedBox(width: 8),
-                        _buildStatusChip('maintenance', 'Maintenance',
-                            maintenanceCount, filterState.status),
+                        _buildStatusChip(
+                            'lent', 'Lent', lentCount, filterState.status),
                         const SizedBox(width: 8),
-                        _buildStatusChip('disposed', 'Disposed', disposedCount,
+                        _buildStatusChip('returned', 'Returned', returnedCount,
                             filterState.status),
+                        const SizedBox(width: 8),
                       ],
                     );
                   },
@@ -290,7 +388,6 @@ class _AssetListScreenState extends ConsumerState<AssetListScreen> {
                             textAlign: TextAlign.center,
                           ),
                           const SizedBox(height: 8),
-                          // ✅ Show hint about filters when active
                           if (_hasActiveFilters(filterState))
                             const Text(
                               'Try adjusting your filters to see more results',
@@ -298,7 +395,6 @@ class _AssetListScreenState extends ConsumerState<AssetListScreen> {
                                   TextStyle(fontSize: 12, color: Colors.grey),
                             ),
                           const SizedBox(height: 16),
-                          // ✅ ONLY show Clear Filters when filters are active AND no data
                           if (_hasActiveFilters(filterState))
                             ElevatedButton.icon(
                               onPressed: () {
@@ -373,8 +469,51 @@ class _AssetListScreenState extends ConsumerState<AssetListScreen> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text('Code: ${asset.assetCode}'),
-                              if (asset.assetCategory == 'consumable')
-                                Text('Quantity: ${asset.quantity}'),
+                              // Show Type & Division
+                              Row(
+                                children: [
+                                  Icon(_getTypeIcon(asset.assetType),
+                                      size: 14, color: Colors.grey),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    asset.assetTypeDisplayName,
+                                    style: const TextStyle(fontSize: 12),
+                                  ),
+                                  if (asset.divisionName != null) ...[
+                                    const SizedBox(width: 12),
+                                    const Icon(Icons.business,
+                                        size: 14, color: Colors.grey),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      asset.divisionName!,
+                                      style: const TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w600,
+                                        color: Colors.blue,
+                                      ),
+                                    ),
+                                  ],
+                                  if (asset.isDisposed)
+                                    Container(
+                                      margin: const EdgeInsets.only(top: 4),
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 8, vertical: 2),
+                                      decoration: BoxDecoration(
+                                        color: Colors.grey.shade700,
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: const Text(
+                                        'DISPOSED',
+                                        style: TextStyle(
+                                          fontSize: 10,
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ),
+                                ],
+                              ),
+                              Text('Quantity: ${asset.quantity}'),
                               if (asset.purchasePrice != null)
                                 Text(
                                     'Price: Rp ${NumberFormat('#,###').format(asset.purchasePrice)}'),
@@ -385,6 +524,23 @@ class _AssetListScreenState extends ConsumerState<AssetListScreen> {
                                     fontWeight: FontWeight.w600,
                                     color: Colors.orange,
                                   ),
+                                ),
+                              // NEW: Show source (external/supplier)
+                              if (asset.isFromExternal)
+                                Row(
+                                  children: [
+                                    const Icon(Icons.business_center,
+                                        size: 14, color: Colors.purple),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      'From: ${asset.sourceDisplayName}',
+                                      style: const TextStyle(
+                                        fontSize: 12,
+                                        color: Colors.purple,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ],
                                 ),
                             ],
                           ),
@@ -406,18 +562,20 @@ class _AssetListScreenState extends ConsumerState<AssetListScreen> {
                                 materialTapTargetSize:
                                     MaterialTapTargetSize.shrinkWrap,
                               ),
-                              Chip(
-                                label: Text(
-                                  asset.statusDisplayName.toUpperCase(),
-                                  style: const TextStyle(fontSize: 9),
+                              if (!asset.isDisposed)
+                                Chip(
+                                  label: Text(
+                                    asset.statusDisplayName.toUpperCase(),
+                                    style: const TextStyle(fontSize: 9),
+                                  ),
+                                  backgroundColor:
+                                      _getStatusColor(asset.status ?? '')
+                                          .withOpacity(0.2),
+                                  padding:
+                                      const EdgeInsets.symmetric(horizontal: 4),
+                                  materialTapTargetSize:
+                                      MaterialTapTargetSize.shrinkWrap,
                                 ),
-                                backgroundColor: _getStatusColor(asset.status)
-                                    .withOpacity(0.2),
-                                padding:
-                                    const EdgeInsets.symmetric(horizontal: 4),
-                                materialTapTargetSize:
-                                    MaterialTapTargetSize.shrinkWrap,
-                              ),
                             ],
                           ),
                           onTap: () {
@@ -456,23 +614,45 @@ class _AssetListScreenState extends ConsumerState<AssetListScreen> {
           ],
         ),
       ),
+      floatingActionButton: canManage
+          ? FloatingActionButton.extended(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const CreateExternalAssetScreen(),
+                  ),
+                ).then((_) => _refreshAssets());
+              },
+              icon: const Icon(Icons.add),
+              label: const Text('External Asset'),
+              backgroundColor: Colors.purple,
+            )
+          : null,
     );
   }
 
-  // ✅ Check if any filter is active
   bool _hasActiveFilters(AssetFilter filter) {
     return filter.search != null ||
         filter.assetCategory != null ||
+        filter.assetType != null ||
         filter.status != null ||
+        filter.sourceType != null ||
+        filter.divisionId != null ||
         filter.productId != null ||
         filter.categoryId != null ||
         filter.assignedTo != null;
   }
 
-  // ✅ Helper to show appropriate empty message
   String _getEmptyMessage(AssetFilter filter) {
     if (filter.search != null) {
       return 'No assets found matching "${filter.search}"';
+    }
+    if (filter.assetType != null && filter.assetCategory != null) {
+      return 'No ${filter.assetType} assets in ${filter.assetCategory} category';
+    }
+    if (filter.assetType != null) {
+      return 'No ${filter.assetType} assets found';
     }
     if (filter.assetCategory != null && filter.status != null) {
       return 'No ${filter.status} assets in ${filter.assetCategory} category';
@@ -486,14 +666,52 @@ class _AssetListScreenState extends ConsumerState<AssetListScreen> {
     return 'No assets found';
   }
 
-  // ✅ Category chip with provider state
+  // Type chip (NEW)
+  Widget _buildTypeChip(
+      String value, String label, int count, String? currentFilter) {
+    final isSelected =
+        value == 'all' ? currentFilter == null : currentFilter == value;
+
+    return FilterChip(
+      label: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(label),
+          if (count > 0) ...[
+            const SizedBox(width: 4),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: isSelected ? Colors.white : Colors.deepPurple,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Text(
+                count.toString(),
+                style: TextStyle(
+                  fontSize: 10,
+                  color: isSelected ? Colors.deepPurple : Colors.white,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+      selected: isSelected,
+      selectedColor: Colors.deepPurple.shade100,
+      onSelected: (selected) {
+        ref
+            .read(assetFilterProvider.notifier)
+            .updateAssetType(value == 'all' ? null : value);
+      },
+    );
+  }
+
   Widget _buildCategoryChip(
       String value, String label, int count, String? currentFilter,
       {bool isWarning = false}) {
-    // ✅ FIX: "all" means no filter (null), not "all" string
-    final isSelected = value == 'all'
-        ? currentFilter == null // "All" selected when no category filter
-        : currentFilter == value; // Others selected when filter matches
+    final isSelected =
+        value == 'all' ? currentFilter == null : currentFilter == value;
 
     return FilterChip(
       label: Row(
@@ -527,7 +745,6 @@ class _AssetListScreenState extends ConsumerState<AssetListScreen> {
       selected: isSelected,
       selectedColor: isWarning ? Colors.amber.shade100 : null,
       onSelected: (selected) {
-        // ✅ PERBAIKAN: Langsung update, biar provider handle clear
         ref
             .read(assetFilterProvider.notifier)
             .updateCategory(value == 'all' ? null : value);
@@ -535,13 +752,10 @@ class _AssetListScreenState extends ConsumerState<AssetListScreen> {
     );
   }
 
-  // ✅ Status chip with provider state
   Widget _buildStatusChip(
       String value, String label, int count, String? currentFilter) {
-    // ✅ FIX: "all" means no filter (null), not "all" string
-    final isSelected = value == 'all'
-        ? currentFilter == null // "All Status" selected when no status filter
-        : currentFilter == value; // Others selected when filter matches
+    final isSelected =
+        value == 'all' ? currentFilter == null : currentFilter == value;
 
     return FilterChip(
       label: Row(
@@ -570,7 +784,6 @@ class _AssetListScreenState extends ConsumerState<AssetListScreen> {
       ),
       selected: isSelected,
       onSelected: (selected) {
-        // ✅ PERBAIKAN: Langsung update, biar provider handle clear
         ref
             .read(assetFilterProvider.notifier)
             .updateStatus(value == 'all' ? null : value);

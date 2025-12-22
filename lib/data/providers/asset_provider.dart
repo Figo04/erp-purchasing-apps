@@ -16,7 +16,10 @@ final assetListProvider =
     productId: filter.productId,
     categoryId: filter.categoryId,
     assetCategory: filter.assetCategory,
+    assetType: filter.assetType,
     status: filter.status,
+    sourceType: filter.sourceType,
+    divisionId: filter.divisionId,
     assignedTo: filter.assignedTo,
     search: filter.search,
   );
@@ -36,16 +39,34 @@ final borrowedAssetsCountProvider = FutureProvider<int>((ref) async {
   return borrowedAssets.length;
 });
 
+// LENT ASSETS COUNT PROVIDER (NEW)
+final lentAssetsCountProvider = FutureProvider<int>((ref) async {
+  final repository = ref.watch(assetRepositoryProvider);
+  final lentAssets = await repository.getAssetsByStatus('lent');
+  return lentAssets.length;
+});
+
 // ASSETS BY CATEGORY PROVIDER
 final assetsByCategoryProvider = FutureProvider<Map<String, int>>((ref) async {
   final repository = ref.watch(assetRepositoryProvider);
   final allAssets = await repository.getAllAssets();
 
   return {
-    'consumable':
-        allAssets.where((a) => a.assetCategory == 'consumable').length,
     'loanable': allAssets.where((a) => a.assetCategory == 'loanable').length,
     'saleable': allAssets.where((a) => a.assetCategory == 'saleable').length,
+    'pending': allAssets.where((a) => a.assetCategory == 'pending').length,
+    'disposed': allAssets.where((a) => a.assetCategory == 'disposed').length,
+  };
+});
+
+// ASSETS BY TYPE PROVIDER (NEW)
+final assetsByTypeProvider = FutureProvider<Map<String, int>>((ref) async {
+  final repository = ref.watch(assetRepositoryProvider);
+  final allAssets = await repository.getAllAssets();
+
+  return {
+    'mesin': allAssets.where((a) => a.assetType == 'mesin').length,
+    'sparepart': allAssets.where((a) => a.assetType == 'sparepart').length,
   };
 });
 
@@ -64,12 +85,51 @@ final assetTransactionProvider =
   return await repository.getTransactionHistory(assetId);
 });
 
-// ASSET FILTER CLASS
+// ASSET LOAN HISTORY PROVIDER (NEW)
+final assetLoanHistoryProvider =
+    FutureProvider.family<List<AssetLoanHistoryModel>, String>(
+        (ref, assetId) async {
+  final repository = ref.watch(assetRepositoryProvider);
+  return await repository.getAssetLoanHistory(assetId);
+});
+
+// ALL LOAN HISTORY PROVIDER (NEW)
+final allLoanHistoryProvider =
+    FutureProvider.family<List<AssetLoanHistoryModel>, LoanHistoryFilter>(
+        (ref, filter) async {
+  final repository = ref.watch(assetRepositoryProvider);
+  return await repository.getLoanHistory(
+    assetId: filter.assetId,
+    loanType: filter.loanType,
+    status: filter.status,
+    fromDivisionId: filter.fromDivisionId,
+    toDivisionId: filter.toDivisionId,
+  );
+});
+
+// ONGOING LOANS COUNT PROVIDER (NEW)
+final ongoingLoansCountProvider = FutureProvider<int>((ref) async {
+  final repository = ref.watch(assetRepositoryProvider);
+  final loans = await repository.getLoanHistory(status: 'ongoing');
+  return loans.length;
+});
+
+// OVERDUE LOANS COUNT PROVIDER (NEW)
+final overdueLoansCountProvider = FutureProvider<int>((ref) async {
+  final repository = ref.watch(assetRepositoryProvider);
+  final loans = await repository.getLoanHistory(status: 'overdue');
+  return loans.length;
+});
+
+// ASSET FILTER CLASS (UPDATED)
 class AssetFilter {
   final String? productId;
   final String? categoryId;
   final String? assetCategory;
+  final String? assetType; // NEW
   final String? status;
+  final String? sourceType; // NEW
+  final String? divisionId; // NEW
   final String? assignedTo;
   final String? search;
 
@@ -77,7 +137,10 @@ class AssetFilter {
     this.productId,
     this.categoryId,
     this.assetCategory,
+    this.assetType,
     this.status,
+    this.sourceType,
+    this.divisionId,
     this.assignedTo,
     this.search,
   });
@@ -91,7 +154,10 @@ class AssetFilter {
         other.productId == productId &&
         other.categoryId == categoryId &&
         other.assetCategory == assetCategory &&
+        other.assetType == assetType &&
         other.status == status &&
+        other.sourceType == sourceType &&
+        other.divisionId == divisionId &&
         other.assignedTo == assignedTo &&
         other.search == search;
   }
@@ -101,7 +167,10 @@ class AssetFilter {
         productId,
         categoryId,
         assetCategory,
+        assetType,
         status,
+        sourceType,
+        divisionId,
         assignedTo,
         search,
       );
@@ -110,7 +179,10 @@ class AssetFilter {
     String? productId,
     String? categoryId,
     String? assetCategory,
+    String? assetType,
     String? status,
+    String? sourceType,
+    String? divisionId,
     String? assignedTo,
     String? search,
   }) {
@@ -118,51 +190,83 @@ class AssetFilter {
       productId: productId ?? this.productId,
       categoryId: categoryId ?? this.categoryId,
       assetCategory: assetCategory ?? this.assetCategory,
+      assetType: assetType ?? this.assetType,
       status: status ?? this.status,
+      sourceType: sourceType ?? this.sourceType,
+      divisionId: divisionId ?? this.divisionId,
       assignedTo: assignedTo ?? this.assignedTo,
       search: search ?? this.search,
     );
   }
 }
 
-// STATE NOTIFIER FOR FILTER MANAGEMENT
+// LOAN HISTORY FILTER CLASS (NEW)
+class LoanHistoryFilter {
+  final String? assetId;
+  final String? loanType;
+  final String? status;
+  final String? fromDivisionId;
+  final String? toDivisionId;
+
+  const LoanHistoryFilter({
+    this.assetId,
+    this.loanType,
+    this.status,
+    this.fromDivisionId,
+    this.toDivisionId,
+  });
+
+  static const empty = LoanHistoryFilter();
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    return other is LoanHistoryFilter &&
+        other.assetId == assetId &&
+        other.loanType == loanType &&
+        other.status == status &&
+        other.fromDivisionId == fromDivisionId &&
+        other.toDivisionId == toDivisionId;
+  }
+
+  @override
+  int get hashCode => Object.hash(
+        assetId,
+        loanType,
+        status,
+        fromDivisionId,
+        toDivisionId,
+      );
+}
+
+// STATE NOTIFIER FOR FILTER MANAGEMENT (UPDATED)
 class AssetFilterNotifier extends StateNotifier<AssetFilter> {
   AssetFilterNotifier() : super(AssetFilter.empty);
 
   void setFilter(AssetFilter filter) => state = filter;
 
-  //  Explicit set untuk bisa clear
   void updateCategory(String? category) {
-    state = AssetFilter(
-      search: state.search,
-      status: state.status,
-      productId: state.productId,
-      categoryId: state.categoryId,
-      assignedTo: state.assignedTo,
-      assetCategory: category, 
-    );
+    state = state.copyWith(assetCategory: category);
+  }
+
+  void updateAssetType(String? type) {
+    state = state.copyWith(assetType: type);
   }
 
   void updateStatus(String? status) {
-    state = AssetFilter(
-      search: state.search,
-      assetCategory: state.assetCategory,
-      productId: state.productId,
-      categoryId: state.categoryId,
-      assignedTo: state.assignedTo,
-      status: status, 
-    );
+    state = state.copyWith(status: status);
+  }
+
+  void updateSourceType(String? sourceType) {
+    state = state.copyWith(sourceType: sourceType);
+  }
+
+  void updateDivision(String? divisionId) {
+    state = state.copyWith(divisionId: divisionId);
   }
 
   void updateSearch(String? search) {
-    state = AssetFilter(
-      assetCategory: state.assetCategory,
-      status: state.status,
-      productId: state.productId,
-      categoryId: state.categoryId,
-      assignedTo: state.assignedTo,
-      search: search, 
-    );
+    state = state.copyWith(search: search);
   }
 
   void reset() => state = AssetFilter.empty;
@@ -182,7 +286,10 @@ final filteredAssetListProvider = FutureProvider<List<AssetModel>>((ref) async {
     productId: filter.productId,
     categoryId: filter.categoryId,
     assetCategory: filter.assetCategory,
+    assetType: filter.assetType,
     status: filter.status,
+    sourceType: filter.sourceType,
+    divisionId: filter.divisionId,
     assignedTo: filter.assignedTo,
     search: filter.search,
   );

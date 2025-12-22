@@ -126,6 +126,19 @@ class ApiEndpoints {
   static String assignAsset(String id) => '/assets/$id/assign';
   static String assetTransactions(String id) => '/assets/$id/transactions';
 
+  // Asset Loan Management
+  static String loanAsset(String id) => '/assets/$id/loan';
+  static const String returnAsset = '/assets/return';
+  static String assetLoanHistory(String id) => '/assets/$id/loan-history';
+
+  // External Source Management
+  static const String externalSources = '/external-sources';
+  static String externalSourceById(String id) => '/external-sources/$id';
+  static String externalSourceItems(String id) => '/external-sources/$id/items';
+
+  // Loan History
+  static const String loanHistory = '/loan-history';
+
   // ============================================
   // TRACKING & HISTORY ENDPOINTS
   // ============================================
