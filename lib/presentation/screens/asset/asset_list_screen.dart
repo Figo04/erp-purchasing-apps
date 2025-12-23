@@ -1,4 +1,5 @@
-import 'package:erp_purchasing_apps/presentation/screens/asset/asset_form_screen.dart';
+import 'package:erp_purchasing_apps/presentation/screens/asset/AssetTransactionTypeDialog.dart';
+import 'package:erp_purchasing_apps/presentation/screens/asset/asset_transaction_form_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -112,23 +113,6 @@ class _AssetListScreenState extends ConsumerState<AssetListScreen> {
         ),
         title: const Text('Assets Management'),
         actions: [
-          if (canManage)
-            IconButton(
-              icon: const Icon(Icons.add_business),
-              tooltip: 'Input External Assets',
-              onPressed: () {
-                // Navigasi ke form input aset eksternal
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const CreateExternalAssetScreen(),
-                  ),
-                ).then((_) {
-                  // Refresh data setelah kembali dari form
-                  _refreshAssets();
-                });
-              },
-            ),
           // Borrowed Count Badge
           borrowedCountAsync.when(
             data: (count) {
@@ -617,15 +601,22 @@ class _AssetListScreenState extends ConsumerState<AssetListScreen> {
       floatingActionButton: canManage
           ? FloatingActionButton.extended(
               onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const CreateExternalAssetScreen(),
-                  ),
-                ).then((_) => _refreshAssets());
+                showAssetTransactionTypeDialog(
+                  context: context,
+                  onTypeSelected: (transactionType) {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => AssetTransactionFormScreen(
+                          transactionType: transactionType,
+                        ),
+                      ),
+                    ).then((_) => _refreshAssets());
+                  },
+                );
               },
-              icon: const Icon(Icons.add),
-              label: const Text('External Asset'),
+              icon: const Icon(Icons.swap_horiz),
+              label: const Text('Asset Transaction'),
               backgroundColor: Colors.purple,
             )
           : null,

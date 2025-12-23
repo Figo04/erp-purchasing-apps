@@ -392,8 +392,6 @@ class AssetLoanHistoryModel extends Equatable {
   // External loan
   final String? externalCompanyName;
   final String? externalCompanyAddress;
-  final String? externalContactName;
-  final String? externalContactPhone;
 
   final int quantity;
   final DateTime loanDate;
@@ -425,8 +423,6 @@ class AssetLoanHistoryModel extends Equatable {
     this.borrowedByName,
     this.externalCompanyName,
     this.externalCompanyAddress,
-    this.externalContactName,
-    this.externalContactPhone,
     required this.quantity,
     required this.loanDate,
     this.expectedReturnDate,
@@ -459,8 +455,6 @@ class AssetLoanHistoryModel extends Equatable {
       borrowedByName: json['borrowed_by_name'] as String?,
       externalCompanyName: json['external_company_name'] as String?,
       externalCompanyAddress: json['external_company_address'] as String?,
-      externalContactName: json['external_contact_name'] as String?,
-      externalContactPhone: json['external_contact_phone'] as String?,
       quantity: json['quantity'] as int,
       loanDate: DateTime.parse(json['loan_date'] as String),
       expectedReturnDate: json['expected_return_date'] != null

@@ -232,8 +232,6 @@ class AssetRepository {
     // For external loan
     String? externalCompanyName,
     String? externalCompanyAddress,
-    String? externalContactName,
-    String? externalContactPhone,
     // Common
     DateTime? expectedReturnDate,
     String? loanDocumentUrl,
@@ -249,10 +247,6 @@ class AssetRepository {
           'external_company_name': externalCompanyName,
         if (externalCompanyAddress != null)
           'external_company_address': externalCompanyAddress,
-        if (externalContactName != null)
-          'external_contact_name': externalContactName,
-        if (externalContactPhone != null)
-          'external_contact_phone': externalContactPhone,
         if (expectedReturnDate != null)
           'expected_return_date': expectedReturnDate.toIso8601String(),
         if (loanDocumentUrl != null) 'loan_document_url': loanDocumentUrl,
@@ -522,6 +516,133 @@ class AssetRepository {
       );
     } catch (e) {
       throw Exception('Failed to update status: $e');
+    }
+  }
+
+  // ============================================
+// ASSET TRANSACTION METHODS (NEW)
+// ============================================
+
+  /// CREATE TRANSACTION IN (Purchase / Loan In)
+  Future<Map<String, dynamic>> createTransactionIn(
+      Map<String, dynamic> body) async {
+    try {
+      final response = await _apiService.post(
+        ApiEndpoints.transactionIn,
+        body: body,
+      );
+
+      return response.data as Map<String, dynamic>;
+    } catch (e) {
+      throw Exception('Failed to create transaction IN: $e');
+    }
+  }
+
+  /// CREATE TRANSACTION OUT (Sale / Loan Out)
+  Future<Map<String, dynamic>> createTransactionOut(
+      Map<String, dynamic> body) async {
+    try {
+      final response = await _apiService.post(
+        ApiEndpoints.transactionOut,
+        body: body,
+      );
+
+      return response.data as Map<String, dynamic>;
+    } catch (e) {
+      throw Exception('Failed to create transaction OUT: $e');
+    }
+  }
+
+  /// CREATE TRANSACTION DISPOSED
+  Future<Map<String, dynamic>> createTransactionDisposed(
+      Map<String, dynamic> body) async {
+    try {
+      final response = await _apiService.post(
+        ApiEndpoints.transactionDisposed,
+        body: body,
+      );
+
+      return response.data as Map<String, dynamic>;
+    } catch (e) {
+      throw Exception('Failed to dispose asset: $e');
+    }
+  }
+
+  /// GET TRANSACTION HISTORY FOR ASSET (using new endpoint)
+  Future<List<dynamic>> getAssetTransactionHistory(String assetId) async {
+    try {
+      final response = await _apiService.get(
+        ApiEndpoints.assetTransactionHistory(assetId),
+      );
+
+      if (response.data == null) return [];
+      return response.data is List ? response.data as List : [response.data];
+    } catch (e) {
+      throw Exception('Failed to load asset transaction history: $e');
+    }
+  }
+
+  /// GET ALL ASSET TRANSACTIONS (with filters)
+  Future<List<dynamic>> getAllAssetTransactions({
+    String? assetId,
+    String? transactionType,
+    String? transactionSubtype,
+    String? performedBy,
+    String? status,
+    DateTime? fromDate,
+    DateTime? toDate,
+  }) async {
+    try {
+      final queryParams = <String, dynamic>{};
+
+      if (assetId != null) queryParams['asset_id'] = assetId;
+      if (transactionType != null)
+        queryParams['transaction_type'] = transactionType;
+      if (transactionSubtype != null)
+        queryParams['transaction_subtype'] = transactionSubtype;
+      if (performedBy != null) queryParams['performed_by'] = performedBy;
+      if (status != null) queryParams['status'] = status;
+      if (fromDate != null)
+        queryParams['from_date'] = fromDate.toIso8601String();
+      if (toDate != null) queryParams['to_date'] = toDate.toIso8601String();
+
+      final response = await _apiService.get(
+        '/asset-transactions',
+        queryParameters: queryParams,
+      );
+
+      if (response.data == null) return [];
+      return response.data is List ? response.data as List : [response.data];
+    } catch (e) {
+      throw Exception('Failed to load asset transactions: $e');
+    }
+  }
+
+  /// GET AVAILABLE ASSETS FOR OUT TRANSACTION
+  Future<List<AssetModel>> getAvailableAssetsForOut({
+    String? transactionSubtype,
+  }) async {
+    try {
+      final queryParams = <String, dynamic>{};
+      if (transactionSubtype != null) {
+        queryParams['transaction_subtype'] = transactionSubtype;
+      }
+
+      final response = await _apiService.get(
+        ApiEndpoints.availableAssetsForOut,
+        queryParameters: queryParams,
+      );
+
+      if (response.data == null) return [];
+
+      final List<dynamic> dataList =
+          response.data is List ? response.data as List : [response.data];
+
+      return dataList
+          .map((json) => AssetModel.fromJson(json as Map<String, dynamic>))
+          .toList();
+    } catch (e) {
+      throw Exception('Failed to load available assets: $e');
     }
   }
 }

@@ -124,7 +124,7 @@ class ApiEndpoints {
   static const String assets = '/assets';
   static String assetById(String id) => '/assets/$id';
   static String assignAsset(String id) => '/assets/$id/assign';
-  static String assetTransactions(String id) => '/assets/$id/transactions';
+  static String assetTransactions(String assetId) => '/assets/$assetId/transactions';
 
   // Asset Loan Management
   static String loanAsset(String id) => '/assets/$id/loan';
@@ -138,6 +138,25 @@ class ApiEndpoints {
 
   // Loan History
   static const String loanHistory = '/loan-history';
+
+  
+
+  // Transaction IN
+  static const String transactionIn = '/asset-transactions/in';
+
+  // Transaction OUT
+  static const String transactionOut = '/asset-transactions/out';
+
+  // Transaction DISPOSED
+  static const String transactionDisposed = '/asset-transactions/disposed';
+
+  // Get transaction history for specific asset
+  static String assetTransactionHistory(String assetId) =>
+      '/asset-transactions/asset/$assetId';
+
+  // Get available assets for OUT transaction
+  static const String availableAssetsForOut =
+      '/asset-transactions/available-assets';
 
   // ============================================
   // TRACKING & HISTORY ENDPOINTS
