@@ -24,16 +24,13 @@ class _AssetListScreenState extends ConsumerState<AssetListScreen> {
     super.dispose();
   }
 
-  Color _getCategoryColor(String category) {
-    switch (category) {
-      case 'loanable':
+  // ✅ UPDATED: Color for ownership
+  Color _getOwnershipColor(String ownership) {
+    switch (ownership) {
+      case 'milik_sendiri':
+        return Colors.blue;
+      case 'milik_customer':
         return Colors.purple;
-      case 'saleable':
-        return Colors.green;
-      case 'disposed': // TAMBAH
-        return Colors.grey;
-      case 'pending':
-        return Colors.amber;
       default:
         return Colors.grey;
     }
@@ -43,33 +40,22 @@ class _AssetListScreenState extends ConsumerState<AssetListScreen> {
     switch (status) {
       case 'available':
         return Colors.green;
+      case 'saleable':
+        return Colors.teal;
+      case 'loanable':
+        return Colors.indigo;
+      case 'disposed':
+        return Colors.grey;
       case 'borrowed':
         return Colors.orange;
       case 'lent':
         return Colors.blue;
       case 'sold':
         return Colors.purple;
-      case 'disposed':
-        return Colors.grey;
       case 'returned':
-        return Colors.teal;
+        return Colors.cyan;
       default:
         return Colors.grey;
-    }
-  }
-
-  IconData _getCategoryIcon(String category) {
-    switch (category) {
-      case 'loanable':
-        return Icons.devices;
-      case 'saleable':
-        return Icons.shopping_bag;
-      case 'disposed':
-        return Icons.delete_forever;
-      case 'pending':
-        return Icons.help_outline;
-      default:
-        return Icons.category;
     }
   }
 
@@ -88,8 +74,9 @@ class _AssetListScreenState extends ConsumerState<AssetListScreen> {
     ref.invalidate(filteredAssetListProvider);
     ref.invalidate(borrowedAssetsCountProvider);
     ref.invalidate(lentAssetsCountProvider);
-    ref.invalidate(assetsByCategoryProvider);
+    ref.invalidate(assetsByOwnershipProvider);
     ref.invalidate(assetsByTypeProvider);
+    ref.invalidate(assetsByStatusProvider);
   }
 
   @override
@@ -97,8 +84,9 @@ class _AssetListScreenState extends ConsumerState<AssetListScreen> {
     final assetAsync = ref.watch(filteredAssetListProvider);
     final borrowedCountAsync = ref.watch(borrowedAssetsCountProvider);
     final lentCountAsync = ref.watch(lentAssetsCountProvider);
-    final categoryCounts = ref.watch(assetsByCategoryProvider);
+    final ownershipCounts = ref.watch(assetsByOwnershipProvider);
     final typeCounts = ref.watch(assetsByTypeProvider);
+    final statusCounts = ref.watch(assetsByStatusProvider);
     final currentUser = ref.watch(currentUserProvider);
     final canManage =
         currentUser?.role == 'admin' || currentUser?.role == 'warehouse';
@@ -113,7 +101,6 @@ class _AssetListScreenState extends ConsumerState<AssetListScreen> {
         ),
         title: const Text('Assets Management'),
         actions: [
-          // Borrowed Count Badge
           borrowedCountAsync.when(
             data: (count) {
               if (count > 0) {
@@ -138,7 +125,6 @@ class _AssetListScreenState extends ConsumerState<AssetListScreen> {
             loading: () => const SizedBox.shrink(),
             error: (_, __) => const SizedBox.shrink(),
           ),
-          // Lent Count Badge (NEW)
           lentCountAsync.when(
             data: (count) {
               if (count > 0) {
@@ -222,7 +208,7 @@ class _AssetListScreenState extends ConsumerState<AssetListScreen> {
               ),
             ),
 
-            // Asset Type Filter (NEW) - Mesin/Sparepart
+            // ✅ NEW: Asset Type Filter (Mesin/Sparepart)
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: SingleChildScrollView(
@@ -258,39 +244,28 @@ class _AssetListScreenState extends ConsumerState<AssetListScreen> {
             ),
             const SizedBox(height: 8),
 
-            // Category Filter (Consumable/Loanable/Saleable)
+            // ✅ UPDATED: Ownership Filter (Milik Sendiri / Milik Customer)
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
-                child: categoryCounts.when(
+                child: ownershipCounts.when(
                   data: (counts) {
                     final total =
                         counts.values.fold<int>(0, (sum, count) => sum + count);
-                    final pendingCount = counts['pending'] ?? 0;
-                    final disposedCount = counts['disposed'] ?? 0;
-                    final loanableCount = counts['loanable'] ?? 0;
-                    final saleableCount = counts['saleable'] ?? 0;
+                    final milikSendiriCount = counts['milik_sendiri'] ?? 0;
+                    final milikCustomerCount = counts['milik_customer'] ?? 0;
 
                     return Row(
                       children: [
-                        _buildCategoryChip(
-                            'all', 'All', total, filterState.assetCategory),
+                        _buildOwnershipChip(
+                            'all', 'All', total, filterState.ownership),
                         const SizedBox(width: 8),
-                        if (pendingCount > 0) ...[
-                          _buildCategoryChip('pending', '⚠️ Pending',
-                              pendingCount, filterState.assetCategory,
-                              isWarning: true),
-                          const SizedBox(width: 8),
-                        ],
-                        _buildCategoryChip('disposed', 'Disposed',
-                            disposedCount, filterState.assetCategory),
+                        _buildOwnershipChip('milik_sendiri', 'Milik Sendiri',
+                            milikSendiriCount, filterState.ownership),
                         const SizedBox(width: 8),
-                        _buildCategoryChip('loanable', 'Loanable',
-                            loanableCount, filterState.assetCategory),
-                        const SizedBox(width: 8),
-                        _buildCategoryChip('saleable', 'Saleable',
-                            saleableCount, filterState.assetCategory),
+                        _buildOwnershipChip('milik_customer', 'Milik Customer',
+                            milikCustomerCount, filterState.ownership),
                       ],
                     );
                   },
@@ -305,22 +280,30 @@ class _AssetListScreenState extends ConsumerState<AssetListScreen> {
             ),
             const SizedBox(height: 8),
 
-            // Status Filter (Available/Borrowed/Lent/etc)
+            // ✅ UPDATED: Status Filter
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
-                child: assetAsync.when(
-                  data: (assets) {
-                    final displayTotal = assets.length;
-                    final availableCount =
-                        assets.where((a) => a.status == 'available').length;
-                    final borrowedCount =
-                        assets.where((a) => a.status == 'borrowed').length;
-                    final lentCount =
-                        assets.where((a) => a.status == 'lent').length;
-                    final returnedCount =
-                        assets.where((a) => a.status == 'returned').length;
+                child: statusCounts.when(
+                  data: (counts) {
+                    final availableCount = counts['available'] ?? 0;
+                    final saleableCount = counts['saleable'] ?? 0;
+                    final loanableCount = counts['loanable'] ?? 0;
+                    final disposedCount = counts['disposed'] ?? 0;
+                    final borrowedCount = counts['borrowed'] ?? 0;
+                    final lentCount = counts['lent'] ?? 0;
+                    final soldCount = counts['sold'] ?? 0;
+                    final returnedCount = counts['returned'] ?? 0;
+
+                    final displayTotal = availableCount +
+                        saleableCount +
+                        loanableCount +
+                        disposedCount +
+                        borrowedCount +
+                        lentCount +
+                        soldCount +
+                        returnedCount;
 
                     return Row(
                       children: [
@@ -330,15 +313,34 @@ class _AssetListScreenState extends ConsumerState<AssetListScreen> {
                         _buildStatusChip('available', 'Available',
                             availableCount, filterState.status),
                         const SizedBox(width: 8),
-                        _buildStatusChip('borrowed', 'Borrowed', borrowedCount,
+                        _buildStatusChip('saleable', 'Saleable', saleableCount,
                             filterState.status),
                         const SizedBox(width: 8),
-                        _buildStatusChip(
-                            'lent', 'Lent', lentCount, filterState.status),
-                        const SizedBox(width: 8),
-                        _buildStatusChip('returned', 'Returned', returnedCount,
+                        _buildStatusChip('loanable', 'Loanable', loanableCount,
                             filterState.status),
                         const SizedBox(width: 8),
+                        _buildStatusChip('disposed', 'Disposed', disposedCount,
+                            filterState.status),
+                        const SizedBox(width: 8),
+                        if (borrowedCount > 0) ...[
+                          _buildStatusChip('borrowed', 'Borrowed',
+                              borrowedCount, filterState.status),
+                          const SizedBox(width: 8),
+                        ],
+                        if (lentCount > 0) ...[
+                          _buildStatusChip(
+                              'lent', 'Lent', lentCount, filterState.status),
+                          const SizedBox(width: 8),
+                        ],
+                        if (soldCount > 0) ...[
+                          _buildStatusChip(
+                              'sold', 'Sold', soldCount, filterState.status),
+                          const SizedBox(width: 8),
+                        ],
+                        if (returnedCount > 0) ...[
+                          _buildStatusChip('returned', 'Returned',
+                              returnedCount, filterState.status),
+                        ],
                       ],
                     );
                   },
@@ -411,13 +413,12 @@ class _AssetListScreenState extends ConsumerState<AssetListScreen> {
 
                       return Card(
                         margin: const EdgeInsets.only(bottom: 8),
-                        color: asset.isPending ? Colors.amber.shade50 : null,
                         child: ListTile(
                           leading: CircleAvatar(
                             backgroundColor:
-                                _getCategoryColor(asset.assetCategory),
+                                _getOwnershipColor(asset.ownership),
                             child: Icon(
-                              _getCategoryIcon(asset.assetCategory),
+                              _getTypeIcon(asset.assetType),
                               color: Colors.white,
                             ),
                           ),
@@ -430,30 +431,34 @@ class _AssetListScreenState extends ConsumerState<AssetListScreen> {
                                       fontWeight: FontWeight.bold),
                                 ),
                               ),
-                              if (asset.isPending)
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 8, vertical: 4),
-                                  decoration: BoxDecoration(
-                                    color: Colors.amber.shade700,
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  child: const Text(
-                                    'NEEDS CLASSIFICATION',
-                                    style: TextStyle(
-                                      fontSize: 9,
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.bold,
-                                    ),
+                              // ✅ Show ownership badge
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: _getOwnershipColor(asset.ownership)
+                                      .withOpacity(0.2),
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(
+                                    color: _getOwnershipColor(asset.ownership),
+                                    width: 1,
                                   ),
                                 ),
+                                child: Text(
+                                  asset.ownershipDisplayName,
+                                  style: TextStyle(
+                                    fontSize: 9,
+                                    color: _getOwnershipColor(asset.ownership),
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
                             ],
                           ),
                           subtitle: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text('Code: ${asset.assetCode}'),
-                              // Show Type & Division
                               Row(
                                 children: [
                                   Icon(_getTypeIcon(asset.assetType),
@@ -477,24 +482,6 @@ class _AssetListScreenState extends ConsumerState<AssetListScreen> {
                                       ),
                                     ),
                                   ],
-                                  if (asset.isDisposed)
-                                    Container(
-                                      margin: const EdgeInsets.only(top: 4),
-                                      padding: const EdgeInsets.symmetric(
-                                          horizontal: 8, vertical: 2),
-                                      decoration: BoxDecoration(
-                                        color: Colors.grey.shade700,
-                                        borderRadius: BorderRadius.circular(8),
-                                      ),
-                                      child: const Text(
-                                        'DISPOSED',
-                                        style: TextStyle(
-                                          fontSize: 10,
-                                          color: Colors.white,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                    ),
                                 ],
                               ),
                               Text('Quantity: ${asset.quantity}'),
@@ -509,58 +496,43 @@ class _AssetListScreenState extends ConsumerState<AssetListScreen> {
                                     color: Colors.orange,
                                   ),
                                 ),
-                              // NEW: Show source (external/supplier)
-                              if (asset.isFromExternal)
-                                Row(
-                                  children: [
-                                    const Icon(Icons.business_center,
-                                        size: 14, color: Colors.purple),
-                                    const SizedBox(width: 4),
-                                    Text(
-                                      'From: ${asset.sourceDisplayName}',
-                                      style: const TextStyle(
-                                        fontSize: 12,
-                                        color: Colors.purple,
-                                        fontWeight: FontWeight.w600,
-                                      ),
+                              // Show source
+                              Row(
+                                children: [
+                                  Icon(
+                                    asset.isFromSupplier
+                                        ? Icons.local_shipping
+                                        : Icons.edit,
+                                    size: 14,
+                                    color: asset.isFromSupplier
+                                        ? Colors.teal
+                                        : Colors.purple,
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    asset.sourceDisplayName,
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: asset.isFromSupplier
+                                          ? Colors.teal
+                                          : Colors.purple,
+                                      fontWeight: FontWeight.w600,
                                     ),
-                                  ],
-                                ),
+                                  ),
+                                ],
+                              ),
                             ],
                           ),
-                          trailing: Wrap(
-                            direction: Axis.vertical,
-                            spacing: 4,
-                            crossAxisAlignment: WrapCrossAlignment.end,
-                            children: [
-                              Chip(
-                                label: Text(
-                                  asset.categoryDisplayName.toUpperCase(),
-                                  style: const TextStyle(fontSize: 9),
-                                ),
-                                backgroundColor:
-                                    _getCategoryColor(asset.assetCategory)
-                                        .withOpacity(0.2),
-                                padding:
-                                    const EdgeInsets.symmetric(horizontal: 4),
-                                materialTapTargetSize:
-                                    MaterialTapTargetSize.shrinkWrap,
-                              ),
-                              if (!asset.isDisposed)
-                                Chip(
-                                  label: Text(
-                                    asset.statusDisplayName.toUpperCase(),
-                                    style: const TextStyle(fontSize: 9),
-                                  ),
-                                  backgroundColor:
-                                      _getStatusColor(asset.status ?? '')
-                                          .withOpacity(0.2),
-                                  padding:
-                                      const EdgeInsets.symmetric(horizontal: 4),
-                                  materialTapTargetSize:
-                                      MaterialTapTargetSize.shrinkWrap,
-                                ),
-                            ],
+                          trailing: Chip(
+                            label: Text(
+                              asset.statusDisplayName.toUpperCase(),
+                              style: const TextStyle(fontSize: 9),
+                            ),
+                            backgroundColor:
+                                _getStatusColor(asset.status).withOpacity(0.2),
+                            padding: const EdgeInsets.symmetric(horizontal: 4),
+                            materialTapTargetSize:
+                                MaterialTapTargetSize.shrinkWrap,
                           ),
                           onTap: () {
                             Navigator.push(
@@ -625,7 +597,7 @@ class _AssetListScreenState extends ConsumerState<AssetListScreen> {
 
   bool _hasActiveFilters(AssetFilter filter) {
     return filter.search != null ||
-        filter.assetCategory != null ||
+        filter.ownership != null ||
         filter.assetType != null ||
         filter.status != null ||
         filter.sourceType != null ||
@@ -639,17 +611,14 @@ class _AssetListScreenState extends ConsumerState<AssetListScreen> {
     if (filter.search != null) {
       return 'No assets found matching "${filter.search}"';
     }
-    if (filter.assetType != null && filter.assetCategory != null) {
-      return 'No ${filter.assetType} assets in ${filter.assetCategory} category';
+    if (filter.assetType != null && filter.ownership != null) {
+      return 'No ${filter.assetType} assets with ownership ${filter.ownership}';
     }
     if (filter.assetType != null) {
       return 'No ${filter.assetType} assets found';
     }
-    if (filter.assetCategory != null && filter.status != null) {
-      return 'No ${filter.status} assets in ${filter.assetCategory} category';
-    }
-    if (filter.assetCategory != null) {
-      return 'No assets in ${filter.assetCategory} category';
+    if (filter.ownership != null) {
+      return 'No assets with ownership ${filter.ownership}';
     }
     if (filter.status != null) {
       return 'No ${filter.status} assets';
@@ -657,7 +626,6 @@ class _AssetListScreenState extends ConsumerState<AssetListScreen> {
     return 'No assets found';
   }
 
-  // Type chip (NEW)
   Widget _buildTypeChip(
       String value, String label, int count, String? currentFilter) {
     final isSelected =
@@ -691,16 +659,18 @@ class _AssetListScreenState extends ConsumerState<AssetListScreen> {
       selected: isSelected,
       selectedColor: Colors.deepPurple.shade100,
       onSelected: (selected) {
-        ref
-            .read(assetFilterProvider.notifier)
-            .updateAssetType(value == 'all' ? null : value);
+        if (value == 'all') {
+          ref.read(assetFilterProvider.notifier).updateAssetType(null);
+        } else {
+          ref.read(assetFilterProvider.notifier).updateAssetType(value);
+        }
       },
     );
   }
 
-  Widget _buildCategoryChip(
-      String value, String label, int count, String? currentFilter,
-      {bool isWarning = false}) {
+  // ✅ NEW: Ownership chip
+  Widget _buildOwnershipChip(
+      String value, String label, int count, String? currentFilter) {
     final isSelected =
         value == 'all' ? currentFilter == null : currentFilter == value;
 
@@ -714,18 +684,14 @@ class _AssetListScreenState extends ConsumerState<AssetListScreen> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
               decoration: BoxDecoration(
-                color: isSelected
-                    ? Colors.white
-                    : (isWarning ? Colors.amber.shade700 : Colors.blue),
+                color: isSelected ? Colors.white : Colors.blue,
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Text(
                 count.toString(),
                 style: TextStyle(
                   fontSize: 10,
-                  color: isSelected
-                      ? (isWarning ? Colors.amber.shade700 : Colors.blue)
-                      : Colors.white,
+                  color: isSelected ? Colors.blue : Colors.white,
                   fontWeight: FontWeight.bold,
                 ),
               ),
@@ -734,11 +700,13 @@ class _AssetListScreenState extends ConsumerState<AssetListScreen> {
         ],
       ),
       selected: isSelected,
-      selectedColor: isWarning ? Colors.amber.shade100 : null,
+      selectedColor: Colors.blue.shade100,
       onSelected: (selected) {
-        ref
-            .read(assetFilterProvider.notifier)
-            .updateCategory(value == 'all' ? null : value);
+        if (value == 'all') {
+          ref.read(assetFilterProvider.notifier).updateOwnership(null);
+        } else {
+          ref.read(assetFilterProvider.notifier).updateOwnership(value);
+        }
       },
     );
   }
@@ -774,11 +742,15 @@ class _AssetListScreenState extends ConsumerState<AssetListScreen> {
         ],
       ),
       selected: isSelected,
+      selectedColor: Colors.orange.shade100,
       onSelected: (selected) {
-        ref
-            .read(assetFilterProvider.notifier)
-            .updateStatus(value == 'all' ? null : value);
+        if (value == 'all') {
+          ref.read(assetFilterProvider.notifier).updateStatus(null);
+        } else {
+          ref.read(assetFilterProvider.notifier).updateStatus(value);
+        }
       },
     );
   }
 }
+

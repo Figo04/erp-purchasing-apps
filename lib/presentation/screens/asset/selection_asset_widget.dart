@@ -2,42 +2,31 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:erp_purchasing_apps/data/models/asset_model.dart';
 import 'package:erp_purchasing_apps/data/providers/asset_provider.dart';
+import 'package:intl/intl.dart';
 
-/// Widget untuk memilih asset yang sudah ada
-/// Digunakan untuk transaksi OUT dan Disposed
+/// ✅ UPDATED: Widget untuk memilih asset (SEMUA asset: milik sendiri + customer)
+/// Menampilkan info ownership di detail card
 class AssetSelectionDropdown extends ConsumerWidget {
   final AssetModel? selectedAsset;
   final Function(AssetModel?) onAssetSelected;
-  final bool forDisposal; // true jika untuk disposed
 
   const AssetSelectionDropdown({
     super.key,
     required this.selectedAsset,
     required this.onAssetSelected,
-    this.forDisposal = false,
   });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // Filter: hanya asset yang available (atau sesuai kebutuhan)
-    final assetFilter = forDisposal
-        ? const AssetFilter(
-            // Untuk disposal: hanya yang available & bukan disposed
-            status: 'available',
-          )
-        : const AssetFilter(
-            // Untuk OUT: hanya yang available
-            status: 'available',
-          );
-
+    // ✅ Get ALL available assets (both milik_sendiri and milik_customer)
+    const assetFilter = AssetFilter(status: 'available');
     final assetsAsync = ref.watch(assetListProvider(assetFilter));
 
     return assetsAsync.when(
       data: (assets) {
-        // Filter out disposed assets
-        final availableAssets = assets
-            .where((a) => !a.isDisposed && a.quantity > 0)
-            .toList();
+        // Filter: hanya available & quantity > 0
+        final availableAssets =
+            assets.where((a) => a.isAvailable && a.quantity > 0).toList();
 
         if (availableAssets.isEmpty) {
           return Card(
@@ -63,6 +52,7 @@ class AssetSelectionDropdown extends ConsumerWidget {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Dropdown untuk pilih asset
             DropdownButtonFormField<String>(
               value: selectedAsset?.id,
               decoration: const InputDecoration(
@@ -74,22 +64,34 @@ class AssetSelectionDropdown extends ConsumerWidget {
               items: availableAssets.map((asset) {
                 return DropdownMenuItem<String>(
                   value: asset.id,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                  child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Text(
-                        asset.name,
-                        style: const TextStyle(fontWeight: FontWeight.bold),
-                        overflow: TextOverflow.ellipsis,
+                      Icon(
+                        asset.isMilikSendiri ? Icons.store : Icons.business,
+                        size: 20,
+                        color:
+                            asset.isMilikSendiri ? Colors.blue : Colors.purple,
                       ),
-                      Text(
-                        '${asset.assetCode} | Qty: ${asset.quantity} | ${asset.assetTypeDisplayName}',
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: Colors.grey.shade600,
+                      const SizedBox(width: 8),
+                      Flexible(
+                        fit: FlexFit.loose,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              asset.name,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 14,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                              maxLines: 1,
+                            ),
+                          ],
                         ),
-                        overflow: TextOverflow.ellipsis,
                       ),
                     ],
                   ),
@@ -106,14 +108,12 @@ class AssetSelectionDropdown extends ConsumerWidget {
                 }
               },
               validator: (value) {
-                if (value == null) {
-                  return 'Please select an asset';
-                }
+                if (value == null) return 'Please select an asset';
                 return null;
               },
             ),
 
-            // Show selected asset details
+            // ✅ Detail card untuk selected asset
             if (selectedAsset != null) ...[
               const SizedBox(height: 12),
               Card(
@@ -131,16 +131,81 @@ class AssetSelectionDropdown extends ConsumerWidget {
                         ),
                       ),
                       const SizedBox(height: 8),
+
+                      // Basic Info
                       _buildDetailRow('Code', selectedAsset!.assetCode),
-                      _buildDetailRow('Type', selectedAsset!.assetTypeDisplayName),
-                      _buildDetailRow('Category', selectedAsset!.categoryName ?? '-'),
+                      _buildDetailRow(
+                        'Type',
+                        selectedAsset!.assetTypeDisplayName,
+                      ),
+                      _buildDetailRow(
+                        'Category',
+                        selectedAsset!.categoryName ?? '-',
+                      ),
+
+                      // ✅ OWNERSHIP INFO (NEW)
+                      _buildDetailRow(
+                        'Ownership',
+                        selectedAsset!.ownershipDisplayName,
+                        valueColor: selectedAsset!.isMilikSendiri
+                            ? Colors.blue.shade700
+                            : Colors.purple.shade700,
+                      ),
+
+                      _buildDetailRow(
+                        'Source',
+                        selectedAsset!.sourceDisplayName,
+                        valueColor: selectedAsset!.isFromSupplier
+                            ? Colors.teal.shade700
+                            : Colors.purple.shade700,
+                      ),
+
                       _buildDetailRow(
                         'Available Qty',
                         '${selectedAsset!.quantity}',
                         valueColor: Colors.green.shade700,
                       ),
+
                       if (selectedAsset!.divisionName != null)
-                        _buildDetailRow('Division', selectedAsset!.divisionName!),
+                        _buildDetailRow(
+                          'Division',
+                          selectedAsset!.divisionName!,
+                        ),
+
+                      // ✅ BEACUKAI IN INFO
+                      if (selectedAsset!.hasBeacukaiIn) ...[
+                        const Divider(height: 16),
+                        const Text(
+                          'Beacukai IN:',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 12,
+                            color: Colors.blue,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        if (selectedAsset!.beacukaiDocIn != null)
+                          _buildDetailRow(
+                            'Doc',
+                            selectedAsset!.beacukaiDocIn!,
+                          ),
+                        if (selectedAsset!.beacukaiNoIn != null)
+                          _buildDetailRow(
+                            'No',
+                            selectedAsset!.beacukaiNoIn!,
+                          ),
+                        if (selectedAsset!.beacukaiTglIn != null)
+                          _buildDetailRow(
+                            'Date',
+                            DateFormat('dd MMM yyyy')
+                                .format(selectedAsset!.beacukaiTglIn!),
+                          ),
+                        if (selectedAsset!.beacukaiNoAjuIn != null)
+                          _buildDetailRow(
+                            'No Aju',
+                            selectedAsset!.beacukaiNoAjuIn!,
+                          ),
+                      ],
                     ],
                   ),
                 ),

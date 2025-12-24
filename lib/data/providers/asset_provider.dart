@@ -15,7 +15,7 @@ final assetListProvider =
   return await repository.getAllAssets(
     productId: filter.productId,
     categoryId: filter.categoryId,
-    assetCategory: filter.assetCategory,
+    ownership: filter.ownership, // ✅ CHANGED
     assetType: filter.assetType,
     status: filter.status,
     sourceType: filter.sourceType,
@@ -32,34 +32,18 @@ final assetDetailProvider =
   return await repository.getAssetById(id);
 });
 
-// BORROWED ASSETS COUNT PROVIDER
-final borrowedAssetsCountProvider = FutureProvider<int>((ref) async {
-  final repository = ref.watch(assetRepositoryProvider);
-  final borrowedAssets = await repository.getAssetsByStatus('borrowed');
-  return borrowedAssets.length;
-});
-
-// LENT ASSETS COUNT PROVIDER (NEW)
-final lentAssetsCountProvider = FutureProvider<int>((ref) async {
-  final repository = ref.watch(assetRepositoryProvider);
-  final lentAssets = await repository.getAssetsByStatus('lent');
-  return lentAssets.length;
-});
-
-// ASSETS BY CATEGORY PROVIDER
-final assetsByCategoryProvider = FutureProvider<Map<String, int>>((ref) async {
+// ✅ UPDATED: Assets by ownership (milik_sendiri, milik_customer)
+final assetsByOwnershipProvider = FutureProvider<Map<String, int>>((ref) async {
   final repository = ref.watch(assetRepositoryProvider);
   final allAssets = await repository.getAllAssets();
 
   return {
-    'loanable': allAssets.where((a) => a.assetCategory == 'loanable').length,
-    'saleable': allAssets.where((a) => a.assetCategory == 'saleable').length,
-    'pending': allAssets.where((a) => a.assetCategory == 'pending').length,
-    'disposed': allAssets.where((a) => a.assetCategory == 'disposed').length,
+    'milik_sendiri': allAssets.where((a) => a.ownership == 'milik_sendiri').length,
+    'milik_customer': allAssets.where((a) => a.ownership == 'milik_customer').length,
   };
 });
 
-// ASSETS BY TYPE PROVIDER (NEW)
+// ASSETS BY TYPE PROVIDER - TETAP
 final assetsByTypeProvider = FutureProvider<Map<String, int>>((ref) async {
   final repository = ref.watch(assetRepositoryProvider);
   final allAssets = await repository.getAllAssets();
@@ -70,14 +54,44 @@ final assetsByTypeProvider = FutureProvider<Map<String, int>>((ref) async {
   };
 });
 
-// MY ASSIGNED ASSETS PROVIDER
+// ✅ UPDATED: Assets by status
+final assetsByStatusProvider = FutureProvider<Map<String, int>>((ref) async {
+  final repository = ref.watch(assetRepositoryProvider);
+  final allAssets = await repository.getAllAssets();
+
+  return {
+    'available': allAssets.where((a) => a.status == 'available').length,
+    'saleable': allAssets.where((a) => a.status == 'saleable').length,
+    'loanable': allAssets.where((a) => a.status == 'loanable').length,
+    'disposed': allAssets.where((a) => a.status == 'disposed').length,
+    'borrowed': allAssets.where((a) => a.status == 'borrowed').length,
+    'lent': allAssets.where((a) => a.status == 'lent').length,
+    'sold': allAssets.where((a) => a.status == 'sold').length,
+    'returned': allAssets.where((a) => a.status == 'returned').length,
+  };
+});
+
+// Borrowed/Lent counts - TETAP
+final borrowedAssetsCountProvider = FutureProvider<int>((ref) async {
+  final repository = ref.watch(assetRepositoryProvider);
+  final borrowedAssets = await repository.getAssetsByStatus('borrowed');
+  return borrowedAssets.length;
+});
+
+final lentAssetsCountProvider = FutureProvider<int>((ref) async {
+  final repository = ref.watch(assetRepositoryProvider);
+  final lentAssets = await repository.getAssetsByStatus('lent');
+  return lentAssets.length;
+});
+
+// MY ASSIGNED ASSETS PROVIDER - TETAP
 final myAssignedAssetsProvider =
     FutureProvider.family<List<AssetModel>, String>((ref, userId) async {
   final repository = ref.watch(assetRepositoryProvider);
   return await repository.getMyAssignedAssets(userId);
 });
 
-// ASSET TRANSACTION PROVIDER
+// ASSET TRANSACTION PROVIDER - TETAP
 final assetTransactionProvider =
     FutureProvider.family<List<AssetTransactionModel>, String>(
         (ref, assetId) async {
@@ -85,7 +99,7 @@ final assetTransactionProvider =
   return await repository.getTransactionHistory(assetId);
 });
 
-// ASSET LOAN HISTORY PROVIDER (NEW)
+// ASSET LOAN HISTORY PROVIDER - TETAP
 final assetLoanHistoryProvider =
     FutureProvider.family<List<AssetLoanHistoryModel>, String>(
         (ref, assetId) async {
@@ -93,7 +107,7 @@ final assetLoanHistoryProvider =
   return await repository.getAssetLoanHistory(assetId);
 });
 
-// ALL LOAN HISTORY PROVIDER (NEW)
+// ALL LOAN HISTORY PROVIDER - TETAP
 final allLoanHistoryProvider =
     FutureProvider.family<List<AssetLoanHistoryModel>, LoanHistoryFilter>(
         (ref, filter) async {
@@ -107,36 +121,34 @@ final allLoanHistoryProvider =
   );
 });
 
-// ONGOING LOANS COUNT PROVIDER (NEW)
 final ongoingLoansCountProvider = FutureProvider<int>((ref) async {
   final repository = ref.watch(assetRepositoryProvider);
   final loans = await repository.getLoanHistory(status: 'ongoing');
   return loans.length;
 });
 
-// OVERDUE LOANS COUNT PROVIDER (NEW)
 final overdueLoansCountProvider = FutureProvider<int>((ref) async {
   final repository = ref.watch(assetRepositoryProvider);
   final loans = await repository.getLoanHistory(status: 'overdue');
   return loans.length;
 });
 
-// ASSET FILTER CLASS (UPDATED)
+// ✅ UPDATED: ASSET FILTER CLASS
 class AssetFilter {
   final String? productId;
   final String? categoryId;
-  final String? assetCategory;
-  final String? assetType; // NEW
+  final String? ownership; // ✅ CHANGED dari assetCategory
+  final String? assetType;
   final String? status;
-  final String? sourceType; // NEW
-  final String? divisionId; // NEW
+  final String? sourceType;
+  final String? divisionId;
   final String? assignedTo;
   final String? search;
 
   const AssetFilter({
     this.productId,
     this.categoryId,
-    this.assetCategory,
+    this.ownership, // ✅ CHANGED
     this.assetType,
     this.status,
     this.sourceType,
@@ -153,7 +165,7 @@ class AssetFilter {
     return other is AssetFilter &&
         other.productId == productId &&
         other.categoryId == categoryId &&
-        other.assetCategory == assetCategory &&
+        other.ownership == ownership && // ✅ CHANGED
         other.assetType == assetType &&
         other.status == status &&
         other.sourceType == sourceType &&
@@ -166,7 +178,7 @@ class AssetFilter {
   int get hashCode => Object.hash(
         productId,
         categoryId,
-        assetCategory,
+        ownership, // ✅ CHANGED
         assetType,
         status,
         sourceType,
@@ -178,7 +190,7 @@ class AssetFilter {
   AssetFilter copyWith({
     String? productId,
     String? categoryId,
-    String? assetCategory,
+    String? ownership, // ✅ CHANGED
     String? assetType,
     String? status,
     String? sourceType,
@@ -189,7 +201,7 @@ class AssetFilter {
     return AssetFilter(
       productId: productId ?? this.productId,
       categoryId: categoryId ?? this.categoryId,
-      assetCategory: assetCategory ?? this.assetCategory,
+      ownership: ownership ?? this.ownership, // ✅ CHANGED
       assetType: assetType ?? this.assetType,
       status: status ?? this.status,
       sourceType: sourceType ?? this.sourceType,
@@ -200,7 +212,7 @@ class AssetFilter {
   }
 }
 
-// LOAN HISTORY FILTER CLASS (NEW)
+// LOAN HISTORY FILTER CLASS - TETAP
 class LoanHistoryFilter {
   final String? assetId;
   final String? loanType;
@@ -239,14 +251,14 @@ class LoanHistoryFilter {
       );
 }
 
-// STATE NOTIFIER FOR FILTER MANAGEMENT (UPDATED)
+// ✅ UPDATED: STATE NOTIFIER FOR FILTER MANAGEMENT
 class AssetFilterNotifier extends StateNotifier<AssetFilter> {
   AssetFilterNotifier() : super(AssetFilter.empty);
 
   void setFilter(AssetFilter filter) => state = filter;
 
-  void updateCategory(String? category) {
-    state = state.copyWith(assetCategory: category);
+  void updateOwnership(String? ownership) { // ✅ CHANGED
+    state = state.copyWith(ownership: ownership);
   }
 
   void updateAssetType(String? type) {
@@ -269,6 +281,18 @@ class AssetFilterNotifier extends StateNotifier<AssetFilter> {
     state = state.copyWith(search: search);
   }
 
+  void resetAssetType() {
+    state = state.copyWith(assetType: null);
+  }
+
+  void resetOwnership() { // ✅ CHANGED
+    state = state.copyWith(ownership: null);
+  }
+
+  void resetStatus() {
+    state = state.copyWith(status: null);
+  }
+
   void reset() => state = AssetFilter.empty;
 }
 
@@ -282,10 +306,10 @@ final filteredAssetListProvider = FutureProvider<List<AssetModel>>((ref) async {
   final filter = ref.watch(assetFilterProvider);
   final repository = ref.watch(assetRepositoryProvider);
 
-  return await repository.getAllAssets(
+  final effectiveFilter = AssetFilter(
     productId: filter.productId,
     categoryId: filter.categoryId,
-    assetCategory: filter.assetCategory,
+    ownership: filter.ownership, // ✅ CHANGED
     assetType: filter.assetType,
     status: filter.status,
     sourceType: filter.sourceType,
@@ -293,9 +317,21 @@ final filteredAssetListProvider = FutureProvider<List<AssetModel>>((ref) async {
     assignedTo: filter.assignedTo,
     search: filter.search,
   );
+
+  return await repository.getAllAssets(
+    productId: effectiveFilter.productId,
+    categoryId: effectiveFilter.categoryId,
+    ownership: effectiveFilter.ownership, // ✅ CHANGED
+    assetType: effectiveFilter.assetType,
+    status: effectiveFilter.status,
+    sourceType: effectiveFilter.sourceType,
+    divisionId: effectiveFilter.divisionId,
+    assignedTo: effectiveFilter.assignedTo,
+    search: effectiveFilter.search,
+  );
 });
 
-/// Beacukai Search Filter for Assets
+/// Beacukai Search Filter - TETAP
 class BeacukaiAssetFilter {
   final String? beacukaiNo;
   final String? beacukaiNoAju;
@@ -319,7 +355,6 @@ class BeacukaiAssetFilter {
   int get hashCode => Object.hash(beacukaiNo, beacukaiNoAju);
 }
 
-/// Search Assets by Beacukai Provider
 final searchAssetsByBeacukaiProvider =
     FutureProvider.family<List<AssetModel>, BeacukaiAssetFilter>(
         (ref, filter) async {
@@ -330,9 +365,8 @@ final searchAssetsByBeacukaiProvider =
   );
 });
 
-/// Count assets with beacukai
 final assetsWithBeacukaiCountProvider = FutureProvider<int>((ref) async {
   final repository = ref.watch(assetRepositoryProvider);
   final allAssets = await repository.getAllAssets();
-  return allAssets.where((asset) => asset.hasBeacukai).length;
+  return allAssets.where((asset) => asset.hasBeacukaiIn).length;
 });

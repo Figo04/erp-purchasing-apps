@@ -121,15 +121,13 @@ class _AssetTransactionFormScreenState
   List<DropdownMenuItem<String>> _getTransactionSubtypeItems() {
     if (isTransactionIn) {
       return const [
-        DropdownMenuItem(value: 'purchase', child: Text('Purchase (Dibeli)')),
-        DropdownMenuItem(
-            value: 'loan_in', child: Text('Loan In (Dipinjam dari luar)')),
+        DropdownMenuItem(value: 'purchase', child: Text('Purchase ')),
+        DropdownMenuItem(value: 'loan_in', child: Text('Loan')),
       ];
     } else if (isTransactionOut) {
       return const [
-        DropdownMenuItem(value: 'sale', child: Text('Sale (Dijual)')),
-        DropdownMenuItem(
-            value: 'loan_out', child: Text('Loan Out (Dipinjamkan ke luar)')),
+        DropdownMenuItem(value: 'sale', child: Text('Sale ')),
+        DropdownMenuItem(value: 'loan_out', child: Text('Loan ')),
       ];
     }
     return [];
@@ -435,7 +433,6 @@ class _AssetTransactionFormScreenState
                     if (asset != null) _quantityController.text = '1';
                   });
                 },
-                forDisposal: isTransactionDisposed,
               ),
               const SizedBox(height: 16),
             ],

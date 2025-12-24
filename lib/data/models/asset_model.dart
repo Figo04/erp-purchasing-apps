@@ -8,16 +8,20 @@ class AssetModel extends Equatable {
   final String name;
   final String categoryId;
   final String? categoryName;
-  final String assetCategory; // pending, loanable, saleable, disposed
+  
+  // ✅ CHANGED: ownership menggantikan assetCategory
+  final String ownership; // milik_sendiri, milik_customer
+  
   final String assetType; // mesin, sparepart
-  final String? status; // available, borrowed, lent, sold, returned (NULL if disposed)
+  final String status; // available, saleable, loanable, disposed, sold, borrowed, lent, returned
   final int quantity;
-  final String sourceType; // supplier, external
+  
+  // ✅ CHANGED: sourceType sekarang supplier atau manual
+  final String sourceType; // supplier, manual
+  
   final String? divisionId;
   final String? divisionName;
   final String? divisionCode;
-  final String? externalSourceId;
-  final String? externalCompanyName;
   final double? purchasePrice;
   final String? assignedTo;
   final String? assignedToName;
@@ -26,11 +30,18 @@ class AssetModel extends Equatable {
   final DateTime createdAt;
   final DateTime updatedAt;
 
-  // BEACUKAI FIELDS
-  final String? beacukaiDoc;
-  final DateTime? beacukaiTgl;
-  final String? beacukaiNo;
-  final String? beacukaiNoAju;
+  // BEACUKAI IN
+  final String? beacukaiDocIn;
+  final DateTime? beacukaiTglIn;
+  final String? beacukaiNoIn;
+  final String? beacukaiNoAjuIn;
+  
+  // BEACUKAI OUT
+  final String? beacukaiDocOut;
+  final DateTime? beacukaiTglOut;
+  final String? beacukaiNoOut;
+  final String? beacukaiNoAjuOut;
+  
   final String? lpbId;
 
   const AssetModel({
@@ -41,7 +52,7 @@ class AssetModel extends Equatable {
     required this.name,
     required this.categoryId,
     this.categoryName,
-    required this.assetCategory,
+    required this.ownership,
     required this.assetType,
     required this.status,
     required this.quantity,
@@ -49,8 +60,6 @@ class AssetModel extends Equatable {
     this.divisionId,
     this.divisionName,
     this.divisionCode,
-    this.externalSourceId,
-    this.externalCompanyName,
     this.purchasePrice,
     this.assignedTo,
     this.assignedToName,
@@ -58,10 +67,14 @@ class AssetModel extends Equatable {
     this.notes,
     required this.createdAt,
     required this.updatedAt,
-    this.beacukaiDoc,
-    this.beacukaiTgl,
-    this.beacukaiNo,
-    this.beacukaiNoAju,
+    this.beacukaiDocIn,
+    this.beacukaiTglIn,
+    this.beacukaiNoIn,
+    this.beacukaiNoAjuIn,
+    this.beacukaiDocOut,
+    this.beacukaiTglOut,
+    this.beacukaiNoOut,
+    this.beacukaiNoAjuOut,
     this.lpbId,
   });
 
@@ -75,7 +88,7 @@ class AssetModel extends Equatable {
       name: json['name'] as String,
       categoryId: json['category_id'] as String,
       categoryName: json['category_name'] as String?,
-      assetCategory: json['asset_category'] as String? ?? 'loanable',
+      ownership: json['ownership'] as String? ?? 'milik_sendiri',
       assetType: json['asset_type'] as String? ?? 'mesin',
       status: json['status'] as String? ?? 'available',
       quantity: json['quantity'] as int? ?? 1,
@@ -83,8 +96,6 @@ class AssetModel extends Equatable {
       divisionId: json['division_id'] as String?,
       divisionName: json['division_name'] as String?,
       divisionCode: json['division_code'] as String?,
-      externalSourceId: json['external_source_id'] as String?,
-      externalCompanyName: json['external_company_name'] as String?,
       purchasePrice: json['purchase_price'] != null
           ? double.parse(json['purchase_price'].toString())
           : null,
@@ -96,12 +107,18 @@ class AssetModel extends Equatable {
       notes: json['notes'] as String?,
       createdAt: DateTime.parse(json['created_at'] as String),
       updatedAt: DateTime.parse(json['updated_at'] as String),
-      beacukaiDoc: json['beacukai_doc'] as String?,
-      beacukaiTgl: json['beacukai_tgl'] != null
-          ? DateTime.parse(json['beacukai_tgl'] as String)
+      beacukaiDocIn: json['beacukai_doc_in'] as String?,
+      beacukaiTglIn: json['beacukai_tgl_in'] != null
+          ? DateTime.parse(json['beacukai_tgl_in'] as String)
           : null,
-      beacukaiNo: json['beacukai_no'] as String?,
-      beacukaiNoAju: json['beacukai_no_aju'] as String?,
+      beacukaiNoIn: json['beacukai_no_in'] as String?,
+      beacukaiNoAjuIn: json['beacukai_no_aju_in'] as String?,
+      beacukaiDocOut: json['beacukai_doc_out'] as String?,
+      beacukaiTglOut: json['beacukai_tgl_out'] != null
+          ? DateTime.parse(json['beacukai_tgl_out'] as String)
+          : null,
+      beacukaiNoOut: json['beacukai_no_out'] as String?,
+      beacukaiNoAjuOut: json['beacukai_no_aju_out'] as String?,
       lpbId: json['lpb_id'] as String?,
     );
   }
@@ -112,7 +129,6 @@ class AssetModel extends Equatable {
       'asset_code': assetCode,
       'product_id': productId,
       'name': name,
-      'asset_category': assetCategory,
       'asset_type': assetType,
       'quantity': quantity,
       'division_id': divisionId,
@@ -130,7 +146,7 @@ class AssetModel extends Equatable {
     String? name,
     String? categoryId,
     String? categoryName,
-    String? assetCategory,
+    String? ownership,
     String? assetType,
     String? status,
     int? quantity,
@@ -138,8 +154,6 @@ class AssetModel extends Equatable {
     String? divisionId,
     String? divisionName,
     String? divisionCode,
-    String? externalSourceId,
-    String? externalCompanyName,
     double? purchasePrice,
     String? assignedTo,
     String? assignedToName,
@@ -147,10 +161,14 @@ class AssetModel extends Equatable {
     String? notes,
     DateTime? createdAt,
     DateTime? updatedAt,
-    String? beacukaiDoc,
-    DateTime? beacukaiTgl,
-    String? beacukaiNo,
-    String? beacukaiNoAju,
+    String? beacukaiDocIn,
+    DateTime? beacukaiTglIn,
+    String? beacukaiNoIn,
+    String? beacukaiNoAjuIn,
+    String? beacukaiDocOut,
+    DateTime? beacukaiTglOut,
+    String? beacukaiNoOut,
+    String? beacukaiNoAjuOut,
     String? lpbId,
   }) {
     return AssetModel(
@@ -161,7 +179,7 @@ class AssetModel extends Equatable {
       name: name ?? this.name,
       categoryId: categoryId ?? this.categoryId,
       categoryName: categoryName ?? this.categoryName,
-      assetCategory: assetCategory ?? this.assetCategory,
+      ownership: ownership ?? this.ownership,
       assetType: assetType ?? this.assetType,
       status: status ?? this.status,
       quantity: quantity ?? this.quantity,
@@ -169,8 +187,6 @@ class AssetModel extends Equatable {
       divisionId: divisionId ?? this.divisionId,
       divisionName: divisionName ?? this.divisionName,
       divisionCode: divisionCode ?? this.divisionCode,
-      externalSourceId: externalSourceId ?? this.externalSourceId,
-      externalCompanyName: externalCompanyName ?? this.externalCompanyName,
       purchasePrice: purchasePrice ?? this.purchasePrice,
       assignedTo: assignedTo ?? this.assignedTo,
       assignedToName: assignedToName ?? this.assignedToName,
@@ -178,38 +194,36 @@ class AssetModel extends Equatable {
       notes: notes ?? this.notes,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
-      beacukaiDoc: beacukaiDoc ?? this.beacukaiDoc,
-      beacukaiTgl: beacukaiTgl ?? this.beacukaiTgl,
-      beacukaiNo: beacukaiNo ?? this.beacukaiNo,
-      beacukaiNoAju: beacukaiNoAju ?? this.beacukaiNoAju,
+      beacukaiDocIn: beacukaiDocIn ?? this.beacukaiDocIn,
+      beacukaiTglIn: beacukaiTglIn ?? this.beacukaiTglIn,
+      beacukaiNoIn: beacukaiNoIn ?? this.beacukaiNoIn,
+      beacukaiNoAjuIn: beacukaiNoAjuIn ?? this.beacukaiNoAjuIn,
+      beacukaiDocOut: beacukaiDocOut ?? this.beacukaiDocOut,
+      beacukaiTglOut: beacukaiTglOut ?? this.beacukaiTglOut,
+      beacukaiNoOut: beacukaiNoOut ?? this.beacukaiNoOut,
+      beacukaiNoAjuOut: beacukaiNoAjuOut ?? this.beacukaiNoAjuOut,
       lpbId: lpbId ?? this.lpbId,
     );
   }
 
+  // ✅ UPDATED HELPERS
+  bool get isMilikSendiri => ownership == 'milik_sendiri';
+  bool get isMilikCustomer => ownership == 'milik_customer';
+  bool get isFromSupplier => sourceType == 'supplier';
+  bool get isManualEntry => sourceType == 'manual';
 
-  /// Helper: Check if has status
-  bool get hasStatus => status != null && status!.isNotEmpty;
-
-  /// Helper: Check if asset is borrowed/lent
+  // Status helpers
+  bool get isAvailable => status == 'available';
+  bool get isSaleable => status == 'saleable';
+  bool get isLoanable => status == 'loanable';
+  bool get isDisposed => status == 'disposed';
+  bool get isSold => status == 'sold';
   bool get isBorrowed => status == 'borrowed';
   bool get isLent => status == 'lent';
   bool get isReturned => status == 'returned';
 
-  /// Helper: Check if asset is available
-  bool get isAvailable => status == 'available';
-
-  /// Helper: Check if from external source
-  bool get isFromExternal => sourceType == 'external';
-
-  /// Helper: Check if has beacukai
-  bool get hasBeacukai => beacukaiNo != null && beacukaiNo!.isNotEmpty;
-
-  /// Helper: Check if asset category is pending
-  bool get isPending => assetCategory == 'pending';
-
-  /// Helper: Check if asset is disposed
-  bool get isDisposed => assetCategory == 'disposed';
-
+  bool get hasBeacukaiIn => beacukaiNoIn != null && beacukaiNoIn!.isNotEmpty;
+  bool get hasBeacukaiOut => beacukaiNoOut != null && beacukaiNoOut!.isNotEmpty;
 
   /// Helper: Asset Type display name
   String get assetTypeDisplayName {
@@ -223,19 +237,15 @@ class AssetModel extends Equatable {
     }
   }
 
-  /// Helper: Category display name
-  String get categoryDisplayName {
-    switch (assetCategory) {
-      case 'loanable':
-        return 'Loanable';
-      case 'saleable':
-        return 'Saleable';
-      case 'pending':
-        return 'Pending Classification';
-      case 'disposed':
-        return 'Disposed';
+  /// Helper: Ownership display name
+  String get ownershipDisplayName {
+    switch (ownership) {
+      case 'milik_sendiri':
+        return 'Milik Sendiri';
+      case 'milik_customer':
+        return 'Milik Customer';
       default:
-        return assetCategory;
+        return ownership;
     }
   }
 
@@ -244,18 +254,22 @@ class AssetModel extends Equatable {
     switch (status) {
       case 'available':
         return 'Available';
+      case 'saleable':
+        return 'Saleable';
+      case 'loanable':
+        return 'Loanable';
+      case 'disposed':
+        return 'Disposed';
+      case 'sold':
+        return 'Sold';
       case 'borrowed':
         return 'Borrowed';
       case 'lent':
         return 'Lent';
-      case 'sold':
-        return 'Sold';
       case 'returned':
         return 'Returned';
-      case 'maintenance':
-        return 'Maintenance'; // Keep for backward compatibility
       default:
-        return status!;
+        return status;
     }
   }
 
@@ -263,9 +277,9 @@ class AssetModel extends Equatable {
   String get sourceDisplayName {
     switch (sourceType) {
       case 'supplier':
-        return 'Supplier';
-      case 'external':
-        return externalCompanyName ?? 'External';
+        return 'From Supplier (LPB)';
+      case 'manual':
+        return 'Manual Entry';
       default:
         return sourceType;
     }
@@ -280,7 +294,7 @@ class AssetModel extends Equatable {
         name,
         categoryId,
         categoryName,
-        assetCategory,
+        ownership,
         assetType,
         status,
         quantity,
@@ -288,8 +302,6 @@ class AssetModel extends Equatable {
         divisionId,
         divisionName,
         divisionCode,
-        externalSourceId,
-        externalCompanyName,
         purchasePrice,
         assignedTo,
         assignedToName,
@@ -297,20 +309,24 @@ class AssetModel extends Equatable {
         notes,
         createdAt,
         updatedAt,
-        beacukaiDoc,
-        beacukaiTgl,
-        beacukaiNo,
-        beacukaiNoAju,
+        beacukaiDocIn,
+        beacukaiTglIn,
+        beacukaiNoIn,
+        beacukaiNoAjuIn,
+        beacukaiDocOut,
+        beacukaiTglOut,
+        beacukaiNoOut,
+        beacukaiNoAjuOut,
         lpbId,
       ];
 }
 
-/// Asset Transaction Model (shared with Inventory)
+// Asset Transaction Models tetap sama
 class AssetTransactionModel extends Equatable {
   final String id;
   final String? inventoryId;
   final String? assetId;
-  final String transactionType; // in, out, transfer, adjustment
+  final String transactionType;
   final int quantity;
   final String? fromLocation;
   final String? toLocation;
@@ -373,31 +389,26 @@ class AssetTransactionModel extends Equatable {
       ];
 }
 
-/// Asset Loan History Model - NEW
+// Asset Loan History - TETAP SAMA (untuk internal tracking)
 class AssetLoanHistoryModel extends Equatable {
   final String id;
   final String assetId;
   final String? assetCode;
   final String? assetName;
-  final String loanType; // internal, external
-
-  // Internal loan
+  final String loanType;
   final String? fromDivisionId;
   final String? fromDivisionName;
   final String? toDivisionId;
   final String? toDivisionName;
   final String? borrowedBy;
   final String? borrowedByName;
-
-  // External loan
   final String? externalCompanyName;
   final String? externalCompanyAddress;
-
   final int quantity;
   final DateTime loanDate;
   final DateTime? expectedReturnDate;
   final DateTime? actualReturnDate;
-  final String status; // ongoing, returned, overdue
+  final String status;
   final String? loanDocumentUrl;
   final String? returnDocumentUrl;
   final String? notes;

@@ -77,47 +77,47 @@ class LPBListNotifier extends StateNotifier<LPBListState> {
 
   /// Load all LPBs with filters
   Future<void> loadLPBs({
-  String? poId,
-  String? supplierId,
-  String? receivedBy,
-  String? status,
-  String? search,
-  String? fromDate,
-  String? toDate, 
-  String? beacukaiNo,
-  String? beacukaiNoAju,
-  String? beacukaiFrom,
-  String? beacukaiTo,
-}) async {
-  state = state.copyWith(isLoading: true, error: null);
+    String? poId,
+    String? supplierId,
+    String? receivedBy,
+    String? status,
+    String? search,
+    String? fromDate,
+    String? toDate,
+    String? beacukaiNo,
+    String? beacukaiNoAju,
+    String? beacukaiFrom,
+    String? beacukaiTo,
+  }) async {
+    state = state.copyWith(isLoading: true, error: null);
 
-  try {
-    final lpbs = await _repository.getAllLPBs(
-      poId: poId,
-      supplierId: supplierId,
-      receivedBy: receivedBy,
-      status: status,
-      search: search,
-      fromDate: fromDate,
-      toDate: toDate,
-      // ✅ PASS BEACUKAI KE REPOSITORY (NEW)
-      beacukaiNo: beacukaiNo,
-      beacukaiNoAju: beacukaiNoAju,
-      beacukaiFrom: beacukaiFrom,
-      beacukaiTo: beacukaiTo,
-    );
+    try {
+      final lpbs = await _repository.getAllLPBs(
+        poId: poId,
+        supplierId: supplierId,
+        receivedBy: receivedBy,
+        status: status,
+        search: search,
+        fromDate: fromDate,
+        toDate: toDate,
+        // ✅ PASS BEACUKAI KE REPOSITORY (NEW)
+        beacukaiNo: beacukaiNo,
+        beacukaiNoAju: beacukaiNoAju,
+        beacukaiFrom: beacukaiFrom,
+        beacukaiTo: beacukaiTo,
+      );
 
-    state = state.copyWith(
-      lpbs: lpbs,
-      isLoading: false,
-    );
-  } catch (e) {
-    state = state.copyWith(
-      isLoading: false,
-      error: e.toString(),
-    );
+      state = state.copyWith(
+        lpbs: lpbs,
+        isLoading: false,
+      );
+    } catch (e) {
+      state = state.copyWith(
+        isLoading: false,
+        error: e.toString(),
+      );
+    }
   }
-}
 
   /// Refresh LPBs (manual reload)
   Future<void> refresh() async {
@@ -194,7 +194,6 @@ class LPBDetailNotifier extends StateNotifier<LPBDetailState> {
     String? invoiceNumber,
     double? invoiceAmount,
     String? notes,
-    // ✅ TAMBAHKAN PARAMETER BEACUKAI
     String? beacukaiDoc,
     DateTime? beacukaiTgl,
     String? beacukaiNo,
@@ -211,7 +210,6 @@ class LPBDetailNotifier extends StateNotifier<LPBDetailState> {
         invoiceNumber: invoiceNumber,
         invoiceAmount: invoiceAmount,
         notes: notes,
-        // ✅ PASS BEACUKAI KE REPOSITORY
         beacukaiDoc: beacukaiDoc,
         beacukaiTgl: beacukaiTgl,
         beacukaiNo: beacukaiNo,

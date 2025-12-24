@@ -10,16 +10,12 @@ class AssetDetailScreen extends ConsumerWidget {
 
   const AssetDetailScreen({super.key, required this.assetId});
 
-  Color _getCategoryColor(String category) {
-    switch (category) {
-      case 'loanable':
+  Color _getOwnershipColor(String ownership) {
+    switch (ownership) {
+      case 'milik_sendiri':
+        return Colors.blue;
+      case 'milik_customer':
         return Colors.purple;
-      case 'saleable':
-        return Colors.green;
-      case 'disposed':
-        return Colors.grey;
-      case 'pending':
-        return Colors.amber;
       default:
         return Colors.grey;
     }
@@ -29,33 +25,33 @@ class AssetDetailScreen extends ConsumerWidget {
     switch (status) {
       case 'available':
         return Colors.green;
+      case 'saleable':
+        return Colors.teal;
+      case 'loanable':
+        return Colors.indigo;
+      case 'disposed':
+        return Colors.grey;
       case 'borrowed':
         return Colors.orange;
       case 'lent':
         return Colors.blue;
       case 'sold':
         return Colors.purple;
-      case 'disposed':
-        return Colors.grey;
       case 'returned':
-        return Colors.teal;
+        return Colors.cyan;
       default:
         return Colors.grey;
     }
   }
 
-  IconData _getCategoryIcon(String category) {
-    switch (category) {
-      case 'loanable':
-        return Icons.devices;
-      case 'saleable':
-        return Icons.shopping_bag;
-      case 'disposed':
-        return Icons.delete_forever;
-      case 'pending':
-        return Icons.help_outline;
+  IconData _getOwnershipIcon(String ownership) {
+    switch (ownership) {
+      case 'milik_sendiri':
+        return Icons.store;
+      case 'milik_customer':
+        return Icons.business;
       default:
-        return Icons.category;
+        return Icons.inventory;
     }
   }
 
@@ -137,55 +133,17 @@ class AssetDetailScreen extends ConsumerWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // WARNING: Pending Classification
-                  if (asset.isPending)
-                    Card(
-                      color: Colors.amber.shade100,
-                      child: Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Row(
-                          children: [
-                            Icon(Icons.warning_amber_rounded,
-                                color: Colors.amber.shade900, size: 32),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'Classification Required',
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 16,
-                                      color: Colors.amber.shade900,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  const Text(
-                                    'This asset needs to be classified as Consumable, Loanable, or Saleable.',
-                                    style: TextStyle(fontSize: 13),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  if (asset.isPending) const SizedBox(height: 16),
-
                   // Asset Header Card
                   Card(
-                    color:
-                        _getCategoryColor(asset.assetCategory).withOpacity(0.1),
+                    color: _getOwnershipColor(asset.ownership).withOpacity(0.1),
                     child: Padding(
                       padding: const EdgeInsets.all(16),
                       child: Row(
                         children: [
                           Icon(
-                            _getCategoryIcon(asset.assetCategory),
+                            _getOwnershipIcon(asset.ownership),
                             size: 48,
-                            color: _getCategoryColor(asset.assetCategory),
+                            color: _getOwnershipColor(asset.ownership),
                           ),
                           const SizedBox(width: 16),
                           Expanded(
@@ -206,7 +164,24 @@ class AssetDetailScreen extends ConsumerWidget {
                                       .textTheme
                                       .bodyMedium
                                       ?.copyWith(color: Colors.grey.shade700),
-                                )
+                                ),
+                                const SizedBox(height: 4),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 8, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: _getOwnershipColor(asset.ownership),
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: Text(
+                                    asset.ownershipDisplayName,
+                                    style: const TextStyle(
+                                      fontSize: 11,
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
                               ],
                             ),
                           )
@@ -216,38 +191,7 @@ class AssetDetailScreen extends ConsumerWidget {
                   ),
                   const SizedBox(height: 16),
 
-                  // Category & Status Row
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _buildInfoCard(
-                          'Category',
-                          asset.categoryDisplayName,
-                          _getCategoryColor(asset.assetCategory),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      if (!asset.isDisposed)
-                        Expanded(
-                          child: _buildInfoCard(
-                            'Status',
-                            asset.statusDisplayName,
-                            _getStatusColor(asset.status ?? ''),
-                          ),
-                        )
-                      else // TAMBAH else
-                        Expanded(
-                          child: _buildInfoCard(
-                            'Status',
-                            'Disposed (No Status)',
-                            Colors.grey,
-                          ),
-                        ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-
-                  // Type & Division Row (NEW)
+                  // Type & Status Row
                   Row(
                     children: [
                       Expanded(
@@ -260,11 +204,9 @@ class AssetDetailScreen extends ConsumerWidget {
                       const SizedBox(width: 8),
                       Expanded(
                         child: _buildInfoCard(
-                          'Division',
-                          asset.divisionName ?? 'Not Assigned',
-                          asset.divisionName != null
-                              ? Colors.blue
-                              : Colors.grey,
+                          'Status',
+                          asset.statusDisplayName,
+                          _getStatusColor(asset.status),
                         ),
                       ),
                     ],
@@ -277,7 +219,7 @@ class AssetDetailScreen extends ConsumerWidget {
                       Expanded(
                         child: _buildInfoCard(
                           'Quantity',
-                          '${asset.quantity} ${asset.assetCategory == 'loanable' ? 'unit(s)' : 'pcs'}',
+                          '${asset.quantity} pcs',
                           Colors.blue,
                         ),
                       ),
@@ -286,7 +228,31 @@ class AssetDetailScreen extends ConsumerWidget {
                         child: _buildInfoCard(
                           'Source',
                           asset.sourceDisplayName,
-                          asset.isFromExternal ? Colors.purple : Colors.teal,
+                          asset.isFromSupplier ? Colors.teal : Colors.purple,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+
+                  // Division & Category
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _buildInfoCard(
+                          'Division',
+                          asset.divisionName ?? 'Not Assigned',
+                          asset.divisionName != null
+                              ? Colors.indigo
+                              : Colors.grey,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: _buildInfoCard(
+                          'Category',
+                          asset.categoryName ?? '-',
+                          Colors.orange,
                         ),
                       ),
                     ],
@@ -346,6 +312,67 @@ class AssetDetailScreen extends ConsumerWidget {
                   if (asset.isBorrowed || asset.isLent)
                     const SizedBox(height: 16),
 
+                  // Beacukai Information
+                  if (asset.hasBeacukaiIn) ...[
+                    Text('Beacukai IN Information',
+                        style: Theme.of(context).textTheme.titleMedium),
+                    const SizedBox(height: 8),
+                    Card(
+                      color: Colors.blue.shade50,
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            if (asset.beacukaiDocIn != null)
+                              _buildInfoRow('Doc Type', asset.beacukaiDocIn!),
+                            if (asset.beacukaiNoIn != null)
+                              _buildInfoRow('No', asset.beacukaiNoIn!),
+                            if (asset.beacukaiTglIn != null)
+                              _buildInfoRow(
+                                'Date',
+                                DateFormat('dd MMM yyyy')
+                                    .format(asset.beacukaiTglIn!),
+                              ),
+                            if (asset.beacukaiNoAjuIn != null)
+                              _buildInfoRow('No Aju', asset.beacukaiNoAjuIn!),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                  ],
+
+                  if (asset.hasBeacukaiOut) ...[
+                    Text('Beacukai OUT Information',
+                        style: Theme.of(context).textTheme.titleMedium),
+                    const SizedBox(height: 8),
+                    Card(
+                      color: Colors.orange.shade50,
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            if (asset.beacukaiDocOut != null)
+                              _buildInfoRow('Doc Type', asset.beacukaiDocOut!),
+                            if (asset.beacukaiNoOut != null)
+                              _buildInfoRow('No', asset.beacukaiNoOut!),
+                            if (asset.beacukaiTglOut != null)
+                              _buildInfoRow(
+                                'Date',
+                                DateFormat('dd MMM yyyy')
+                                    .format(asset.beacukaiTglOut!),
+                              ),
+                            if (asset.beacukaiNoAjuOut != null)
+                              _buildInfoRow('No Aju', asset.beacukaiNoAjuOut!),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                  ],
+
                   // Additional Information
                   Text('Additional Information',
                       style: Theme.of(context).textTheme.titleMedium),
@@ -377,7 +404,7 @@ class AssetDetailScreen extends ConsumerWidget {
                       DateFormat('dd MMM yyyy HH:mm').format(asset.updatedAt)),
                   const SizedBox(height: 24),
 
-                  // Loan History Section (NEW)
+                  // Loan History Section
                   if (canManage) ...[
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -523,53 +550,43 @@ class AssetDetailScreen extends ConsumerWidget {
                         style: Theme.of(context).textTheme.titleMedium),
                     const SizedBox(height: 8),
 
-                    // Edit Asset (Always visible)
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton.icon(
                         onPressed: () => _showEditDialog(context, ref, asset),
                         icon: const Icon(Icons.edit),
-                        label: Text(asset.isPending
-                            ? 'Set Classification & Status'
-                            : 'Edit Asset'),
+                        label: const Text('Edit Asset'),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor:
-                              asset.isPending ? Colors.amber : Colors.blue,
+                          backgroundColor: Colors.blue,
                           foregroundColor: Colors.white,
                         ),
                       ),
                     ),
                     const SizedBox(height: 8),
 
-                    // Loanable Actions
-                    if (asset.assetCategory == 'loanable' &&
-                        !asset.isPending &&
-                        !asset.isDisposed) ...[
-                      if (asset.isAvailable)
-                        SizedBox(
-                          width: double.infinity,
-                          child: OutlinedButton.icon(
-                            onPressed: () =>
-                                _showLoanDialog(context, ref, asset),
-                            icon: const Icon(Icons.output),
-                            label: const Text('Loan Out Asset'),
+                    // Loan Actions (tetap sama seperti sebelumnya)
+                    if (asset.isAvailable)
+                      SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton.icon(
+                          onPressed: () => _showLoanDialog(context, ref, asset),
+                          icon: const Icon(Icons.output),
+                          label: const Text('Loan Out Asset'),
+                        ),
+                      ),
+                    if (asset.isBorrowed || asset.isLent)
+                      SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton.icon(
+                          onPressed: () => _showReturnDialog(
+                              context, ref, asset, loanHistoryAsync.value),
+                          icon: const Icon(Icons.assignment_return),
+                          label: const Text('Mark as Returned'),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: Colors.green,
                           ),
                         ),
-                      if (asset.isBorrowed || asset.isLent)
-                        SizedBox(
-                          width: double.infinity,
-                          child: OutlinedButton.icon(
-                            onPressed: () => _showReturnDialog(
-                                context, ref, asset, loanHistoryAsync.value),
-                            icon: const Icon(Icons.assignment_return),
-                            label: const Text('Mark as Returned'),
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: Colors.green,
-                            ),
-                          ),
-                        ),
-                      const SizedBox(height: 8),
-                    ],
+                      ),
                   ]
                 ],
               ),
@@ -635,11 +652,10 @@ class AssetDetailScreen extends ConsumerWidget {
     );
   }
 
-  // EDIT DIALOG (UPDATED with assetType)
+  // ✅ UPDATED: Edit Dialog - simplified, no ownership
   void _showEditDialog(BuildContext context, WidgetRef ref, AssetModel asset) {
-    String selectedCategory = asset.assetCategory;
     String selectedType = asset.assetType;
-    String selectedStatus = asset.status ?? '';
+    String selectedStatus = asset.status;
     int selectedQuantity = asset.quantity;
     final nameController = TextEditingController(text: asset.name);
     final notesController = TextEditingController(text: asset.notes ?? '');
@@ -648,8 +664,7 @@ class AssetDetailScreen extends ConsumerWidget {
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (context, setState) => AlertDialog(
-          title: Text(
-              asset.isPending ? 'Set Classification & Status' : 'Edit Asset'),
+          title: const Text('Edit Asset'),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -664,7 +679,7 @@ class AssetDetailScreen extends ConsumerWidget {
                 ),
                 const SizedBox(height: 16),
 
-                // Asset Type (NEW)
+                // Asset Type
                 const Text('Asset Type:',
                     style: TextStyle(fontWeight: FontWeight.bold)),
                 const SizedBox(height: 8),
@@ -700,121 +715,34 @@ class AssetDetailScreen extends ConsumerWidget {
                 ),
                 const SizedBox(height: 16),
 
-                // Category
-                const Text('Category:',
+                // Status
+                const Text('Status:',
                     style: TextStyle(fontWeight: FontWeight.bold)),
                 const SizedBox(height: 8),
                 DropdownButtonFormField<String>(
-                  value: selectedCategory,
-                  decoration: InputDecoration(
-                    border: const OutlineInputBorder(),
-                    filled: selectedCategory == 'pending',
-                    fillColor: selectedCategory == 'pending'
-                        ? Colors.amber.shade50
-                        : null,
+                  value: selectedStatus,
+                  decoration: const InputDecoration(
+                    border: OutlineInputBorder(),
                   ),
                   items: const [
                     DropdownMenuItem(
-                      value: 'pending',
-                      child: Row(
-                        children: [
-                          Icon(Icons.help_outline, color: Colors.amber),
-                          SizedBox(width: 8),
-                          Text('Pending Classification'),
-                        ],
-                      ),
-                    ),
+                        value: 'available', child: Text('Available')),
                     DropdownMenuItem(
-                      value: 'loanable',
-                      child: Row(
-                        children: [
-                          Icon(Icons.devices, color: Colors.purple),
-                          SizedBox(width: 8),
-                          Text('Loanable'),
-                        ],
-                      ),
-                    ),
+                        value: 'saleable', child: Text('Saleable')),
                     DropdownMenuItem(
-                      value: 'saleable',
-                      child: Row(
-                        children: [
-                          Icon(Icons.shopping_bag, color: Colors.green),
-                          SizedBox(width: 8),
-                          Text('Saleable'),
-                        ],
-                      ),
-                    ),
+                        value: 'loanable', child: Text('Loanable')),
                     DropdownMenuItem(
-                      value: 'disposed',
-                      child: Row(
-                        children: [
-                          Icon(Icons.delete_forever, color: Colors.grey),
-                          SizedBox(width: 8),
-                          Text('Disposed'),
-                        ],
-                      ),
-                    ),
+                        value: 'disposed', child: Text('Disposed')),
+                    DropdownMenuItem(
+                        value: 'borrowed', child: Text('Borrowed')),
+                    DropdownMenuItem(value: 'lent', child: Text('Lent')),
+                    DropdownMenuItem(value: 'sold', child: Text('Sold')),
+                    DropdownMenuItem(
+                        value: 'returned', child: Text('Returned')),
                   ],
-                  onChanged: (v) => setState(() => selectedCategory = v!),
+                  onChanged: (v) => setState(() => selectedStatus = v!),
                 ),
                 const SizedBox(height: 16),
-
-                Visibility(
-                  visible: selectedCategory != 'disposed',
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Status
-                      const Text('Status:',
-                          style: TextStyle(fontWeight: FontWeight.bold)),
-                      const SizedBox(height: 8),
-                      DropdownButtonFormField<String>(
-                        value: selectedStatus,
-                        decoration: const InputDecoration(
-                          border: OutlineInputBorder(),
-                        ),
-                        items: const [
-                          DropdownMenuItem(
-                              value: 'available', child: Text('Available')),
-                          DropdownMenuItem(
-                              value: 'borrowed', child: Text('Borrowed')),
-                          DropdownMenuItem(value: 'lent', child: Text('Lent')),
-                          DropdownMenuItem(value: 'sold', child: Text('Sold')),
-                          DropdownMenuItem(
-                              value: 'returned', child: Text('Returned')),
-                        ],
-                        onChanged: (v) => setState(() => selectedStatus = v!),
-                      ),
-                      const SizedBox(height: 16),
-                    ],
-                  ),
-                ),
-
-                // disposed
-                if (selectedCategory == 'disposed')
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 16),
-                    child: Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: Colors.grey.shade200,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(Icons.info_outline,
-                              color: Colors.grey.shade700, size: 20),
-                          const SizedBox(width: 8),
-                          const Expanded(
-                            child: Text(
-                              'Disposed items have no status',
-                              style: TextStyle(fontSize: 12),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
 
                 // Quantity
                 TextField(
@@ -861,7 +789,6 @@ class AssetDetailScreen extends ConsumerWidget {
                   ref,
                   asset.id,
                   nameController.text,
-                  selectedCategory,
                   selectedType,
                   selectedStatus,
                   selectedQuantity,
@@ -883,7 +810,6 @@ class AssetDetailScreen extends ConsumerWidget {
     WidgetRef ref,
     String assetId,
     String name,
-    String category,
     String type,
     String status,
     int quantity,
@@ -893,12 +819,9 @@ class AssetDetailScreen extends ConsumerWidget {
   ) async {
     _showLoading(context, 'Updating...');
     try {
-      String? finalStatus = category == 'disposed' ? null : status;
-
       await ref.read(assetRepositoryProvider).updateAsset(
             id: assetId,
             name: name,
-            assetCategory: category,
             assetType: type,
             status: status,
             quantity: quantity,
